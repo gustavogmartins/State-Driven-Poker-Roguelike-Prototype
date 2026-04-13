@@ -2,7 +2,7 @@
 /shelf/
 /workspace.xml
 # Rider ignored files
-/.idea.State-Driven-Card-Sample.iml
-/contentModel.xml
-/projectSettingsUpdater.xml
 /modules.xml
+/contentModel.xml
+/.idea.State-Driven-Poker-Rougelike-Prototype.iml
+/projectSettingsUpdater.xml
