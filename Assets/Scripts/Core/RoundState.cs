@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace Core {
     public sealed class RoundState {
         public string BlindName { get; }
@@ -5,16 +7,19 @@ namespace Core {
         public int CurrentScore { get; }
         public int HandsLeft { get; }
         public int DiscardsLeft { get; }
-        public RoundPhaseEnum Phase { get; }
+        public RoundPhase Phase { get; }
+        public IReadOnlyList<CardData> HandCards { get; }
+
 
         public RoundState(string blindName, int targetScore, int currentScore, int handsLeft, int discardsLeft,
-            RoundPhaseEnum phase) {
+            RoundPhase phase, IReadOnlyList<CardData> handCards) {
             BlindName = blindName;
             TargetScore = targetScore;
             CurrentScore = currentScore;
             HandsLeft = handsLeft;
             DiscardsLeft = discardsLeft;
             Phase = phase;
+            HandCards = handCards;
         }
 
         public static RoundState CreateDebug() {
@@ -24,7 +29,18 @@ namespace Core {
                 currentScore: 0,
                 handsLeft: 4,
                 discardsLeft: 3,
-                phase: RoundPhaseEnum.Waiting
+                phase: RoundPhase.Waiting,
+                handCards: new List<CardData> {
+                    new CardData(Rank.Ace, Suit.Spades),
+                    new CardData(Rank.Ten, Suit.Hearts),
+                    new CardData(Rank.King, Suit.Diamonds),
+                    new CardData(Rank.Four, Suit.Clubs),
+                    new CardData(Rank.Seven, Suit.Spades),
+                    new CardData(Rank.Queen, Suit.Hearts),
+                    new CardData(Rank.Two, Suit.Diamonds),
+                    new CardData(Rank.Jack, Suit.Clubs)
+                    
+                }
             );
         }
 
@@ -35,7 +51,8 @@ namespace Core {
                 newScore,
                 HandsLeft,
                 DiscardsLeft,
-                Phase
+                Phase,
+                HandCards
             );
         }
 
@@ -46,7 +63,8 @@ namespace Core {
                 CurrentScore,
                 handsLeft,
                 DiscardsLeft,
-                Phase
+                Phase,
+                HandCards
             );
         }
 
@@ -57,18 +75,20 @@ namespace Core {
                 CurrentScore,
                 HandsLeft,
                 discardsLeft,
-                Phase
+                Phase,
+                HandCards
             );
         }
 
-        public RoundState WithPhase(RoundPhaseEnum phase) {
+        public RoundState WithPhase(RoundPhase phase) {
             return new RoundState(
                 BlindName,
                 TargetScore,
                 CurrentScore,
                 HandsLeft,
                 DiscardsLeft,
-                phase
+                phase,
+                HandCards
                 );
         }
     }

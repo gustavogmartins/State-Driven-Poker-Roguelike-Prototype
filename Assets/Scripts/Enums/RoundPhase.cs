@@ -1,4 +1,4 @@
-﻿public enum RoundPhaseEnum {
+﻿public enum RoundPhase {
     Waiting,
     PlayerTurn,
     Scoring,

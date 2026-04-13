@@ -3,6 +3,7 @@ using Presenters;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using View;
 
 public class RoundScreen : MonoBehaviour {
     [Header("Texts")] [SerializeField] private TextMeshProUGUI blindText;
@@ -16,6 +17,9 @@ public class RoundScreen : MonoBehaviour {
     [SerializeField] private Button useHandButton;
     [SerializeField] private Button discardButton;
     [SerializeField] private Button nextPhaseButton;
+
+    [SerializeField] private Transform handArea;
+    [SerializeField] private CardView cardViewPrefab;
 
     private RoundPresenter _roundPresenter;
     private RoundState _roundState;
@@ -45,14 +49,13 @@ public class RoundScreen : MonoBehaviour {
     }
 
     public void OnNextPhaseButtonClicked() {
-        var nextPhase = _roundState.Phase switch
-        {
-            RoundPhaseEnum.Waiting => RoundPhaseEnum.PlayerTurn,
-            RoundPhaseEnum.PlayerTurn => RoundPhaseEnum.Scoring,
-            RoundPhaseEnum.Scoring => RoundPhaseEnum.RoundEnd,
-            _ => RoundPhaseEnum.Waiting
+        var nextPhase = _roundState.Phase switch {
+            RoundPhase.Waiting => RoundPhase.PlayerTurn,
+            RoundPhase.PlayerTurn => RoundPhase.Scoring,
+            RoundPhase.Scoring => RoundPhase.RoundEnd,
+            _ => RoundPhase.Waiting
         };
-        
+
         _roundState = _roundState.WithPhase(nextPhase);
         Render(_roundState);
     }
@@ -66,5 +69,22 @@ public class RoundScreen : MonoBehaviour {
         handsLeft.text = viewModel.HandsLeftText;
         discardsLeft.text = viewModel.DiscardsLeftText;
         phase.text = viewModel.PhaseText;
+        
+        RenderHand(viewModel);
+    }
+
+    private void RenderHand(RoundViewModel viewModel) {
+        ClearHand();
+        
+        foreach (var cardVm in viewModel.HandCards) {
+            var cardView = Instantiate(cardViewPrefab, handArea);
+            cardView.Bind(cardVm);
+        }
+    }
+
+    private void ClearHand() {
+        for (int i = handArea.childCount - 1; i >= 0; i--) {
+            Destroy(handArea.GetChild(i).gameObject);
+        }
     }
 }
