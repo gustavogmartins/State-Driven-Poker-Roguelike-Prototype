@@ -5,10 +5,10 @@ namespace Core {
         public int CurrentScore { get; }
         public int HandsLeft { get; }
         public int DiscardsLeft { get; }
-        public string Phase { get; }
+        public RoundPhaseEnum Phase { get; }
 
         public RoundState(string blindName, int targetScore, int currentScore, int handsLeft, int discardsLeft,
-            string phase) {
+            RoundPhaseEnum phase) {
             BlindName = blindName;
             TargetScore = targetScore;
             CurrentScore = currentScore;
@@ -24,8 +24,52 @@ namespace Core {
                 currentScore: 0,
                 handsLeft: 4,
                 discardsLeft: 3,
-                phase: "Waiting"
+                phase: RoundPhaseEnum.Waiting
             );
+        }
+
+        public RoundState WithScore(int newScore) {
+            return new RoundState(
+                BlindName,
+                TargetScore,
+                newScore,
+                HandsLeft,
+                DiscardsLeft,
+                Phase
+            );
+        }
+
+        public RoundState WithHandsLeft(int handsLeft) {
+            return new RoundState(
+                BlindName,
+                TargetScore,
+                CurrentScore,
+                handsLeft,
+                DiscardsLeft,
+                Phase
+            );
+        }
+
+        public RoundState WithDiscardsLeft(int discardsLeft) {
+            return new RoundState(
+                BlindName,
+                TargetScore,
+                CurrentScore,
+                HandsLeft,
+                discardsLeft,
+                Phase
+            );
+        }
+
+        public RoundState WithPhase(RoundPhaseEnum phase) {
+            return new RoundState(
+                BlindName,
+                TargetScore,
+                CurrentScore,
+                HandsLeft,
+                DiscardsLeft,
+                phase
+                );
         }
     }
 }
