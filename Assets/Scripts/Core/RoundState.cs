@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Core {
     public sealed class RoundState {
@@ -9,10 +10,11 @@ namespace Core {
         public int DiscardsLeft { get; }
         public RoundPhase Phase { get; }
         public IReadOnlyList<CardData> HandCards { get; }
+        public IReadOnlyList<int> SelectedCardsIndexes { get; }
 
 
         public RoundState(string blindName, int targetScore, int currentScore, int handsLeft, int discardsLeft,
-            RoundPhase phase, IReadOnlyList<CardData> handCards) {
+            RoundPhase phase, IReadOnlyList<CardData> handCards, IReadOnlyList<int> selectedCardsIndexes) {
             BlindName = blindName;
             TargetScore = targetScore;
             CurrentScore = currentScore;
@@ -20,6 +22,7 @@ namespace Core {
             DiscardsLeft = discardsLeft;
             Phase = phase;
             HandCards = handCards;
+            SelectedCardsIndexes = selectedCardsIndexes;
         }
 
         public static RoundState CreateDebug() {
@@ -39,8 +42,8 @@ namespace Core {
                     new CardData(Rank.Queen, Suit.Hearts),
                     new CardData(Rank.Two, Suit.Diamonds),
                     new CardData(Rank.Jack, Suit.Clubs)
-                    
-                }
+                },
+                selectedCardsIndexes: new List<int>()
             );
         }
 
@@ -52,7 +55,8 @@ namespace Core {
                 HandsLeft,
                 DiscardsLeft,
                 Phase,
-                HandCards
+                HandCards,
+                SelectedCardsIndexes
             );
         }
 
@@ -64,7 +68,8 @@ namespace Core {
                 handsLeft,
                 DiscardsLeft,
                 Phase,
-                HandCards
+                HandCards,
+                SelectedCardsIndexes
             );
         }
 
@@ -76,7 +81,8 @@ namespace Core {
                 HandsLeft,
                 discardsLeft,
                 Phase,
-                HandCards
+                HandCards,
+                SelectedCardsIndexes
             );
         }
 
@@ -88,8 +94,37 @@ namespace Core {
                 HandsLeft,
                 DiscardsLeft,
                 phase,
-                HandCards
+                HandCards,
+                SelectedCardsIndexes
                 );
+        }
+        
+        public bool IsSelected(int index) {
+            return SelectedCardsIndexes.Contains(index);
+        }
+        
+        public RoundState ToggleCardSelection(int index) {
+            var newSelectedCardsIndexes = new List<int>(SelectedCardsIndexes);
+
+            if (newSelectedCardsIndexes.Contains(index)) {
+                newSelectedCardsIndexes.Remove(index);
+            } else {
+                if (newSelectedCardsIndexes.Count >= 5) {
+                    return this;
+                }
+                newSelectedCardsIndexes.Add(index);
+            }
+            
+            return new RoundState(
+                BlindName,
+                TargetScore,
+                CurrentScore,
+                HandsLeft,
+                DiscardsLeft,
+                Phase,
+                HandCards,
+                newSelectedCardsIndexes
+            );
         }
     }
 }

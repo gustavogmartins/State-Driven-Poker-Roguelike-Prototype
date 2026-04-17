@@ -79,7 +79,13 @@ public class RoundScreen : MonoBehaviour {
         foreach (var cardVm in viewModel.HandCards) {
             var cardView = Instantiate(cardViewPrefab, handArea);
             cardView.Bind(cardVm);
+            cardView.OnCardSelected += OnCardSelected;
         }
+    }
+
+    private void OnCardSelected(int index) {
+        _roundState = _roundState.ToggleCardSelection(index);
+        Render(_roundState);
     }
 
     private void ClearHand() {

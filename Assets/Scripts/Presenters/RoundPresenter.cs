@@ -13,9 +13,13 @@ namespace Presenters {
                 PhaseText = $"Phase: {roundState.Phase}",
             };
 
-            foreach (var card in roundState.HandCards) {
+            for (int i = 0; i < roundState.HandCards.Count; i++) {
+                var card = roundState.HandCards[i];
+
                 viewModel.HandCards.Add(new CardViewModel {
-                    CardName = FormatCard(card)   
+                    Index = i,
+                    CardName = FormatCard(card),
+                    IsSelected = roundState.IsSelected(i)
                 });
             }
 

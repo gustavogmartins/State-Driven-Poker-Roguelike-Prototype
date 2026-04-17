@@ -999,7 +999,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 0, y: 33}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &958987889
@@ -2289,6 +2289,8 @@ MonoBehaviour:
   useHandButton: {fileID: 2088473864}
   discardButton: {fileID: 376227537}
   nextPhaseButton: {fileID: 1807730511}
+  handArea: {fileID: 1988221631}
+  cardViewPrefab: {fileID: 6586708954188405360, guid: f1e44abb4a35ca347a132f58609bd185, type: 3}
 --- !u!1 &1915186284
 GameObject:
   m_ObjectHideFlags: 0
