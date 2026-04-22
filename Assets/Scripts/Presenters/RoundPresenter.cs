@@ -9,10 +9,12 @@ namespace Presenters {
                 TargetScoreText = $"Target: {roundState.TargetScore}",
                 CurrentScoreText = $"Score: {roundState.CurrentScore}",
                 DiscardsLeftText = $"Discards: {roundState.DiscardsLeft}",
+                DeckCountText = $"Deck: {roundState.DeckCards.Count}",
                 HandsLeftText = $"Hands: {roundState.HandsLeft}",
                 PhaseText = $"Phase: {roundState.Phase}",
                 LastPlayedCountText = $"Played Count: {roundState.LastPlayedCardsCount}",
                 LastPlayedCardsText = $"Last Played: {roundState.LastPlayedCardsText}",
+                HandSizeText = $"{roundState.HandCards.Count}/{roundState.MaxHandSize}"
             };
 
             for (int i = 0; i < roundState.HandCards.Count; i++) {

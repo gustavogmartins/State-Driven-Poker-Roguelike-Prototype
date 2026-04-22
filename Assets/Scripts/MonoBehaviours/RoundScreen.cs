@@ -30,6 +30,7 @@ public class RoundScreen : MonoBehaviour {
 
     [Header("Hand Area")]
     [SerializeField] private Transform handArea;
+    [SerializeField] private TextMeshProUGUI handSizeText;
 
     [Header("Played Hand Area")]
     [SerializeField] private Transform playedHandArea;
@@ -37,6 +38,9 @@ public class RoundScreen : MonoBehaviour {
     [Header("Card Prefab")]
     [SerializeField] private CardView cardViewPrefab;
 
+    [Header("Deck Area")]
+    [SerializeField] private TextMeshProUGUI deckCountText;
+    
     private RoundPresenter _roundPresenter;
     private RoundState _roundState;
 
@@ -93,6 +97,8 @@ public class RoundScreen : MonoBehaviour {
         phase.text = viewModel.PhaseText;
         lastPlayedCardsText.text = viewModel.LastPlayedCardsText;
         lastPlayedCountText.text = viewModel.LastPlayedCountText;
+        handSizeText.text = viewModel.HandSizeText;
+        deckCountText.text = viewModel.DeckCountText;
         
         RenderHand(viewModel);
     }

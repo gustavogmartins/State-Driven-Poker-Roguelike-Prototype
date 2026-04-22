@@ -12,13 +12,13 @@ namespace Core {
         public RoundPhase Phase { get; }
         public IReadOnlyList<CardData> HandCards { get; }
         private IReadOnlyList<int> SelectedCardsIndexes { get; }
+        public IReadOnlyList<CardData> DeckCards { get; }
         public string LastPlayedCardsText { get; }
         public int LastPlayedCardsCount { get; }
         public int MaxHandSize { get; }
 
-
         public RoundState(string blindName, int targetScore, int currentScore, int handsLeft, int discardsLeft,
-            RoundPhase phase, int maxHandSize, IReadOnlyList<CardData> handCards,
+            RoundPhase phase, int maxHandSize, IReadOnlyList<CardData> deckCards,IReadOnlyList<CardData> handCards,
             IReadOnlyList<int> selectedCardsIndexes, string lastPlayedCardsText, int lastPlayedCardsCount) {
             BlindName = blindName;
             TargetScore = targetScore;
@@ -27,6 +27,7 @@ namespace Core {
             DiscardsLeft = discardsLeft;
             Phase = phase;
             MaxHandSize = maxHandSize;
+            DeckCards = deckCards;
             HandCards = handCards;
             SelectedCardsIndexes = selectedCardsIndexes;
             LastPlayedCardsCount = lastPlayedCardsCount;
@@ -34,6 +35,9 @@ namespace Core {
         }
 
         public static RoundState CreateDebug() {
+            var fullDeck = DeckBuilder.CreateStandard52();
+            var drawResult = DeckUtility.DrawCards(fullDeck, 8);
+            
             return new RoundState(
                 blindName: "Small blind",
                 targetScore: 300,
@@ -42,16 +46,8 @@ namespace Core {
                 discardsLeft: 3,
                 phase: RoundPhase.Waiting,
                 maxHandSize: 8,
-                handCards: new List<CardData> {
-                    new CardData(Rank.Ace, Suit.Spades),
-                    new CardData(Rank.Ten, Suit.Hearts),
-                    new CardData(Rank.King, Suit.Diamonds),
-                    new CardData(Rank.Four, Suit.Clubs),
-                    new CardData(Rank.Seven, Suit.Spades),
-                    new CardData(Rank.Queen, Suit.Hearts),
-                    new CardData(Rank.Two, Suit.Diamonds),
-                    new CardData(Rank.Jack, Suit.Clubs)
-                },
+                deckCards: drawResult.RemainingDeck,
+                handCards: drawResult.DrawnCards,
                 selectedCardsIndexes: new List<int>(),
                 lastPlayedCardsText: "None",
                 lastPlayedCardsCount: 0
@@ -67,6 +63,7 @@ namespace Core {
                 DiscardsLeft,
                 Phase,
                 MaxHandSize,
+                DeckCards,
                 HandCards,
                 SelectedCardsIndexes,
                 LastPlayedCardsText,
@@ -83,6 +80,7 @@ namespace Core {
                 DiscardsLeft,
                 Phase,
                 MaxHandSize,
+                DeckCards,
                 HandCards,
                 SelectedCardsIndexes,
                 LastPlayedCardsText,
@@ -99,6 +97,7 @@ namespace Core {
                 discardsLeft,
                 Phase,
                 MaxHandSize,
+                DeckCards,
                 HandCards,
                 SelectedCardsIndexes,
                 LastPlayedCardsText,
@@ -115,6 +114,7 @@ namespace Core {
                 DiscardsLeft,
                 phase,
                 MaxHandSize,
+                DeckCards,
                 HandCards,
                 SelectedCardsIndexes,
                 LastPlayedCardsText,
@@ -147,6 +147,7 @@ namespace Core {
                 DiscardsLeft,
                 Phase,
                 MaxHandSize,
+                DeckCards,
                 HandCards,
                 newSelectedCardsIndexes,
                 LastPlayedCardsText,
@@ -159,19 +160,24 @@ namespace Core {
                 return this;
 
             var playedCards = new List<CardData>();
-            var remainingCards = new List<CardData>();
+            var remainingHandCards = new List<CardData>();
 
             for (int i = 0; i < HandCards.Count; i++) {
                 var card = HandCards[i];
                 if (SelectedCardsIndexes.Contains(i)) {
                     playedCards.Add(card);
                 } else {
-                    remainingCards.Add(card);
+                    remainingHandCards.Add(card);
                 }
             }
+            
+            var cardsNeeded = MaxHandSize - remainingHandCards.Count;
+            var drawResult = DeckUtility.DrawCards(DeckCards, cardsNeeded);
+
+            var newHand = new List<CardData>(remainingHandCards);
+            newHand.AddRange(drawResult.DrawnCards);
 
             var playedCardsText = FormatPlayedCardsText(playedCards);
-            var refilledHand = DebugCardFactory.FillToSize(remainingCards, MaxHandSize);
             var newHandsLeft = Mathf.Max(0, HandsLeft - 1);
 
             return new RoundState(
@@ -182,7 +188,8 @@ namespace Core {
                 discardsLeft: DiscardsLeft,
                 phase: RoundPhase.Scoring,
                 maxHandSize: MaxHandSize,
-                handCards: refilledHand,
+                deckCards: drawResult.RemainingDeck,
+                handCards: newHand,
                 selectedCardsIndexes: new List<int>(),
                 lastPlayedCardsText: playedCardsText,
                 lastPlayedCardsCount: playedCards.Count
