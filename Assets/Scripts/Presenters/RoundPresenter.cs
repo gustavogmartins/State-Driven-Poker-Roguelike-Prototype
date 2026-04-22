@@ -14,7 +14,9 @@ namespace Presenters {
                 PhaseText = $"Phase: {roundState.Phase}",
                 LastPlayedCountText = $"Played Count: {roundState.LastPlayedCardsCount}",
                 LastPlayedCardsText = $"Last Played: {roundState.LastPlayedCardsText}",
-                HandSizeText = $"{roundState.HandCards.Count}/{roundState.MaxHandSize}"
+                HandSizeText = $"{roundState.HandCards.Count}/{roundState.MaxHandSize}",
+                DiscardPileCountText = $"Discard Pile: {roundState.DiscardPileCards.Count}",
+                TopDiscardText = $"Top Discard: {FormatTopDiscard(roundState)}",
             };
 
             for (int i = 0; i < roundState.HandCards.Count; i++) {
@@ -53,6 +55,15 @@ namespace Presenters {
                 Rank.Ten => "10",
                 _ => ((int)cardRank).ToString()
             };
+        }
+        
+        private string FormatTopDiscard(RoundState roundState)
+        {
+            if (roundState.DiscardPileCards.Count == 0)
+                return "None";
+
+            var topCard = roundState.DiscardPileCards[roundState.DiscardPileCards.Count - 1];
+            return FormatCard(topCard);
         }
     }
 }

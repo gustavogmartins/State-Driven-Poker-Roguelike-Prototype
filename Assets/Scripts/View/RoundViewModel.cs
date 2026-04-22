@@ -13,5 +13,7 @@ namespace View {
         public string LastPlayedCountText;
         public string LastPlayedCardsText;
         public string HandSizeText;
+        public string DiscardPileCountText;
+        public string TopDiscardText;
     }
 }
