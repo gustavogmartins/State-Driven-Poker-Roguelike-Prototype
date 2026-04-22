@@ -13,6 +13,7 @@ namespace Presenters {
                 HandsLeftText = $"Hands: {roundState.HandsLeft}",
                 PhaseText = $"Phase: {roundState.Phase}",
                 LastPlayedCountText = $"Played Count: {roundState.LastPlayedCardsCount}",
+                LastActionText = $"Last Action: {roundState.LastActionText}",
                 LastPlayedCardsText = $"Last Played: {roundState.LastPlayedCardsText}",
                 HandSizeText = $"{roundState.HandCards.Count}/{roundState.MaxHandSize}",
                 DiscardPileCountText = $"Discard Pile: {roundState.DiscardPileCards.Count}",

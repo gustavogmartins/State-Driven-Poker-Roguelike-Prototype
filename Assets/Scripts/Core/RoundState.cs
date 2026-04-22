@@ -14,14 +14,17 @@ namespace Core {
         public IReadOnlyList<CardData> DeckCards { get; }
         public IReadOnlyList<CardData> DiscardPileCards { get; }
         private IReadOnlyList<int> SelectedCardsIndexes { get; }
+        public string LastActionText { get; }
         public string LastPlayedCardsText { get; }
         public int LastPlayedCardsCount { get; }
         public int MaxHandSize { get; }
 
-        public RoundState(string blindName, int targetScore, int currentScore, int handsLeft, int discardsLeft, RoundPhase phase, 
-            int maxHandSize, IReadOnlyList<CardData> deckCards, IReadOnlyList<CardData> handCards, IReadOnlyList<CardData> discardPileCards, 
-            IReadOnlyList<int> selectedCardsIndexes, string lastPlayedCardsText, int lastPlayedCardsCount) {
-            
+        public RoundState(string blindName, int targetScore, int currentScore, int handsLeft, int discardsLeft,
+            RoundPhase phase,
+            int maxHandSize, IReadOnlyList<CardData> deckCards, IReadOnlyList<CardData> handCards,
+            IReadOnlyList<CardData> discardPileCards,
+            IReadOnlyList<int> selectedCardsIndexes, string lastActionText, string lastPlayedCardsText,
+            int lastPlayedCardsCount) {
             BlindName = blindName;
             TargetScore = targetScore;
             CurrentScore = currentScore;
@@ -33,6 +36,7 @@ namespace Core {
             HandCards = handCards;
             DiscardPileCards = discardPileCards;
             SelectedCardsIndexes = selectedCardsIndexes;
+            LastActionText = lastActionText;
             LastPlayedCardsText = lastPlayedCardsText;
             LastPlayedCardsCount = lastPlayedCardsCount;
         }
@@ -53,6 +57,7 @@ namespace Core {
                 handCards: drawResult.DrawnCards,
                 discardPileCards: new List<CardData>(),
                 selectedCardsIndexes: new List<int>(),
+                lastActionText: "None",
                 lastPlayedCardsText: "None",
                 lastPlayedCardsCount: 0
             );
@@ -71,6 +76,7 @@ namespace Core {
                 HandCards,
                 DiscardPileCards,
                 SelectedCardsIndexes,
+                LastActionText,
                 LastPlayedCardsText,
                 LastPlayedCardsCount
             );
@@ -89,6 +95,7 @@ namespace Core {
                 HandCards,
                 DiscardPileCards,
                 SelectedCardsIndexes,
+                LastActionText,
                 LastPlayedCardsText,
                 LastPlayedCardsCount
             );
@@ -107,6 +114,7 @@ namespace Core {
                 HandCards,
                 DiscardPileCards,
                 SelectedCardsIndexes,
+                LastActionText,
                 LastPlayedCardsText,
                 LastPlayedCardsCount
             );
@@ -125,6 +133,7 @@ namespace Core {
                 HandCards,
                 DiscardPileCards,
                 SelectedCardsIndexes,
+                LastActionText,
                 LastPlayedCardsText,
                 LastPlayedCardsCount
             );
@@ -159,6 +168,7 @@ namespace Core {
                 HandCards,
                 DiscardPileCards,
                 newSelectedCardsIndexes,
+                LastActionText,
                 LastPlayedCardsText,
                 LastPlayedCardsCount
             );
@@ -185,7 +195,7 @@ namespace Core {
 
             var newHand = new List<CardData>(remainingHandCards);
             newHand.AddRange(drawResult.DrawnCards);
-            
+
             var newDiscardPile = new List<CardData>(DiscardPileCards);
             newDiscardPile.AddRange(playedCards);
 
@@ -204,8 +214,56 @@ namespace Core {
                 discardPileCards: newDiscardPile,
                 handCards: newHand,
                 selectedCardsIndexes: new List<int>(),
+                lastActionText: "Played",
                 lastPlayedCardsText: playedCardsText,
                 lastPlayedCardsCount: playedCards.Count
+            );
+        }
+
+        public RoundState DiscardCards() {
+            if (SelectedCardsIndexes.Count == 0) return this;
+            if (DiscardsLeft <= 0) return this;
+
+            var discardedCards = new List<CardData>();
+            var remainingHandCards = new List<CardData>();
+
+            for (int i = 0; i < HandCards.Count; i++) {
+                var card = HandCards[i];
+
+                if (SelectedCardsIndexes.Contains(i)) {
+                    discardedCards.Add(card);
+                } else {
+                    remainingHandCards.Add(card);
+                }
+            }
+
+            var cardsNeeded = MaxHandSize - remainingHandCards.Count;
+            var drawResult = DeckUtility.DrawCards(DeckCards, cardsNeeded);
+
+            var newHand = new List<CardData>(remainingHandCards);
+            newHand.AddRange(drawResult.DrawnCards);
+
+            var newDiscardPile = new List<CardData>(DiscardPileCards);
+            newDiscardPile.AddRange(discardedCards);
+
+            var discardedCardsText = FormatPlayedCardsText(discardedCards);
+            var newDiscardsLeft = Mathf.Max(0, DiscardsLeft - 1);
+
+            return new RoundState(
+                blindName: BlindName,
+                targetScore: TargetScore,
+                currentScore: CurrentScore,
+                handsLeft: HandsLeft,
+                discardsLeft: newDiscardsLeft,
+                phase: RoundPhase.PlayerTurn,
+                maxHandSize: MaxHandSize,
+                deckCards: drawResult.RemainingDeck,
+                handCards: newHand,
+                discardPileCards: newDiscardPile,
+                selectedCardsIndexes: new List<int>(),
+                lastActionText: "Discarded",
+                lastPlayedCardsText: discardedCardsText,
+                lastPlayedCardsCount: discardedCards.Count
             );
         }
 
@@ -242,6 +300,5 @@ namespace Core {
                 _ => "?"
             };
         }
-        
     }
 }

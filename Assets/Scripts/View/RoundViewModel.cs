@@ -12,6 +12,7 @@ namespace View {
         public List<CardViewModel> HandCards = new();
         public string LastPlayedCountText;
         public string LastPlayedCardsText;
+        public string LastActionText;
         public string HandSizeText;
         public string DiscardPileCountText;
         public string TopDiscardText;

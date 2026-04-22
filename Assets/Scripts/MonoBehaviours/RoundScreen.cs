@@ -14,6 +14,7 @@ public class RoundScreen : MonoBehaviour {
     [SerializeField] private TextMeshProUGUI discardsLeft;
     [SerializeField] private TextMeshProUGUI phase;
     [SerializeField] private TextMeshProUGUI lastPlayedCardsText;
+    [SerializeField] private TextMeshProUGUI lastActionText;
     [SerializeField] private TextMeshProUGUI lastPlayedCountText;
     [SerializeField] private TextMeshProUGUI discardPileCountText;
     [SerializeField] private TextMeshProUGUI topDiscardText;
@@ -58,6 +59,10 @@ public class RoundScreen : MonoBehaviour {
         Render(_roundState);
     }
 
+    public void OnDiscardButtonClicked() {
+        _roundState = _roundState.DiscardCards();
+        Render(_roundState);
+    }
     
     public void OnAddScoreButtonClicked() {
         _roundState = _roundState.WithScore(_roundState.CurrentScore + 100);
@@ -67,12 +72,6 @@ public class RoundScreen : MonoBehaviour {
     public void OnUseHandButtonClicked() {
         var newHandsLeft = Mathf.Max(0, _roundState.HandsLeft - 1);
         _roundState = _roundState.WithHandsLeft(newHandsLeft);
-        Render(_roundState);
-    }
-
-    public void OnDiscardButtonClicked() {
-        var newDiscardsLeft = Mathf.Max(0, _roundState.DiscardsLeft - 1);
-        _roundState = _roundState.WithHandsLeft(newDiscardsLeft);
         Render(_roundState);
     }
 
@@ -98,6 +97,7 @@ public class RoundScreen : MonoBehaviour {
         discardsLeft.text = viewModel.DiscardsLeftText;
         phase.text = viewModel.PhaseText;
         lastPlayedCardsText.text = viewModel.LastPlayedCardsText;
+        lastActionText.text = viewModel.LastActionText;
         lastPlayedCountText.text = viewModel.LastPlayedCountText;
         handSizeText.text = viewModel.HandSizeText;
         deckCountText.text = viewModel.DeckCountText;
