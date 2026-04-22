@@ -16,6 +16,7 @@ namespace Core {
         private IReadOnlyList<int> SelectedCardsIndexes { get; }
         public string LastActionText { get; }
         public string LastPlayedCardsText { get; }
+        public IReadOnlyList<CardData> LastPlayedCards { get; }
         public int LastPlayedCardsCount { get; }
         public int MaxHandSize { get; }
         public PokerHandType LastPlayedHandType { get; }
@@ -24,7 +25,7 @@ namespace Core {
             RoundPhase phase,
             int maxHandSize, IReadOnlyList<CardData> deckCards, IReadOnlyList<CardData> handCards,
             IReadOnlyList<CardData> discardPileCards,
-            IReadOnlyList<int> selectedCardsIndexes, string lastActionText, string lastPlayedCardsText,
+            IReadOnlyList<int> selectedCardsIndexes, string lastActionText, string lastPlayedCardsText, IReadOnlyList<CardData> lastPlayedCards,
             int lastPlayedCardsCount, PokerHandType lastPlayedHandType) {
             BlindName = blindName;
             TargetScore = targetScore;
@@ -62,6 +63,7 @@ namespace Core {
                 selectedCardsIndexes: new List<int>(),
                 lastActionText: "None",
                 lastPlayedCardsText: "None",
+                lastPlayedCards: new List<CardData>(),
                 lastPlayedCardsCount: 0,
                 lastPlayedHandType: PokerHandType.None
             );
@@ -82,6 +84,7 @@ namespace Core {
                 SelectedCardsIndexes,
                 LastActionText,
                 LastPlayedCardsText,
+                LastPlayedCards,
                 LastPlayedCardsCount,
                 LastPlayedHandType
             );
@@ -102,6 +105,7 @@ namespace Core {
                 SelectedCardsIndexes,
                 LastActionText,
                 LastPlayedCardsText,
+                LastPlayedCards,
                 LastPlayedCardsCount,
                 LastPlayedHandType
             );
@@ -122,6 +126,7 @@ namespace Core {
                 SelectedCardsIndexes,
                 LastActionText,
                 LastPlayedCardsText,
+                LastPlayedCards,
                 LastPlayedCardsCount,
                 LastPlayedHandType
             );
@@ -142,6 +147,7 @@ namespace Core {
                 SelectedCardsIndexes,
                 LastActionText,
                 LastPlayedCardsText,
+                LastPlayedCards,
                 LastPlayedCardsCount,
                 LastPlayedHandType
             );
@@ -178,6 +184,7 @@ namespace Core {
                 newSelectedCardsIndexes,
                 LastActionText,
                 LastPlayedCardsText,
+                LastPlayedCards,
                 LastPlayedCardsCount,
                 LastPlayedHandType
             );
@@ -227,6 +234,7 @@ namespace Core {
                 selectedCardsIndexes: new List<int>(),
                 lastActionText: "Played",
                 lastPlayedCardsText: playedCardsText,
+                lastPlayedCards: new List<CardData>(playedCards),
                 lastPlayedCardsCount: playedCards.Count,
                 lastPlayedHandType: handResult.HandType
             );
@@ -275,6 +283,7 @@ namespace Core {
                 selectedCardsIndexes: new List<int>(),
                 lastActionText: "Discarded",
                 lastPlayedCardsText: discardedCardsText,
+                lastPlayedCards: new List<CardData>(),
                 lastPlayedCardsCount: discardedCards.Count,
                 lastPlayedHandType: PokerHandType.None
             );

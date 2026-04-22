@@ -58,6 +58,39 @@ public static class DebugHandFactory {
                 new CardData(Rank.Three, Suit.Diamonds),
             },
 
+            DebugHandScenario.Straight => new List<CardData> {
+                new CardData(Rank.Five, Suit.Spades),
+                new CardData(Rank.Six, Suit.Hearts),
+                new CardData(Rank.Seven, Suit.Clubs),
+                new CardData(Rank.Eight, Suit.Diamonds),
+                new CardData(Rank.Nine, Suit.Spades),
+                new CardData(Rank.King, Suit.Hearts),
+                new CardData(Rank.Two, Suit.Clubs),
+                new CardData(Rank.Three, Suit.Diamonds),
+            },
+
+            DebugHandScenario.Flush => new List<CardData> {
+                new CardData(Rank.Ace, Suit.Hearts),
+                new CardData(Rank.Ten, Suit.Hearts),
+                new CardData(Rank.Seven, Suit.Hearts),
+                new CardData(Rank.Four, Suit.Hearts),
+                new CardData(Rank.Two, Suit.Hearts),
+                new CardData(Rank.King, Suit.Spades),
+                new CardData(Rank.Nine, Suit.Clubs),
+                new CardData(Rank.Three, Suit.Diamonds),
+            },
+
+            DebugHandScenario.StraightFlush => new List<CardData> {
+                new CardData(Rank.Five, Suit.Clubs),
+                new CardData(Rank.Six, Suit.Clubs),
+                new CardData(Rank.Seven, Suit.Clubs),
+                new CardData(Rank.Eight, Suit.Clubs),
+                new CardData(Rank.Nine, Suit.Clubs),
+                new CardData(Rank.King, Suit.Hearts),
+                new CardData(Rank.Two, Suit.Spades),
+                new CardData(Rank.Three, Suit.Diamonds),
+            },
+
             _ => new List<CardData>()
         };
     }

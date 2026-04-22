@@ -86,6 +86,7 @@ public class RoundScreen : MonoBehaviour {
                 selectedCardsIndexes: new List<int>(),
                 lastActionText: "None",
                 lastPlayedCardsText: "None",
+                lastPlayedCards: new List<CardData>(),
                 lastPlayedCardsCount: 0,
                 lastPlayedHandType: PokerHandType.None
             );
@@ -109,6 +110,7 @@ public class RoundScreen : MonoBehaviour {
             selectedCardsIndexes: new List<int>(),
             lastActionText: "None",
             lastPlayedCardsText: "None",
+            lastPlayedCards: new List<CardData>(),
             lastPlayedCardsCount: 0,
             lastPlayedHandType: PokerHandType.None
         );

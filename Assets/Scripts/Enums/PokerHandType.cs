@@ -4,6 +4,9 @@
     Pair,
     TwoPair,
     ThreeOfAKind,
+    Straight,
+    Flush,
     FullHouse,
-    FourOfAKind
+    FourOfAKind,
+    StraightFlush
 }

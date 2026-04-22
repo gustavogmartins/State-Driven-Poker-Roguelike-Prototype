@@ -74,8 +74,11 @@ namespace Presenters {
                 PokerHandType.Pair => "Pair",
                 PokerHandType.TwoPair => "Two Pair",
                 PokerHandType.ThreeOfAKind => "Three of a Kind",
+                PokerHandType.Straight => "Straight",
+                PokerHandType.Flush => "Flush",
                 PokerHandType.FullHouse => "Full House",
                 PokerHandType.FourOfAKind => "Four of a Kind",
+                PokerHandType.StraightFlush => "Straight Flush",
                 _ => handType.ToString()
             };
         }
