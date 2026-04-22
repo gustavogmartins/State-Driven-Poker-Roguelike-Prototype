@@ -6,19 +6,35 @@ using UnityEngine.UI;
 using View;
 
 public class RoundScreen : MonoBehaviour {
-    [Header("Texts")] [SerializeField] private TextMeshProUGUI blindText;
+    [Header("Texts")]
+    [SerializeField] private TextMeshProUGUI blindText;
     [SerializeField] private TextMeshProUGUI targetScore;
     [SerializeField] private TextMeshProUGUI currentScore;
     [SerializeField] private TextMeshProUGUI handsLeft;
     [SerializeField] private TextMeshProUGUI discardsLeft;
     [SerializeField] private TextMeshProUGUI phase;
+    [SerializeField] private TextMeshProUGUI lastPlayedCardsText;
+    [SerializeField] private TextMeshProUGUI lastPlayedCountText;
 
-    [Header("Buttons")] [SerializeField] private Button addScoreButton;
-    [SerializeField] private Button useHandButton;
+    [Header("Debug Buttons")]
+    [SerializeField] private Button addScoreButtonDebug;
+    [SerializeField] private Button useHandButtonDebug;
+    [SerializeField] private Button discardButtonDebug;
+    [SerializeField] private Button nextPhaseButtonDebug;
+
+    [Header("HandButtons")]
+    [SerializeField] private Button playHandButton;
     [SerializeField] private Button discardButton;
-    [SerializeField] private Button nextPhaseButton;
+    [SerializeField] private Button sortByRankButton;
+    [SerializeField] private Button sortBySuitButton;
 
+    [Header("Hand Area")]
     [SerializeField] private Transform handArea;
+
+    [Header("Played Hand Area")]
+    [SerializeField] private Transform playedHandArea;
+
+    [Header("Card Prefab")]
     [SerializeField] private CardView cardViewPrefab;
 
     private RoundPresenter _roundPresenter;
@@ -31,6 +47,12 @@ public class RoundScreen : MonoBehaviour {
         Render(_roundState);
     }
 
+    public void OnPlayHandButtonClicked() {
+        _roundState = _roundState.PlaySelectedCards();
+        Render(_roundState);
+    }
+
+    
     public void OnAddScoreButtonClicked() {
         _roundState = _roundState.WithScore(_roundState.CurrentScore + 100);
         Render(_roundState);
@@ -69,13 +91,15 @@ public class RoundScreen : MonoBehaviour {
         handsLeft.text = viewModel.HandsLeftText;
         discardsLeft.text = viewModel.DiscardsLeftText;
         phase.text = viewModel.PhaseText;
+        lastPlayedCardsText.text = viewModel.LastPlayedCardsText;
+        lastPlayedCountText.text = viewModel.LastPlayedCountText;
         
         RenderHand(viewModel);
     }
 
     private void RenderHand(RoundViewModel viewModel) {
         ClearHand();
-        
+
         foreach (var cardVm in viewModel.HandCards) {
             var cardView = Instantiate(cardViewPrefab, handArea);
             cardView.Bind(cardVm);

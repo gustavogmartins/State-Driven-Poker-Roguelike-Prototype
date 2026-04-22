@@ -11,6 +11,8 @@ namespace Presenters {
                 DiscardsLeftText = $"Discards: {roundState.DiscardsLeft}",
                 HandsLeftText = $"Hands: {roundState.HandsLeft}",
                 PhaseText = $"Phase: {roundState.Phase}",
+                LastPlayedCountText = $"Played Count: {roundState.LastPlayedCardsCount}",
+                LastPlayedCardsText = $"Last Played: {roundState.LastPlayedCardsText}",
             };
 
             for (int i = 0; i < roundState.HandCards.Count; i++) {

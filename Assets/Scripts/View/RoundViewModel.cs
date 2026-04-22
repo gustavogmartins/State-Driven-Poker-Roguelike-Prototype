@@ -8,7 +8,8 @@ namespace View {
         public string HandsLeftText;
         public string DiscardsLeftText;
         public string PhaseText;
-
         public List<CardViewModel> HandCards = new();
+        public string LastPlayedCountText;
+        public string LastPlayedCardsText;
     }
 }
