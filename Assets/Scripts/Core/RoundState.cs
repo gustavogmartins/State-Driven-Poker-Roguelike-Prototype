@@ -11,20 +11,22 @@ namespace Core {
         public int DiscardsLeft { get; }
         public RoundPhase Phase { get; }
         public IReadOnlyList<CardData> HandCards { get; }
-        public IReadOnlyList<int> SelectedCardsIndexes { get; }
-        
+        private IReadOnlyList<int> SelectedCardsIndexes { get; }
         public string LastPlayedCardsText { get; }
         public int LastPlayedCardsCount { get; }
+        public int MaxHandSize { get; }
 
 
         public RoundState(string blindName, int targetScore, int currentScore, int handsLeft, int discardsLeft,
-            RoundPhase phase, IReadOnlyList<CardData> handCards, IReadOnlyList<int> selectedCardsIndexes, string lastPlayedCardsText, int lastPlayedCardsCount) {
+            RoundPhase phase, int maxHandSize, IReadOnlyList<CardData> handCards,
+            IReadOnlyList<int> selectedCardsIndexes, string lastPlayedCardsText, int lastPlayedCardsCount) {
             BlindName = blindName;
             TargetScore = targetScore;
             CurrentScore = currentScore;
             HandsLeft = handsLeft;
             DiscardsLeft = discardsLeft;
             Phase = phase;
+            MaxHandSize = maxHandSize;
             HandCards = handCards;
             SelectedCardsIndexes = selectedCardsIndexes;
             LastPlayedCardsCount = lastPlayedCardsCount;
@@ -39,6 +41,7 @@ namespace Core {
                 handsLeft: 4,
                 discardsLeft: 3,
                 phase: RoundPhase.Waiting,
+                maxHandSize: 8,
                 handCards: new List<CardData> {
                     new CardData(Rank.Ace, Suit.Spades),
                     new CardData(Rank.Ten, Suit.Hearts),
@@ -63,6 +66,7 @@ namespace Core {
                 HandsLeft,
                 DiscardsLeft,
                 Phase,
+                MaxHandSize,
                 HandCards,
                 SelectedCardsIndexes,
                 LastPlayedCardsText,
@@ -78,6 +82,7 @@ namespace Core {
                 handsLeft,
                 DiscardsLeft,
                 Phase,
+                MaxHandSize,
                 HandCards,
                 SelectedCardsIndexes,
                 LastPlayedCardsText,
@@ -93,6 +98,7 @@ namespace Core {
                 HandsLeft,
                 discardsLeft,
                 Phase,
+                MaxHandSize,
                 HandCards,
                 SelectedCardsIndexes,
                 LastPlayedCardsText,
@@ -108,17 +114,18 @@ namespace Core {
                 HandsLeft,
                 DiscardsLeft,
                 phase,
+                MaxHandSize,
                 HandCards,
                 SelectedCardsIndexes,
                 LastPlayedCardsText,
                 LastPlayedCardsCount
-                );
+            );
         }
-        
+
         public bool IsSelected(int index) {
             return SelectedCardsIndexes.Contains(index);
         }
-        
+
         public RoundState ToggleCardSelection(int index) {
             var newSelectedCardsIndexes = new List<int>(SelectedCardsIndexes);
 
@@ -128,9 +135,10 @@ namespace Core {
                 if (newSelectedCardsIndexes.Count >= 5) {
                     return this;
                 }
+
                 newSelectedCardsIndexes.Add(index);
             }
-            
+
             return new RoundState(
                 BlindName,
                 TargetScore,
@@ -138,27 +146,32 @@ namespace Core {
                 HandsLeft,
                 DiscardsLeft,
                 Phase,
+                MaxHandSize,
                 HandCards,
                 newSelectedCardsIndexes,
                 LastPlayedCardsText,
                 LastPlayedCardsCount
             );
         }
-        
-        public RoundState PlaySelectedCards()
-        {
+
+        public RoundState PlaySelectedCards() {
             if (SelectedCardsIndexes.Count == 0)
                 return this;
 
             var playedCards = new List<CardData>();
+            var remainingCards = new List<CardData>();
 
-            foreach (var selectedIndex in SelectedCardsIndexes)
-            {
-                if (selectedIndex >= 0 && selectedIndex < HandCards.Count)
-                    playedCards.Add(HandCards[selectedIndex]);
+            for (int i = 0; i < HandCards.Count; i++) {
+                var card = HandCards[i];
+                if (SelectedCardsIndexes.Contains(i)) {
+                    playedCards.Add(card);
+                } else {
+                    remainingCards.Add(card);
+                }
             }
 
             var playedCardsText = FormatPlayedCardsText(playedCards);
+            var refilledHand = DebugCardFactory.FillToSize(remainingCards, MaxHandSize);
             var newHandsLeft = Mathf.Max(0, HandsLeft - 1);
 
             return new RoundState(
@@ -168,31 +181,29 @@ namespace Core {
                 handsLeft: newHandsLeft,
                 discardsLeft: DiscardsLeft,
                 phase: RoundPhase.Scoring,
-                handCards: HandCards,
+                maxHandSize: MaxHandSize,
+                handCards: refilledHand,
                 selectedCardsIndexes: new List<int>(),
                 lastPlayedCardsText: playedCardsText,
                 lastPlayedCardsCount: playedCards.Count
             );
         }
-        private static string FormatPlayedCardsText(IReadOnlyList<CardData> cards)
-        {
+
+        private static string FormatPlayedCardsText(IReadOnlyList<CardData> cards) {
             if (cards.Count == 0)
                 return "None";
 
             var parts = new List<string>();
 
-            foreach (var card in cards)
-            {
+            foreach (var card in cards) {
                 parts.Add($"{FormatRank(card.Rank)}{FormatSuit(card.Suit)}");
             }
 
             return string.Join(", ", parts);
         }
 
-        private static string FormatRank(Rank rank)
-        {
-            return rank switch
-            {
+        private static string FormatRank(Rank rank) {
+            return rank switch {
                 Rank.Jack => "J",
                 Rank.Queen => "Q",
                 Rank.King => "K",
@@ -202,10 +213,8 @@ namespace Core {
             };
         }
 
-        private static string FormatSuit(Suit suit)
-        {
-            return suit switch
-            {
+        private static string FormatSuit(Suit suit) {
+            return suit switch {
                 Suit.Clubs => "♣",
                 Suit.Diamonds => "♦",
                 Suit.Hearts => "♥",
