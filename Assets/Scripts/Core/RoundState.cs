@@ -45,7 +45,8 @@ namespace Core {
 
         public static RoundState CreateDebug() {
             var fullDeck = DeckBuilder.CreateStandard52();
-            var drawResult = DeckUtility.DrawCards(fullDeck, 8);
+            var shuffledDeck = DeckShuffler.Shuffle(fullDeck);
+            var drawResult = DeckUtility.DrawCards(shuffledDeck, 8);
 
             return new RoundState(
                 blindName: "Small blind",

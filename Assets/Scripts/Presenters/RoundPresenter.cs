@@ -58,24 +58,24 @@ namespace Presenters {
                 _ => ((int)cardRank).ToString()
             };
         }
-        
-        private string FormatTopDiscard(RoundState roundState)
-        {
+
+        private string FormatTopDiscard(RoundState roundState) {
             if (roundState.DiscardPileCards.Count == 0)
                 return "None";
 
             var topCard = roundState.DiscardPileCards[roundState.DiscardPileCards.Count - 1];
             return FormatCard(topCard);
         }
-        
-        private string FormatHandType(PokerHandType handType)
-        {
-            return handType switch
-            {
+
+        private string FormatHandType(PokerHandType handType) {
+            return handType switch {
                 PokerHandType.None => "None",
                 PokerHandType.HighCard => "High Card",
                 PokerHandType.Pair => "Pair",
                 PokerHandType.TwoPair => "Two Pair",
+                PokerHandType.ThreeOfAKind => "Three of a Kind",
+                PokerHandType.FullHouse => "Full House",
+                PokerHandType.FourOfAKind => "Four of a Kind",
                 _ => handType.ToString()
             };
         }

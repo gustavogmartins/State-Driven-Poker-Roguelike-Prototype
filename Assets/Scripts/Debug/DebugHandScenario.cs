@@ -1,6 +1,5 @@
-﻿public enum PokerHandType {
+﻿public enum DebugHandScenario {
     None,
-    HighCard,
     Pair,
     TwoPair,
     ThreeOfAKind,

@@ -4699,6 +4699,8 @@ MonoBehaviour:
   playedHandArea: {fileID: 829189173}
   cardViewPrefab: {fileID: 6586708954188405360, guid: f1e44abb4a35ca347a132f58609bd185, type: 3}
   deckCountText: {fileID: 371610202}
+  useDebugHandScenario: 0
+  debugHandScenario: 0
 --- !u!1 &1915186284
 GameObject:
   m_ObjectHideFlags: 0
