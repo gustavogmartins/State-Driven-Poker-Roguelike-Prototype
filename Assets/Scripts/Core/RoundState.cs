@@ -18,13 +18,14 @@ namespace Core {
         public string LastPlayedCardsText { get; }
         public int LastPlayedCardsCount { get; }
         public int MaxHandSize { get; }
-
+        public PokerHandType LastPlayedHandType { get; }
+        
         public RoundState(string blindName, int targetScore, int currentScore, int handsLeft, int discardsLeft,
             RoundPhase phase,
             int maxHandSize, IReadOnlyList<CardData> deckCards, IReadOnlyList<CardData> handCards,
             IReadOnlyList<CardData> discardPileCards,
             IReadOnlyList<int> selectedCardsIndexes, string lastActionText, string lastPlayedCardsText,
-            int lastPlayedCardsCount) {
+            int lastPlayedCardsCount, PokerHandType lastPlayedHandType) {
             BlindName = blindName;
             TargetScore = targetScore;
             CurrentScore = currentScore;
@@ -39,6 +40,7 @@ namespace Core {
             LastActionText = lastActionText;
             LastPlayedCardsText = lastPlayedCardsText;
             LastPlayedCardsCount = lastPlayedCardsCount;
+            LastPlayedHandType = lastPlayedHandType;
         }
 
         public static RoundState CreateDebug() {
@@ -59,7 +61,8 @@ namespace Core {
                 selectedCardsIndexes: new List<int>(),
                 lastActionText: "None",
                 lastPlayedCardsText: "None",
-                lastPlayedCardsCount: 0
+                lastPlayedCardsCount: 0,
+                lastPlayedHandType: PokerHandType.None
             );
         }
 
@@ -78,7 +81,8 @@ namespace Core {
                 SelectedCardsIndexes,
                 LastActionText,
                 LastPlayedCardsText,
-                LastPlayedCardsCount
+                LastPlayedCardsCount,
+                LastPlayedHandType
             );
         }
 
@@ -97,7 +101,8 @@ namespace Core {
                 SelectedCardsIndexes,
                 LastActionText,
                 LastPlayedCardsText,
-                LastPlayedCardsCount
+                LastPlayedCardsCount,
+                LastPlayedHandType
             );
         }
 
@@ -116,7 +121,8 @@ namespace Core {
                 SelectedCardsIndexes,
                 LastActionText,
                 LastPlayedCardsText,
-                LastPlayedCardsCount
+                LastPlayedCardsCount,
+                LastPlayedHandType
             );
         }
 
@@ -135,7 +141,8 @@ namespace Core {
                 SelectedCardsIndexes,
                 LastActionText,
                 LastPlayedCardsText,
-                LastPlayedCardsCount
+                LastPlayedCardsCount,
+                LastPlayedHandType
             );
         }
 
@@ -170,7 +177,8 @@ namespace Core {
                 newSelectedCardsIndexes,
                 LastActionText,
                 LastPlayedCardsText,
-                LastPlayedCardsCount
+                LastPlayedCardsCount,
+                LastPlayedHandType
             );
         }
 
@@ -190,6 +198,8 @@ namespace Core {
                 }
             }
 
+            var handResult = PokerHandEvaluator.Evaluate(playedCards);
+            
             var cardsNeeded = MaxHandSize - remainingHandCards.Count;
             var drawResult = DeckUtility.DrawCards(DeckCards, cardsNeeded);
 
@@ -216,7 +226,8 @@ namespace Core {
                 selectedCardsIndexes: new List<int>(),
                 lastActionText: "Played",
                 lastPlayedCardsText: playedCardsText,
-                lastPlayedCardsCount: playedCards.Count
+                lastPlayedCardsCount: playedCards.Count,
+                lastPlayedHandType: handResult.HandType
             );
         }
 
@@ -236,7 +247,7 @@ namespace Core {
                     remainingHandCards.Add(card);
                 }
             }
-
+            
             var cardsNeeded = MaxHandSize - remainingHandCards.Count;
             var drawResult = DeckUtility.DrawCards(DeckCards, cardsNeeded);
 
@@ -263,7 +274,8 @@ namespace Core {
                 selectedCardsIndexes: new List<int>(),
                 lastActionText: "Discarded",
                 lastPlayedCardsText: discardedCardsText,
-                lastPlayedCardsCount: discardedCards.Count
+                lastPlayedCardsCount: discardedCards.Count,
+                lastPlayedHandType: PokerHandType.None
             );
         }
 

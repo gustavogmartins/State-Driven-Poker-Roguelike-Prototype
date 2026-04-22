@@ -16,5 +16,6 @@ namespace View {
         public string HandSizeText;
         public string DiscardPileCountText;
         public string TopDiscardText;
+        public string PlayedHandTypeText;
     }
 }

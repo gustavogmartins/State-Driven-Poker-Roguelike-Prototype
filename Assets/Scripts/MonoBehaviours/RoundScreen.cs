@@ -18,6 +18,7 @@ public class RoundScreen : MonoBehaviour {
     [SerializeField] private TextMeshProUGUI lastPlayedCountText;
     [SerializeField] private TextMeshProUGUI discardPileCountText;
     [SerializeField] private TextMeshProUGUI topDiscardText;
+    [SerializeField] private TextMeshProUGUI playedHandTypeText;
     
     [Header("Debug Buttons")]
     [SerializeField] private Button addScoreButtonDebug;
@@ -103,7 +104,7 @@ public class RoundScreen : MonoBehaviour {
         deckCountText.text = viewModel.DeckCountText;
         discardPileCountText.text = viewModel.DiscardPileCountText;
         topDiscardText.text = viewModel.TopDiscardText;
-        
+        playedHandTypeText.text = viewModel.PlayedHandTypeText;
         RenderHand(viewModel);
     }
 

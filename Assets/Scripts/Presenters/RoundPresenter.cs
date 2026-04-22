@@ -18,6 +18,7 @@ namespace Presenters {
                 HandSizeText = $"{roundState.HandCards.Count}/{roundState.MaxHandSize}",
                 DiscardPileCountText = $"Discard Pile: {roundState.DiscardPileCards.Count}",
                 TopDiscardText = $"Top Discard: {FormatTopDiscard(roundState)}",
+                PlayedHandTypeText = $"Hand Type: {FormatHandType(roundState.LastPlayedHandType)}"
             };
 
             for (int i = 0; i < roundState.HandCards.Count; i++) {
@@ -65,6 +66,18 @@ namespace Presenters {
 
             var topCard = roundState.DiscardPileCards[roundState.DiscardPileCards.Count - 1];
             return FormatCard(topCard);
+        }
+        
+        private string FormatHandType(PokerHandType handType)
+        {
+            return handType switch
+            {
+                PokerHandType.None => "None",
+                PokerHandType.HighCard => "High Card",
+                PokerHandType.Pair => "Pair",
+                PokerHandType.TwoPair => "Two Pair",
+                _ => handType.ToString()
+            };
         }
     }
 }
