@@ -169,7 +169,8 @@ namespace Presenters {
             return suit switch {
                 Suit.Hearts => new Color32(220, 53, 69, 255),
                 Suit.Diamonds => new Color32(230, 153, 25, 255),
-                _ => new Color32(52, 66, 72, 255)
+                Suit.Clubs => new Color32(9, 116, 203, 255),
+                Suit.Spades => new Color32(52, 66, 72, 255)
             };
         }
     }

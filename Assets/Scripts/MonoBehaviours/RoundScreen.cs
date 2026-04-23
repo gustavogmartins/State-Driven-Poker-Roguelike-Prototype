@@ -24,8 +24,8 @@ public class RoundScreen : MonoBehaviour {
     [SerializeField] private TextMeshProUGUI roundText;
 
     [Header("Top and Bottom Bars")]
-    [SerializeField] private TextMeshProUGUI phaseText;
-    [SerializeField] private TextMeshProUGUI statusText;
+    //[SerializeField] private TextMeshProUGUI phaseText;
+    //[SerializeField] private TextMeshProUGUI statusText;
     [SerializeField] private TextMeshProUGUI selectedCountText;
     [SerializeField] private TextMeshProUGUI handSizeText;
     [SerializeField] private TextMeshProUGUI deckCountText;
@@ -159,8 +159,8 @@ public class RoundScreen : MonoBehaviour {
         moneyText.text = viewModel.MoneyText;
         anteText.text = viewModel.AnteText;
         roundText.text = viewModel.RoundText;
-        phaseText.text = viewModel.PhaseText;
-        statusText.text = viewModel.StatusText;
+        //phaseText.text = viewModel.PhaseText;
+        //statusText.text = viewModel.StatusText;
         selectedCountText.text = viewModel.SelectedCountText;
         handSizeText.text = viewModel.HandSizeText;
         deckCountText.text = viewModel.DeckCountText;
