@@ -103,7 +103,7 @@ public static class PokerHandEvaluator {
     }
 
     private static bool IsFlush(IReadOnlyList<CardData> cards) {
-        if (cards == null || cards.Count == 0)
+        if (cards == null || cards.Count != 5)
             return false;
 
         var firstSuit = cards[0].Suit;
