@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using Core;
 using Presenters;
 using TMPro;
@@ -7,62 +7,61 @@ using UnityEngine.UI;
 using View;
 
 public class RoundScreen : MonoBehaviour {
-    [Header("Texts")]
-    [SerializeField] private TextMeshProUGUI blindText;
+    [Header("Left Panel")]
+    [SerializeField] private TextMeshProUGUI blindTitleText;
+    [SerializeField] private TextMeshProUGUI blindDescriptionText;
+    [SerializeField] private TextMeshProUGUI blindRequirementText;
+    [SerializeField] private TextMeshProUGUI blindRewardText;
+    [SerializeField] private TextMeshProUGUI roundScoreText;
+    [SerializeField] private TextMeshProUGUI handNameText;
+    [SerializeField] private TextMeshProUGUI handLevelText;
+    [SerializeField] private TextMeshProUGUI chipsText;
+    [SerializeField] private TextMeshProUGUI multText;
+    [SerializeField] private TextMeshProUGUI handsLeftText;
+    [SerializeField] private TextMeshProUGUI discardsLeftText;
+    [SerializeField] private TextMeshProUGUI moneyText;
+    [SerializeField] private TextMeshProUGUI anteText;
+    [SerializeField] private TextMeshProUGUI roundText;
 
-    [SerializeField] private TextMeshProUGUI targetScore;
-    [SerializeField] private TextMeshProUGUI currentScore;
-    [SerializeField] private TextMeshProUGUI handsLeft;
-    [SerializeField] private TextMeshProUGUI discardsLeft;
-    [SerializeField] private TextMeshProUGUI phase;
-    [SerializeField] private TextMeshProUGUI lastPlayedCardsText;
-    [SerializeField] private TextMeshProUGUI lastActionText;
-    [SerializeField] private TextMeshProUGUI lastPlayedCountText;
-    [SerializeField] private TextMeshProUGUI discardPileCountText;
+    [Header("Top and Bottom Bars")]
+    [SerializeField] private TextMeshProUGUI phaseText;
+    [SerializeField] private TextMeshProUGUI statusText;
+    [SerializeField] private TextMeshProUGUI selectedCountText;
+    [SerializeField] private TextMeshProUGUI handSizeText;
+    [SerializeField] private TextMeshProUGUI deckCountText;
     [SerializeField] private TextMeshProUGUI topDiscardText;
-    [SerializeField] private TextMeshProUGUI playedHandTypeText;
 
-    [Header("Debug Buttons")]
-    [SerializeField] private Button addScoreButtonDebug;
-
-    [SerializeField] private Button useHandButtonDebug;
-    [SerializeField] private Button discardButtonDebug;
-    [SerializeField] private Button nextPhaseButtonDebug;
-
-    [Header("HandButtons")]
+    [Header("Buttons")]
     [SerializeField] private Button playHandButton;
-
     [SerializeField] private Button discardButton;
     [SerializeField] private Button sortByRankButton;
     [SerializeField] private Button sortBySuitButton;
 
-    [Header("Hand Area")]
-    [SerializeField] private Transform handArea;
-
-    [SerializeField] private TextMeshProUGUI handSizeText;
-
-    [Header("Played Hand Area")]
-    [SerializeField] private Transform playedHandArea;
-
-    [Header("Card Prefab")]
+    [Header("Card Areas")]
+    [SerializeField] private RectTransform handArea;
+    [SerializeField] private RectTransform playedHandArea;
     [SerializeField] private CardView cardViewPrefab;
-
-    [Header("Deck Area")]
-    [SerializeField] private TextMeshProUGUI deckCountText;
 
     [Header("Debug")]
     [SerializeField] private bool useDebugHandScenario = false;
-
     [SerializeField] private DebugHandScenario debugHandScenario = DebugHandScenario.None;
 
     private RoundPresenter _roundPresenter;
     private RoundState _roundState;
+
+    private void Awake() {
+        RegisterButtonListeners();
+    }
 
     private void Start() {
         _roundPresenter = new RoundPresenter();
         _roundState = CreateInitialState();
 
         Render(_roundState);
+    }
+
+    private void OnDestroy() {
+        UnregisterButtonListeners();
     }
 
     private RoundState CreateInitialState() {
@@ -76,43 +75,50 @@ public class RoundScreen : MonoBehaviour {
                 blindName: "Small Blind",
                 targetScore: 300,
                 currentScore: 0,
+                money: 10,
+                ante: 1,
+                roundNumber: 1,
                 handsLeft: 4,
                 discardsLeft: 3,
-                phase: RoundPhase.Waiting,
+                phase: RoundPhase.PlayerTurn,
                 maxHandSize: 8,
                 deckCards: normalDraw.RemainingDeck,
                 handCards: normalDraw.DrawnCards,
                 discardPileCards: new List<CardData>(),
                 selectedCardsIndexes: new List<int>(),
-                lastActionText: "None",
+                lastActionText: "Waiting for input",
                 lastPlayedCardsText: "None",
                 lastPlayedCards: new List<CardData>(),
                 lastPlayedCardsCount: 0,
-                lastPlayedHandType: PokerHandType.None
+                lastPlayedHandResult: PokerHandType.None,
+                lastScoreResult: ScoreResult.Zero
             );
         }
 
         var debugHand = DebugHandFactory.Create(debugHandScenario);
-
         var remainingDeck = RemoveCardsFromDeck(shuffledDeck, debugHand);
 
         return new RoundState(
             blindName: "Small Blind",
             targetScore: 300,
             currentScore: 0,
+            money: 10,
+            ante: 1,
+            roundNumber: 1,
             handsLeft: 4,
             discardsLeft: 3,
-            phase: RoundPhase.Waiting,
+            phase: RoundPhase.PlayerTurn,
             maxHandSize: 8,
             deckCards: remainingDeck,
             handCards: debugHand,
             discardPileCards: new List<CardData>(),
             selectedCardsIndexes: new List<int>(),
-            lastActionText: "None",
+            lastActionText: "Waiting for input",
             lastPlayedCardsText: "None",
             lastPlayedCards: new List<CardData>(),
             lastPlayedCardsCount: 0,
-            lastPlayedHandType: PokerHandType.None
+            lastPlayedHandResult: PokerHandType.None,
+            lastScoreResult: ScoreResult.Zero
         );
     }
 
@@ -126,57 +132,79 @@ public class RoundScreen : MonoBehaviour {
         Render(_roundState);
     }
 
-    public void OnAddScoreButtonClicked() {
-        _roundState = _roundState.WithScore(_roundState.CurrentScore + 100);
+    public void OnSortByRankButtonClicked() {
+        _roundState = _roundState.SortHandByRank();
         Render(_roundState);
     }
 
-    public void OnUseHandButtonClicked() {
-        var newHandsLeft = Mathf.Max(0, _roundState.HandsLeft - 1);
-        _roundState = _roundState.WithHandsLeft(newHandsLeft);
-        Render(_roundState);
-    }
-
-    public void OnNextPhaseButtonClicked() {
-        var nextPhase = _roundState.Phase switch {
-            RoundPhase.Waiting => RoundPhase.PlayerTurn,
-            RoundPhase.PlayerTurn => RoundPhase.Scoring,
-            RoundPhase.Scoring => RoundPhase.RoundEnd,
-            _ => RoundPhase.Waiting
-        };
-
-        _roundState = _roundState.WithPhase(nextPhase);
+    public void OnSortBySuitButtonClicked() {
+        _roundState = _roundState.SortHandBySuit();
         Render(_roundState);
     }
 
     private void Render(RoundState roundState) {
         var viewModel = _roundPresenter.Present(roundState);
 
-        blindText.text = viewModel.BlindText;
-        targetScore.text = viewModel.TargetScoreText;
-        currentScore.text = viewModel.CurrentScoreText;
-        handsLeft.text = viewModel.HandsLeftText;
-        discardsLeft.text = viewModel.DiscardsLeftText;
-        phase.text = viewModel.PhaseText;
-        lastPlayedCardsText.text = viewModel.LastPlayedCardsText;
-        lastActionText.text = viewModel.LastActionText;
-        lastPlayedCountText.text = viewModel.LastPlayedCountText;
+        blindTitleText.text = viewModel.BlindTitleText;
+        blindDescriptionText.text = viewModel.BlindDescriptionText;
+        blindRequirementText.text = viewModel.BlindRequirementText;
+        blindRewardText.text = viewModel.BlindRewardText;
+        roundScoreText.text = viewModel.RoundScoreText;
+        handNameText.text = viewModel.HandNameText;
+        handLevelText.text = viewModel.HandLevelText;
+        chipsText.text = viewModel.ChipsText;
+        multText.text = viewModel.MultText;
+        handsLeftText.text = viewModel.HandsLeftText;
+        discardsLeftText.text = viewModel.DiscardsLeftText;
+        moneyText.text = viewModel.MoneyText;
+        anteText.text = viewModel.AnteText;
+        roundText.text = viewModel.RoundText;
+        phaseText.text = viewModel.PhaseText;
+        statusText.text = viewModel.StatusText;
+        selectedCountText.text = viewModel.SelectedCountText;
         handSizeText.text = viewModel.HandSizeText;
         deckCountText.text = viewModel.DeckCountText;
-        discardPileCountText.text = viewModel.DiscardPileCountText;
         topDiscardText.text = viewModel.TopDiscardText;
-        playedHandTypeText.text = viewModel.PlayedHandTypeText;
-        RenderHand(viewModel);
+
+        playHandButton.interactable = viewModel.CanPlayHand;
+        discardButton.interactable = viewModel.CanDiscard;
+        sortByRankButton.interactable = viewModel.CanSort;
+        sortBySuitButton.interactable = viewModel.CanSort;
+
+        RenderHand(viewModel.HandCards);
+        RenderPlayedCards(viewModel.PlayedCards);
     }
 
-    private void RenderHand(RoundViewModel viewModel) {
-        ClearHand();
+    private void RenderHand(IReadOnlyList<CardViewModel> handCards) {
+        ClearCardArea(handArea);
 
-        foreach (var cardVm in viewModel.HandCards) {
+        if (handCards.Count == 0) {
+            return;
+        }
+
+        for (int i = 0; i < handCards.Count; i++) {
             var cardView = Instantiate(cardViewPrefab, handArea);
-            cardView.Bind(cardVm);
+            cardView.Bind(handCards[i]);
             cardView.OnCardSelected += OnCardSelected;
         }
+
+        LayoutRebuilder.ForceRebuildLayoutImmediate(handArea);
+    }
+
+    private void RenderPlayedCards(IReadOnlyList<CardViewModel> playedCards) {
+        ClearCardArea(playedHandArea);
+        playedHandArea.gameObject.SetActive(playedCards.Count > 0);
+
+        if (playedCards.Count == 0) {
+            return;
+        }
+
+        for (int i = 0; i < playedCards.Count; i++) {
+            var cardView = Instantiate(cardViewPrefab, playedHandArea);
+            cardView.Bind(playedCards[i]);
+        }
+
+        LayoutRebuilder.ForceRebuildLayoutImmediate(playedHandArea);
     }
 
     private List<CardData> RemoveCardsFromDeck(List<CardData> deck, List<CardData> cardsToRemove) {
@@ -200,9 +228,33 @@ public class RoundScreen : MonoBehaviour {
         Render(_roundState);
     }
 
-    private void ClearHand() {
-        for (int i = handArea.childCount - 1; i >= 0; i--) {
-            Destroy(handArea.GetChild(i).gameObject);
+    private void RegisterButtonListeners() {
+        if (sortByRankButton != null) {
+            sortByRankButton.onClick.AddListener(OnSortByRankButtonClicked);
+        }
+
+        if (sortBySuitButton != null) {
+            sortBySuitButton.onClick.AddListener(OnSortBySuitButtonClicked);
+        }
+    }
+
+    private void UnregisterButtonListeners() {
+        if (sortByRankButton != null) {
+            sortByRankButton.onClick.RemoveListener(OnSortByRankButtonClicked);
+        }
+
+        if (sortBySuitButton != null) {
+            sortBySuitButton.onClick.RemoveListener(OnSortBySuitButtonClicked);
+        }
+    }
+
+    private static void ClearCardArea(RectTransform cardArea) {
+        for (int i = cardArea.childCount - 1; i >= 0; i--) {
+            if (Application.isPlaying) {
+                Object.Destroy(cardArea.GetChild(i).gameObject);
+            } else {
+                Object.DestroyImmediate(cardArea.GetChild(i).gameObject);
+            }
         }
     }
 }
