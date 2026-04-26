@@ -65,61 +65,11 @@ public class RoundScreen : MonoBehaviour {
     }
 
     private RoundState CreateInitialState() {
-        var fullDeck = DeckBuilder.CreateStandard52();
-        var shuffledDeck = DeckShuffler.Shuffle(fullDeck);
+        var debugHand = useDebugHandScenario && debugHandScenario != DebugHandScenario.None
+            ? DebugHandFactory.Create(debugHandScenario)
+            : null;
 
-        if (!useDebugHandScenario || debugHandScenario == DebugHandScenario.None) {
-            var normalDraw = DeckUtility.DrawCards(shuffledDeck, 8);
-
-            return new RoundState(
-                blindName: "Small Blind",
-                targetScore: 300,
-                currentScore: 0,
-                money: 10,
-                ante: 1,
-                roundNumber: 1,
-                handsLeft: 4,
-                discardsLeft: 3,
-                phase: RoundPhase.PlayerTurn,
-                maxHandSize: 8,
-                deckCards: normalDraw.RemainingDeck,
-                handCards: normalDraw.DrawnCards,
-                discardPileCards: new List<CardData>(),
-                selectedCardsIndexes: new List<int>(),
-                lastActionText: "Waiting for input",
-                lastPlayedCardsText: "None",
-                lastPlayedCards: new List<CardData>(),
-                lastPlayedCardsCount: 0,
-                lastPlayedHandResult: PokerHandType.None,
-                lastScoreResult: ScoreResult.Zero
-            );
-        }
-
-        var debugHand = DebugHandFactory.Create(debugHandScenario);
-        var remainingDeck = RemoveCardsFromDeck(shuffledDeck, debugHand);
-
-        return new RoundState(
-            blindName: "Small Blind",
-            targetScore: 300,
-            currentScore: 0,
-            money: 10,
-            ante: 1,
-            roundNumber: 1,
-            handsLeft: 4,
-            discardsLeft: 3,
-            phase: RoundPhase.PlayerTurn,
-            maxHandSize: 8,
-            deckCards: remainingDeck,
-            handCards: debugHand,
-            discardPileCards: new List<CardData>(),
-            selectedCardsIndexes: new List<int>(),
-            lastActionText: "Waiting for input",
-            lastPlayedCardsText: "None",
-            lastPlayedCards: new List<CardData>(),
-            lastPlayedCardsCount: 0,
-            lastPlayedHandResult: PokerHandType.None,
-            lastScoreResult: ScoreResult.Zero
-        );
+        return RoundState.CreateInitial(initialHandCards: debugHand);
     }
 
     public void OnPlayHandButtonClicked() {
@@ -205,22 +155,6 @@ public class RoundScreen : MonoBehaviour {
         }
 
         LayoutRebuilder.ForceRebuildLayoutImmediate(playedHandArea);
-    }
-
-    private List<CardData> RemoveCardsFromDeck(List<CardData> deck, List<CardData> cardsToRemove) {
-        var remainingDeck = new List<CardData>(deck);
-
-        foreach (var cardToRemove in cardsToRemove) {
-            for (int i = 0; i < remainingDeck.Count; i++) {
-                if (remainingDeck[i].Rank == cardToRemove.Rank &&
-                    remainingDeck[i].Suit == cardToRemove.Suit) {
-                    remainingDeck.RemoveAt(i);
-                    break;
-                }
-            }
-        }
-
-        return remainingDeck;
     }
 
     private void OnCardSelected(int index) {

@@ -33,7 +33,7 @@ namespace Presenters {
                 BlindTitleText = roundState.BlindName,
                 BlindDescriptionText = BuildBlindDescription(roundState.BlindName),
                 BlindRequirementText = roundState.TargetScore.ToString(),
-                BlindRewardText = $"${roundState.Ante * 10}",
+                BlindRewardText = $"${roundState.BlindReward}",
                 RoundScoreText = roundState.CurrentScore.ToString(),
                 HandNameText = handName,
                 HandLevelText = handName == "Select Cards" ? string.Empty : "lvl.1",
@@ -103,8 +103,16 @@ namespace Presenters {
         }
 
         private static string BuildStatusText(RoundState roundState) {
+            if (roundState.HasWonRound) {
+                return $"Round End | Blind cleared. Reward: ${roundState.BlindReward}";
+            }
+
+            if (roundState.HasLostRound) {
+                return "Round End | Round failed. No hands remaining";
+            }
+
             if (roundState.LastActionText == "Waiting for input") {
-                return $"Phase: {FormatPhase(roundState.Phase)}";
+                return $"{FormatPhase(roundState.Phase)} | {roundState.RemainingScore} score to clear";
             }
 
             return $"{FormatPhase(roundState.Phase)} | {roundState.LastActionText}";
@@ -170,7 +178,8 @@ namespace Presenters {
                 Suit.Hearts => new Color32(220, 53, 69, 255),
                 Suit.Diamonds => new Color32(230, 153, 25, 255),
                 Suit.Clubs => new Color32(9, 116, 203, 255),
-                Suit.Spades => new Color32(52, 66, 72, 255)
+                Suit.Spades => new Color32(52, 66, 72, 255),
+                _ => Color.white
             };
         }
     }
