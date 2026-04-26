@@ -270,13 +270,13 @@ Assets/
 ## Systems roadmap
 
 ### Milestone 1 — Single Blind Prototype
-- [ ] create 52-card deck
-- [ ] draw to hand size
-- [ ] select up to 5 cards
-- [ ] play selected cards
-- [ ] detect poker hand
-- [ ] calculate score
-- [ ] win / lose a single blind
+- [x] create 52-card deck
+- [x] draw to hand size
+- [x] select up to 5 cards
+- [x] play selected cards
+- [x] detect poker hand
+- [x] calculate score
+- [x] win / lose a single blind
 
 ### Milestone 2 — Ante Flow
 - [ ] small blind

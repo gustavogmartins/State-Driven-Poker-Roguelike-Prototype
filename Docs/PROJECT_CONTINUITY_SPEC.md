@@ -1,6 +1,6 @@
 # Project Continuity Spec
 
-Last updated: 2026-04-23
+Last updated: 2026-04-26
 
 ## Purpose
 
@@ -58,7 +58,9 @@ Actually implemented today:
 - score calculation
 - discard/play flow
 - score accumulation toward a target
-- basic round-end condition
+- explicit round win/loss derived state in `RoundState`
+- centralized round setup through `RoundState.CreateInitial(...)`
+- Edit Mode tests for core gameplay rules
 - Balatro-inspired HUD and playfield UI
 
 Conclusion:
@@ -73,6 +75,7 @@ The project has reached:
 - a single-scene playable prototype for one blind
 - with state, scoring, rendering, selection, play, discard, and score preview working
 - with a custom HUD and card presentation already integrated into `RoundScene`
+- with Milestone 1 gameplay rules covered by Edit Mode tests
 
 The project has not yet reached:
 
@@ -81,7 +84,7 @@ The project has not yet reached:
 - shop
 - modifiers/jokers
 - boss rules
-- tests
+- full manual verification of the new tests through the Unity Test Runner
 - production-ready content pipeline
 
 ## Actual Architecture In Use
@@ -93,6 +96,14 @@ Current real flow:
 - `RoundScreen` updates `RoundState`
 - `RoundPresenter` converts state to `RoundViewModel`
 - `RoundScreen` renders texts, buttons, hand cards, and played cards
+
+Important recent architecture changes:
+
+- `RoundState.CreateInitial(...)` now owns round bootstrap instead of `RoundScreen` manually building domain state
+- `RoundState` now exposes derived values such as `BlindReward`, `RemainingScore`, `HasWonRound`, and `HasLostRound`
+- `RoundPresenter` now derives clearer round-end status text from domain state
+- gameplay scripts now compile through a dedicated runtime assembly: `Assets/Scripts/StateDrivenPokerRoguelike.asmdef`
+- gameplay tests live in `Assets/Scripts/Tests/EditMode`
 
 This is state-driven enough to be workable, but it is not yet the full action/store/reducer architecture described in the original docs.
 
@@ -217,6 +228,7 @@ Implemented:
 - current score accumulation
 - blind cleared check
 - round end when blind is cleared or hands reach zero
+- explicit domain flags for round over / round won / round lost
 - last played cards tracking
 - last played hand tracking
 - status text updates
@@ -242,7 +254,7 @@ Not implemented yet:
 
 Status:
 
-- Mostly implemented
+- Implemented and stabilized in code
 
 Completed:
 
@@ -258,13 +270,14 @@ Completed:
 - detect blind clear
 - detect round end
 - render current hand and played cards
+- centralized round setup in domain state
+- clearer round loss/win messaging and derived state
+- validation around constructor/state edge cases
+- Edit Mode tests for `PokerHandEvaluator`, `ScoreCalculator`, and `RoundState`
 
-Still missing before calling it "solid":
+Remaining caveat:
 
-- automated tests
-- clearer round loss/win messaging/state transitions
-- safer separation between domain state and UI concerns
-- more validation around edge cases
+- run the new Edit Mode suite manually in Unity Test Runner as a final human verification step
 
 ### Milestone 2 - Ante/blind progression
 
@@ -329,7 +342,6 @@ Already present:
 
 Still missing:
 
-- tests
 - architecture diagram
 - cleaned final README aligned with real code
 - changelog/release structure
@@ -360,6 +372,15 @@ Current setup:
 
 If button behavior changes later, keep this split in mind to avoid duplicate listeners.
 
+### Round setup and ownership
+
+Current setup:
+
+- `RoundScreen` now asks `RoundState.CreateInitial(...)` for the initial round state
+- debug hands still come from `DebugHandFactory`, but deck reconciliation now happens in the domain layer
+
+This means round bootstrap is no longer duplicated in the UI script.
+
 ### Layout system
 
 Current setup:
@@ -369,27 +390,11 @@ Current setup:
 
 This is intentionally a temporary basic structure before a future slot-based system.
 
-### Legacy code still in repo
-
-There is old prototype code that does not represent the active architecture:
-
-- `Assets/Scripts/GameStateReducer.cs`
-- `Assets/Scripts/Core/GameState.cs`
-- `Assets/Scripts/IGameAction.cs`
-- `Assets/Scripts/Card.cs`
-
-This code appears to be from an earlier experiment and should not be treated as the main gameplay flow.
-
-Recommendation:
-
-- either remove or archive this legacy code once the current prototype is stable
-
 ## Known Issues and Technical Debt
 
-- No automated tests currently exist
-- Docs describe systems that are not implemented yet
-- There is a warning in `Assets/Scripts/Card.cs` about `_wasDragged` being unused
+- Docs still describe broader architecture that is not implemented yet
 - There are Unity Assistant Account API warnings in the editor; these are unrelated to gameplay logic
+- A stale Burst/editor log appeared during the first asmdef refresh when the new test assembly was introduced; gameplay code later recompiled successfully, but the Test Runner should still be checked manually in-editor
 - Current architecture is partly state-driven but not yet reducer/store based
 - Round progression is still single-scene and single-round focused
 - Card layout is still an intermediate UI solution, not the final slot system
@@ -398,14 +403,13 @@ Recommendation:
 
 Recommended order from here:
 
-1. Stabilize Milestone 1 with tests for `PokerHandEvaluator`, `ScoreCalculator`, and `RoundState`
-2. Remove or quarantine legacy prototype files that are no longer part of the active architecture
-3. Introduce a real blind progression model for small blind / big blind / boss blind
-4. Extract round progression out of ad hoc fields into clearer domain types
-5. Add shop state and a minimal shop flow
-6. Add first modifier/joker layer only after blind progression is working
-7. Replace temporary layout rows with a real slot-based hand/play-area system
-8. Rewrite public README files so they match what is actually implemented
+1. Run the new Edit Mode suite manually in Unity Test Runner and clear any remaining editor/test-runner issues
+2. Introduce a real blind progression model for small blind / big blind / boss blind
+3. Extract round progression out of ad hoc fields into clearer domain types
+4. Add shop state and a minimal shop flow
+5. Add first modifier/joker layer only after blind progression is working
+6. Replace temporary layout rows with a real slot-based hand/play-area system
+7. Continue polishing public docs and portfolio materials
 
 ## Resume Checklist For Another Machine
 
@@ -417,7 +421,8 @@ When reopening this repository on another computer, read in this order:
 4. `Assets/Scripts/MonoBehaviours/RoundScreen.cs`
 5. `Assets/Scripts/Core/PokerHandEvaluator.cs`
 6. `Assets/Scripts/Core/ScoreCalculator.cs`
-7. `Assets/Scenes/RoundScene.unity`
+7. `Assets/Scripts/Tests/EditMode`
+8. `Assets/Scenes/RoundScene.unity`
 
 After that, inspect only if needed:
 
@@ -431,8 +436,9 @@ If opens this repo later, it should assume:
 
 - the active gameplay loop is centered on `RoundState`
 - the active UI loop is `RoundScreen -> RoundPresenter -> RoundViewModel`
+- Milestone 1 is complete in code, with tests added
 - docs in `Docs/` are aspirational unless confirmed by code
-- the current stage is "single playable blind prototype with UI pass", not "full run architecture"
+- the current stage is "single playable blind prototype with tests and UI pass", not "full run architecture"
 - legacy files at repo root under `Assets/Scripts/` should not be used as the default source of truth
 
 The first question future work should answer is:
