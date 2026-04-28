@@ -104,26 +104,38 @@ public sealed class RoundStateTests {
         StringAssert.Contains("No discards left", nextState.LastActionText);
     }
 
+    [Test]
+    public void Constructor_UsesBlindStateForDerivedBlindValues() {
+        var state = CreateState(
+            handCards: new[] { TestCardFactory.Create(Rank.Ace, Suit.Spades) },
+            blind: new BlindState(BlindType.Big, 2),
+            maxHandSize: 1
+        );
+
+        Assert.That(state.BlindName, Is.EqualTo("Big Blind"));
+        Assert.That(state.Ante, Is.EqualTo(2));
+        Assert.That(state.RoundNumber, Is.EqualTo(2));
+        Assert.That(state.BlindReward, Is.EqualTo(20));
+    }
+
     private static RoundState CreateState(
         IReadOnlyList<CardData> handCards,
+        BlindState blind = null,
         IReadOnlyList<CardData> deckCards = null,
         IReadOnlyList<int> selectedIndexes = null,
         int targetScore = 300,
         int currentScore = 0,
         int money = 10,
         int ante = 1,
-        int roundNumber = 1,
         int handsLeft = 4,
         int discardsLeft = 3,
         RoundPhase phase = RoundPhase.PlayerTurn,
         int maxHandSize = 8) {
         return new RoundState(
-            blindName: "Small Blind",
+            blind: blind ?? new BlindState(BlindType.Small, ante),
             targetScore: targetScore,
             currentScore: currentScore,
             money: money,
-            ante: ante,
-            roundNumber: roundNumber,
             handsLeft: handsLeft,
             discardsLeft: discardsLeft,
             phase: phase,
