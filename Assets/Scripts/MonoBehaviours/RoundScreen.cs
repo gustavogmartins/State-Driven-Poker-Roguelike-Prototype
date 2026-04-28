@@ -44,6 +44,7 @@ public class RoundScreen : MonoBehaviour {
     [SerializeField] private Button sortBySuitButton;
 
     [Header("Card Areas")]
+    [SerializeField] private RectTransform upperGlassArea;
     [SerializeField] private RectTransform handArea;
     [SerializeField] private RectTransform playedHandArea;
     [SerializeField] private CardView cardViewPrefab;
@@ -83,6 +84,7 @@ public class RoundScreen : MonoBehaviour {
     private void Awake() {
         ResolveRoundEndOverlayReferences();
         ResolveShopOverlayReferences();
+        ResolveMainAreaReferences();
         RegisterButtonListeners();
     }
 
@@ -152,10 +154,26 @@ public class RoundScreen : MonoBehaviour {
         sortByRankButton.interactable = viewModel.CanSort;
         sortBySuitButton.interactable = viewModel.CanSort;
 
+        RenderOwnedJokers(viewModel.OwnedJokerCards);
         RenderHand(viewModel.HandCards);
         RenderPlayedCards(viewModel.PlayedCards);
         RenderRoundEndOverlay(viewModel);
         RenderShopOverlay(viewModel);
+    }
+
+    private void RenderOwnedJokers(IReadOnlyList<CardViewModel> ownedJokers) {
+        if (upperGlassArea == null) {
+            return;
+        }
+
+        ClearCardArea(upperGlassArea);
+
+        for (int i = 0; i < ownedJokers.Count; i++) {
+            var cardView = Instantiate(cardViewPrefab, upperGlassArea);
+            cardView.Bind(ownedJokers[i]);
+        }
+
+        LayoutRebuilder.ForceRebuildLayoutImmediate(upperGlassArea);
     }
 
     private void RenderHand(IReadOnlyList<CardViewModel> handCards) {
@@ -217,7 +235,7 @@ public class RoundScreen : MonoBehaviour {
             return;
         }
 
-        _runState = _runState.BuyFirstShopOffer();
+        _runState = _runState.BuySelectedShopOffer();
         Render(_runState);
     }
 
@@ -367,6 +385,17 @@ public class RoundScreen : MonoBehaviour {
         shopRerollButtonLabel ??= FindOverlayComponent<TextMeshProUGUI>(shopOverlay, "Panel/RerollButton/Label");
         shopContinueButton ??= FindOverlayComponent<Button>(shopOverlay, "Panel/ContinueButton");
         shopContinueButtonLabel ??= FindOverlayComponent<TextMeshProUGUI>(shopOverlay, "Panel/ContinueButton/Label");
+    }
+
+    private void ResolveMainAreaReferences() {
+        if (upperGlassArea != null) {
+            return;
+        }
+
+        GameObject upperGlassObject = GameObject.Find("Canvas/HudRoot/MainArea/UpperGlass");
+        if (upperGlassObject != null) {
+            upperGlassArea = upperGlassObject.GetComponent<RectTransform>();
+        }
     }
 
     private void RegisterButtonListeners() {

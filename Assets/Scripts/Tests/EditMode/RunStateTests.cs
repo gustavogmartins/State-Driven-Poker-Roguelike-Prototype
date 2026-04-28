@@ -76,7 +76,7 @@ public sealed class RunStateTests {
                 lastScoreResult: ScoreResult.Zero
             ),
             currentShop: null,
-            ownedOfferIds: System.Array.Empty<string>(),
+            ownedJokers: System.Array.Empty<JokerState>(),
             money: 25,
             phase: RunPhase.Blind
         );
@@ -114,7 +114,7 @@ public sealed class RunStateTests {
                 lastScoreResult: ScoreResult.Zero
             ),
             currentShop: null,
-            ownedOfferIds: System.Array.Empty<string>(),
+            ownedJokers: System.Array.Empty<JokerState>(),
             money: 40,
             phase: RunPhase.Blind
         );
@@ -160,7 +160,7 @@ public sealed class RunStateTests {
                 lastScoreResult: ScoreResult.Zero
             ),
             currentShop: null,
-            ownedOfferIds: System.Array.Empty<string>(),
+            ownedJokers: System.Array.Empty<JokerState>(),
             money: 25,
             phase: RunPhase.Blind
         );
@@ -197,7 +197,7 @@ public sealed class RunStateTests {
                 lastScoreResult: ScoreResult.Zero
             ),
             currentShop: new ShopState(25, new BlindState(BlindType.Big, 1)),
-            ownedOfferIds: System.Array.Empty<string>(),
+            ownedJokers: System.Array.Empty<JokerState>(),
             money: 25,
             phase: RunPhase.Shop
         );
@@ -212,7 +212,43 @@ public sealed class RunStateTests {
     }
 
     [Test]
-    public void BuyFirstShopOffer_WhenAffordable_SpendsMoneyAndMarksOfferPurchased() {
+    public void EnterShop_WhenRunAlreadyOwnsJoker_MarksOfferAsPurchased() {
+        RunState state = new RunState(
+            currentRound: new RoundState(
+                blind: new BlindState(BlindType.Small, 1),
+                targetScore: 300,
+                currentScore: 300,
+                handsLeft: 0,
+                discardsLeft: 3,
+                phase: RoundPhase.RoundEnd,
+                maxHandSize: 5,
+                deckCards: System.Array.Empty<CardData>(),
+                handCards: System.Array.Empty<CardData>(),
+                discardPileCards: System.Array.Empty<CardData>(),
+                selectedCardsIndexes: System.Array.Empty<int>(),
+                lastActionText: "Blind cleared",
+                lastPlayedCardsText: "None",
+                lastPlayedCards: System.Array.Empty<CardData>(),
+                lastPlayedCardsCount: 0,
+                lastPlayedHandResult: PokerHandType.None,
+                lastScoreResult: ScoreResult.Zero
+            ),
+            currentShop: null,
+            ownedJokers: new[] { new JokerState(JokerCatalog.GetById("glass-joker")) },
+            money: 25,
+            phase: RunPhase.Blind
+        );
+
+        RunState nextState = state.EnterShop();
+
+        Assert.That(nextState.CurrentShop, Is.Not.Null);
+        Assert.That(nextState.CurrentShop.FirstOffer, Is.Not.Null);
+        Assert.That(nextState.CurrentShop.FirstOffer.Id, Is.EqualTo("glass-joker"));
+        Assert.That(nextState.CurrentShop.FirstOffer.IsPurchased, Is.True);
+    }
+
+    [Test]
+    public void BuySelectedShopOffer_WhenAffordable_AddsJokerToInventory() {
         RunState state = new RunState(
             currentRound: new RoundState(
                 blind: new BlindState(BlindType.Small, 1),
@@ -234,23 +270,24 @@ public sealed class RunStateTests {
                 lastScoreResult: ScoreResult.Zero
             ),
             currentShop: new ShopState(25, new BlindState(BlindType.Big, 1)),
-            ownedOfferIds: System.Array.Empty<string>(),
+            ownedJokers: System.Array.Empty<JokerState>(),
             money: 25,
             phase: RunPhase.Shop
         );
 
-        RunState nextState = state.BuyFirstShopOffer();
+        RunState nextState = state.BuySelectedShopOffer();
 
         Assert.That(nextState.Money, Is.EqualTo(19));
         Assert.That(nextState.CurrentShop, Is.Not.Null);
         Assert.That(nextState.CurrentShop.FirstOffer, Is.Not.Null);
         Assert.That(nextState.CurrentShop.FirstOffer.IsPurchased, Is.True);
-        Assert.That(nextState.OwnedOfferIds, Does.Contain("glass-joker"));
+        Assert.That(nextState.OwnedJokers.Count, Is.EqualTo(1));
+        Assert.That(nextState.OwnedJokers[0].Id, Is.EqualTo("glass-joker"));
         Assert.That(nextState.CanBuySelectedShopOffer, Is.False);
     }
 
     [Test]
-    public void BuyFirstShopOffer_WhenNotAffordable_KeepsStateUnchanged() {
+    public void BuySelectedShopOffer_WhenNotAffordable_KeepsStateUnchanged() {
         RunState state = new RunState(
             currentRound: new RoundState(
                 blind: new BlindState(BlindType.Small, 1),
@@ -275,14 +312,14 @@ public sealed class RunStateTests {
                 4,
                 new BlindState(BlindType.Big, 1),
                 new ShopOfferState[] {
-                    new("glass-joker", "Glass Joker", "+10 Chips on first scoring hand", 6)
+                    new(JokerCatalog.GetById("glass-joker"))
                 }),
-            ownedOfferIds: System.Array.Empty<string>(),
+            ownedJokers: System.Array.Empty<JokerState>(),
             money: 4,
             phase: RunPhase.Shop
         );
 
-        RunState nextState = state.BuyFirstShopOffer();
+        RunState nextState = state.BuySelectedShopOffer();
 
         Assert.That(nextState, Is.SameAs(state));
     }
@@ -310,7 +347,7 @@ public sealed class RunStateTests {
                 lastScoreResult: ScoreResult.Zero
             ),
             currentShop: new ShopState(25, new BlindState(BlindType.Big, 1)),
-            ownedOfferIds: System.Array.Empty<string>(),
+            ownedJokers: System.Array.Empty<JokerState>(),
             money: 25,
             phase: RunPhase.Shop
         );
@@ -322,7 +359,7 @@ public sealed class RunStateTests {
     }
 
     [Test]
-    public void BuyFirstShopOffer_WhenAceTagWasSelected_BuysSelectedOffer() {
+    public void BuySelectedShopOffer_WhenAceTagWasSelected_BuysSelectedOffer() {
         RunState state = new RunState(
             currentRound: new RoundState(
                 blind: new BlindState(BlindType.Small, 1),
@@ -344,15 +381,16 @@ public sealed class RunStateTests {
                 lastScoreResult: ScoreResult.Zero
             ),
             currentShop: new ShopState(25, new BlindState(BlindType.Big, 1), selectedOfferIndex: 1),
-            ownedOfferIds: System.Array.Empty<string>(),
+            ownedJokers: System.Array.Empty<JokerState>(),
             money: 25,
             phase: RunPhase.Shop
         );
 
-        RunState nextState = state.BuyFirstShopOffer();
+        RunState nextState = state.BuySelectedShopOffer();
 
         Assert.That(nextState.Money, Is.EqualTo(17));
-        Assert.That(nextState.OwnedOfferIds, Does.Contain("ace-tag"));
+        Assert.That(nextState.OwnedJokers.Count, Is.EqualTo(1));
+        Assert.That(nextState.OwnedJokers[0].Id, Is.EqualTo("ace-tag"));
         Assert.That(nextState.CurrentShop.SelectedOffer.IsPurchased, Is.True);
     }
 
@@ -379,7 +417,7 @@ public sealed class RunStateTests {
                 lastScoreResult: ScoreResult.Zero
             ),
             currentShop: new ShopState(25, new BlindState(BlindType.Big, 1)),
-            ownedOfferIds: System.Array.Empty<string>(),
+            ownedJokers: System.Array.Empty<JokerState>(),
             money: 25,
             phase: RunPhase.Shop
         );
@@ -410,7 +448,7 @@ public sealed class RunStateTests {
                 initialHandCards: handCards
             ),
             currentShop: null,
-            ownedOfferIds: new[] { "glass-joker" },
+            ownedJokers: new[] { new JokerState(JokerCatalog.GetById("glass-joker")) },
             money: 10,
             phase: RunPhase.Blind
         );

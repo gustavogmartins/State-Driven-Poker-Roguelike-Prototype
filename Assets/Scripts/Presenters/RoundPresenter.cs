@@ -32,7 +32,7 @@ namespace Presenters {
             }
 
             if (hasPreviewSelection) {
-                activeScore = RunModifierService.ApplyScoreModifiers(activeScore, runState.OwnedOfferIds, selectedCards, activeHandResult);
+                activeScore = RunModifierService.ApplyScoreModifiers(activeScore, runState.OwnedJokers, selectedCards, activeHandResult);
             }
 
             var viewModel = new RoundViewModel {
@@ -97,6 +97,10 @@ namespace Presenters {
                 ));
             }
 
+            for (int i = 0; i < runState.OwnedJokers.Count; i++) {
+                viewModel.OwnedJokerCards.Add(CreateJokerCardViewModel(runState.OwnedJokers[i]));
+            }
+
             return viewModel;
         }
 
@@ -112,6 +116,17 @@ namespace Presenters {
                 AccentColor = GetSuitColor(card.Suit),
                 IsSelected = isSelected,
                 IsInteractable = isInteractable
+            };
+        }
+
+        private static CardViewModel CreateJokerCardViewModel(JokerState joker) {
+            return new CardViewModel {
+                Index = -1,
+                RankText = joker.ShortCode,
+                SuitText = "J",
+                AccentColor = GetJokerColor(joker),
+                IsSelected = false,
+                IsInteractable = false
             };
         }
 
@@ -221,7 +236,10 @@ namespace Presenters {
             }
 
             BlindState nextBlind = runState.CurrentShop.NextBlind;
-            return $"3 fake offers loaded\nNext blind: {nextBlind.Name}";
+            return
+                $"{runState.CurrentShop.Offers.Count} joker offers loaded\n" +
+                $"Inventory: {runState.OwnedJokers.Count} jokers\n" +
+                $"Next blind: {nextBlind.Name}";
         }
 
         private static string BuildShopDetailsText(RunState runState) {
@@ -282,17 +300,17 @@ namespace Presenters {
                 return string.Empty;
             }
 
-            ShopOfferState firstOffer = runState.CurrentShop.SelectedOffer;
+            ShopOfferState selectedOffer = runState.CurrentShop.SelectedOffer;
 
-            if (firstOffer.IsPurchased) {
+            if (selectedOffer.IsPurchased) {
                 return "Bought";
             }
 
-            if (!firstOffer.CanBuy(runState.Money)) {
-                return $"Need ${firstOffer.Cost}";
+            if (!selectedOffer.CanBuy(runState.Money)) {
+                return $"Need ${selectedOffer.Cost}";
             }
 
-            return $"Buy {firstOffer.Title} (${firstOffer.Cost})";
+            return $"Buy {selectedOffer.Title} (${selectedOffer.Cost})";
         }
 
         private static string BuildShopRerollButtonText(RunState runState) {
@@ -368,6 +386,14 @@ namespace Presenters {
                 Suit.Diamonds => new Color32(230, 153, 25, 255),
                 Suit.Clubs => new Color32(9, 116, 203, 255),
                 Suit.Spades => new Color32(52, 66, 72, 255),
+                _ => Color.white
+            };
+        }
+
+        private static Color GetJokerColor(JokerState joker) {
+            return joker.BonusType switch {
+                JokerBonusType.Chips => new Color32(244, 158, 27, 255),
+                JokerBonusType.Mult => new Color32(40, 138, 91, 255),
                 _ => Color.white
             };
         }

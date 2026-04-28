@@ -41,6 +41,7 @@ namespace View {
         public bool CanPlayHand;
         public bool CanDiscard;
         public bool CanSort;
+        public readonly List<CardViewModel> OwnedJokerCards = new();
         public readonly List<CardViewModel> HandCards = new();
         public readonly List<CardViewModel> PlayedCards = new();
     }
