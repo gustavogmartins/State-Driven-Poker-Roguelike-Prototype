@@ -10,7 +10,7 @@
 This repository is a **systems-focused card game prototype** created to demonstrate how I design and implement gameplay features with:
 
 - clear state modeling
-- reducer-driven game flow
+- state-driven game flow
 - separation between game rules and presentation
 - testable core logic
 - scalable architecture for future features
@@ -53,8 +53,8 @@ This project exists as a **portfolio piece**, meaning it is intentionally design
 - poker hand evaluation
 - score calculation based on `Chips x Mult`
 - blind progression
-- run structure
-- simple modifier system
+- ante progression
+- money carry-over between blinds
 
 ### Engineering practices
 - readable naming
@@ -279,11 +279,11 @@ Assets/
 - [x] win / lose a single blind
 
 ### Milestone 2 — Ante Flow
-- [ ] small blind
-- [ ] big blind
-- [ ] boss blind
-- [ ] blind reward
-- [ ] ante progression
+- [x] small blind
+- [x] big blind
+- [x] boss blind
+- [x] blind reward
+- [x] ante progression
 
 ### Milestone 3 — Shop
 - [ ] basic shop screen
@@ -339,6 +339,8 @@ Assets/
 - discards remaining
 - round result
 - progression to the next blind
+- progression to the next ante
+- blind rewards carried into persistent money
 
 ### Modifiers
 A simplified modifier system inspired by score-changing run-based card games.
@@ -399,12 +401,12 @@ The project is designed so the most important rules can be tested **without rely
 If you are a recruiter or another developer reviewing this project, the best reading order is:
 
 1. `README.md`
-2. `RunState` / `RoundState`
-3. reducers
-4. poker hand evaluator
-5. score calculator
-6. tests
-7. presentation layer
+2. `BlindState` / `RoundState`
+3. `RoundPresenter`
+4. `RoundScreen`
+5. poker hand evaluator
+6. score calculator
+7. tests
 
 That path should give a quick understanding of both:
 - the game loop
@@ -431,12 +433,20 @@ This is less about cloning a finished commercial game and more about showing how
 
 **Status:** In active development
 
-Planned first playable target:
-- one fully playable blind
+Current playable slice:
+- one playable scene: `Assets/Scenes/GameScene.unity`
 - hand evaluation working
 - score calculation working
-- reducer-driven round flow working
-- basic tests passing
+- state-driven round flow working
+- Small Blind -> Big Blind -> Boss Blind -> next ante progression working
+- blind rewards and money carry-over between blinds working
+- Edit Mode test assemblies compile successfully
+
+Still missing from later milestones:
+- shop flow
+- modifiers / jokers
+- boss-specific debuff rules
+- full manual verification in Unity Test Runner
 
 ---
 
@@ -497,14 +507,14 @@ Through this project, I want to improve my ability to:
 
 ## Repository checklist
 
-- [ ] first playable blind
-- [ ] poker hand evaluator
-- [ ] score calculator
+- [x] first playable blind
+- [x] poker hand evaluator
+- [x] score calculator
 - [ ] round reducer flow
-- [ ] blind progression
+- [x] blind progression
 - [ ] shop prototype
 - [ ] modifier system
-- [ ] tests for core systems
+- [x] tests for core systems
 - [ ] architecture diagram
 - [ ] gameplay capture
 - [ ] polished portfolio README

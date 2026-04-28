@@ -1,6 +1,6 @@
 # Project Continuity Spec
 
-Last updated: 2026-04-26
+Last updated: 2026-04-28
 
 ## Purpose
 
@@ -65,25 +65,24 @@ Actually implemented today:
 
 Conclusion:
 
-- The current codebase is closer to "Milestone 1 plus partial UI/presentation polish" than to the full architecture described in the older docs
+- The current codebase is closer to "Milestone 2 core flow plus partial UI/presentation polish" than to the full architecture described in the older docs
 - This file supersedes the older docs when there is a mismatch about implementation status
 
 ## Current Codebase Stage
 
 The project has reached:
 
-- a single-scene playable prototype for one blind
+- a single-scene playable prototype with real ante/blind progression
 - with state, scoring, rendering, selection, play, discard, and score preview working
-- with a custom HUD and card presentation already integrated into `RoundScene`
-- with Milestone 1 gameplay rules covered by Edit Mode tests
+- with a custom HUD and card presentation already integrated into `GameScene`
+- with Milestone 1 and Milestone 2 core gameplay rules covered by Edit Mode tests
 
 The project has not yet reached:
 
-- real run progression
-- real blind progression
 - shop
 - modifiers/jokers
-- boss rules
+- boss-specific gameplay rules/debuffs
+- a separate `RunState` / store-driven run loop
 - full manual verification of the new tests through the Unity Test Runner
 - production-ready content pipeline
 
@@ -100,7 +99,9 @@ Current real flow:
 Important recent architecture changes:
 
 - `RoundState.CreateInitial(...)` now owns round bootstrap instead of `RoundScreen` manually building domain state
+- `BlindState` now owns blind type, ante, reward, and target score progression
 - `RoundState` now exposes derived values such as `BlindReward`, `RemainingScore`, `HasWonRound`, and `HasLostRound`
+- `RoundState.StartNextBlind(...)` now advances Small Blind -> Big Blind -> Boss Blind -> next ante
 - `RoundPresenter` now derives clearer round-end status text from domain state
 - gameplay scripts now compile through a dedicated runtime assembly: `Assets/Scripts/StateDrivenPokerRoguelike.asmdef`
 - gameplay tests live in `Assets/Scripts/Tests/EditMode`
@@ -109,6 +110,7 @@ This is state-driven enough to be workable, but it is not yet the full action/st
 
 ### Main files that currently define the project
 
+- `Assets/Scripts/Core/BlindState.cs`
 - `Assets/Scripts/Core/RoundState.cs`
 - `Assets/Scripts/Core/PokerHandEvaluator.cs`
 - `Assets/Scripts/Core/ScoreCalculator.cs`
@@ -118,14 +120,14 @@ This is state-driven enough to be workable, but it is not yet the full action/st
 - `Assets/Scripts/View/CardView.cs`
 - `Assets/Scripts/View/CardViewModel.cs`
 - `Assets/Scripts/View/RoundViewModel.cs`
-- `Assets/Scenes/RoundScene.unity`
+- `Assets/Scenes/GameScene.unity`
 - `Assets/Prefabs/CardViewPrefab.prefab`
 
 ## Scene and UI Status
 
 Main scene:
 
-- `Assets/Scenes/RoundScene.unity`
+- `Assets/Scenes/GameScene.unity`
 
 Main screen script:
 
@@ -137,6 +139,7 @@ UI state today:
 - `HandNameText` updates from evaluated selected cards
 - `PlayHandButton` and `DiscardButton` are wired as persistent scene button events
 - sort buttons are still wired in code at runtime
+- round-end overlay primary action advances to next blind when the player wins
 - bottom hand container uses `HorizontalLayoutGroup`
 - middle played-cards container uses `HorizontalLayoutGroup`
 - `CardViewPrefab` is the prefab used for both hand cards and played cards
@@ -232,21 +235,20 @@ Implemented:
 - last played cards tracking
 - last played hand tracking
 - status text updates
+- real Small Blind / Big Blind / Boss Blind sequence
+- advance to next blind after a win
+- advance to next ante after clearing Boss Blind
+- blind reward and money carry-over between blinds
 
 Partially implemented only as data/presentation:
 
-- money
-- ante
-- round number
-- blind reward text
+- boss blind identity and progression exist, but no special boss debuff/rule exists yet
 
 Not implemented yet:
 
-- transition to next blind
-- transition to next ante
 - boss blind behavior
 - shop phase
-- run win/loss loop outside the single round
+- separate run win/loss loop outside the `RoundState`-driven flow
 
 ## Milestone Mapping
 
@@ -283,22 +285,23 @@ Remaining caveat:
 
 Status:
 
-- Not implemented as actual flow
+- Core flow implemented in code
 
-Only partial groundwork exists:
+Completed:
 
-- `Ante`
-- `RoundNumber`
-- blind name text
-- blind reward text
-
-Missing:
-
-- small blind / big blind / boss blind sequence
+- `BlindState` domain model
+- Small Blind / Big Blind / Boss Blind sequence
 - advancing to the next blind
 - advancing to the next ante
-- per-blind config/state objects
-- transition UI/state
+- blind-specific target score and reward scaling
+- transition UI through the round-end overlay in `GameScene`
+- money carry-over between blinds
+
+Still missing if Milestone 2 should be considered fully polished:
+
+- manual end-to-end verification in the Unity Test Runner / play mode
+- boss-specific special rule or debuff behavior, if desired before Milestone 3
+- a dedicated run-level state object, if progression should move out of `RoundState`
 
 ### Milestone 3 - Shop
 
@@ -396,7 +399,7 @@ This is intentionally a temporary basic structure before a future slot-based sys
 - There are Unity Assistant Account API warnings in the editor; these are unrelated to gameplay logic
 - A stale Burst/editor log appeared during the first asmdef refresh when the new test assembly was introduced; gameplay code later recompiled successfully, but the Test Runner should still be checked manually in-editor
 - Current architecture is partly state-driven but not yet reducer/store based
-- Round progression is still single-scene and single-round focused
+- Run progression still lives inside `RoundState`; there is no separate `RunState` yet
 - Card layout is still an intermediate UI solution, not the final slot system
 
 ## Recommended Next Steps
@@ -404,10 +407,10 @@ This is intentionally a temporary basic structure before a future slot-based sys
 Recommended order from here:
 
 1. Run the new Edit Mode suite manually in Unity Test Runner and clear any remaining editor/test-runner issues
-2. Introduce a real blind progression model for small blind / big blind / boss blind
-3. Extract round progression out of ad hoc fields into clearer domain types
-4. Add shop state and a minimal shop flow
-5. Add first modifier/joker layer only after blind progression is working
+2. Decide whether boss blinds need a simple special rule before Milestone 3
+3. Add shop state and a minimal shop flow
+4. Add first modifier/joker layer after shop entry/exit path exists
+5. Extract run progression out of `RoundState` into a dedicated run-level state if needed
 6. Replace temporary layout rows with a real slot-based hand/play-area system
 7. Continue polishing public docs and portfolio materials
 
@@ -422,7 +425,7 @@ When reopening this repository on another computer, read in this order:
 5. `Assets/Scripts/Core/PokerHandEvaluator.cs`
 6. `Assets/Scripts/Core/ScoreCalculator.cs`
 7. `Assets/Scripts/Tests/EditMode`
-8. `Assets/Scenes/RoundScene.unity`
+8. `Assets/Scenes/GameScene.unity`
 
 After that, inspect only if needed:
 
@@ -436,13 +439,13 @@ If opens this repo later, it should assume:
 
 - the active gameplay loop is centered on `RoundState`
 - the active UI loop is `RoundScreen -> RoundPresenter -> RoundViewModel`
-- Milestone 1 is complete in code, with tests added
+- Milestone 1 and Milestone 2 core flow are complete in code, with tests added
 - docs in `Docs/` are aspirational unless confirmed by code
-- the current stage is "single playable blind prototype with tests and UI pass", not "full run architecture"
+- the current stage is "playable ante flow prototype with tests and UI pass", not "full run/store architecture"
 - legacy files at repo root under `Assets/Scripts/` should not be used as the default source of truth
 
 The first question future work should answer is:
 
-- "Are we stabilizing Milestone 1, or are we starting Milestone 2?"
+- "Are we polishing Milestone 2, or are we starting Milestone 3?"
 
 That decision should drive the next implementation slice.
