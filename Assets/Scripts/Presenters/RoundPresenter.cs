@@ -51,15 +51,20 @@ namespace Presenters {
                 DeckCountText = $"{roundState.DeckCards.Count}/{TotalDeckSize}",
                 HandSizeText = $"{roundState.HandCards.Count}/{roundState.MaxHandSize}",
                 TopDiscardText = FormatTopDiscard(roundState),
-                ShowRoundEndOverlay = roundState.IsRoundOver,
+                ShowRoundEndOverlay = roundState.IsRoundOver && !runState.IsInShop,
                 IsWinningRoundEnd = roundState.HasWonRound,
                 RoundEndBannerText = BuildRoundEndBannerText(roundState),
                 RoundEndSummaryText = BuildRoundEndSummaryText(roundState),
                 RoundEndDetailsText = BuildRoundEndDetailsText(runState),
                 RoundEndPrimaryActionText = BuildRoundEndPrimaryActionText(runState),
-                CanPlayHand = roundState.CanPlaySelectedCards,
-                CanDiscard = roundState.CanDiscardSelectedCards,
-                CanSort = roundState.CanSortHand
+                ShowShopOverlay = runState.IsInShop,
+                ShopBannerText = BuildShopBannerText(runState),
+                ShopSummaryText = BuildShopSummaryText(runState),
+                ShopDetailsText = BuildShopDetailsText(runState),
+                ShopPrimaryActionText = BuildShopPrimaryActionText(runState),
+                CanPlayHand = !runState.IsInShop && roundState.CanPlaySelectedCards,
+                CanDiscard = !runState.IsInShop && roundState.CanDiscardSelectedCards,
+                CanSort = !runState.IsInShop && roundState.CanSortHand
             };
 
             for (int i = 0; i < roundState.HandCards.Count; i++) {
@@ -160,6 +165,7 @@ namespace Presenters {
                 return
                     $"Blind reward        ${roundState.BlindReward}\n" +
                     $"Next blind          {nextBlindLabel}\n" +
+                    "Next stop           Shop\n" +
                     $"Money total         ${runState.Money}";
             }
 
@@ -181,11 +187,7 @@ namespace Presenters {
             RoundState roundState = runState.CurrentRound;
 
             if (roundState.HasWonRound) {
-                BlindState nextBlind = roundState.Blind.Advance();
-
-                return nextBlind.Type == BlindType.Small
-                    ? $"Start Ante {nextBlind.Ante}"
-                    : $"Play {nextBlind.Name}";
+                return "Go To Shop";
             }
 
             if (roundState.HasLostRound) {
@@ -193,6 +195,46 @@ namespace Presenters {
             }
 
             return string.Empty;
+        }
+
+        private static string BuildShopBannerText(RunState runState) {
+            if (!runState.IsInShop || runState.CurrentShop == null) {
+                return string.Empty;
+            }
+
+            return "Shop Open";
+        }
+
+        private static string BuildShopSummaryText(RunState runState) {
+            if (!runState.IsInShop || runState.CurrentShop == null) {
+                return string.Empty;
+            }
+
+            BlindState nextBlind = runState.CurrentShop.NextBlind;
+            return $"Spend your cash or move on\nNext blind: {nextBlind.Name}";
+        }
+
+        private static string BuildShopDetailsText(RunState runState) {
+            if (!runState.IsInShop || runState.CurrentShop == null) {
+                return string.Empty;
+            }
+
+            BlindState nextBlind = runState.CurrentShop.NextBlind;
+            return
+                $"Money available     ${runState.Money}\n" +
+                $"Pending blind        Ante {nextBlind.Ante} | {nextBlind.Name}\n" +
+                "Shop stock           Coming next slice";
+        }
+
+        private static string BuildShopPrimaryActionText(RunState runState) {
+            if (!runState.IsInShop || runState.CurrentShop == null) {
+                return string.Empty;
+            }
+
+            BlindState nextBlind = runState.CurrentShop.NextBlind;
+            return nextBlind.Type == BlindType.Small
+                ? $"Start Ante {nextBlind.Ante}"
+                : $"Play {nextBlind.Name}";
         }
 
         private static string FormatTopDiscard(RoundState roundState) {

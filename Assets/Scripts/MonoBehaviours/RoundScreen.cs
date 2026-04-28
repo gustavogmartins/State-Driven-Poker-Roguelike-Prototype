@@ -58,6 +58,14 @@ public class RoundScreen : MonoBehaviour {
     [SerializeField] private TextMeshProUGUI newRunButtonLabel;
     [SerializeField] private Button exitButton;
 
+    [Header("Shop Overlay")]
+    [SerializeField] private GameObject shopOverlay;
+    [SerializeField] private TextMeshProUGUI shopBannerText;
+    [SerializeField] private TextMeshProUGUI shopSummaryText;
+    [SerializeField] private TextMeshProUGUI shopDetailsText;
+    [SerializeField] private Button shopContinueButton;
+    [SerializeField] private TextMeshProUGUI shopContinueButtonLabel;
+
     [Header("Debug")]
     [SerializeField] private bool useDebugHandScenario = false;
     [SerializeField] private DebugHandScenario debugHandScenario = DebugHandScenario.None;
@@ -67,6 +75,7 @@ public class RoundScreen : MonoBehaviour {
 
     private void Awake() {
         ResolveRoundEndOverlayReferences();
+        ResolveShopOverlayReferences();
         RegisterButtonListeners();
     }
 
@@ -139,6 +148,7 @@ public class RoundScreen : MonoBehaviour {
         RenderHand(viewModel.HandCards);
         RenderPlayedCards(viewModel.PlayedCards);
         RenderRoundEndOverlay(viewModel);
+        RenderShopOverlay(viewModel);
     }
 
     private void RenderHand(IReadOnlyList<CardViewModel> handCards) {
@@ -179,10 +189,19 @@ public class RoundScreen : MonoBehaviour {
     }
 
     private void HandlePrimaryRoundEndAction() {
-        _runState = _runState != null && _runState.CanAdvanceToNextBlind
-            ? _runState.StartNextBlind(initialHandCards: GetDebugHand())
+        _runState = _runState != null && _runState.CanEnterShop
+            ? _runState.EnterShop()
             : CreateInitialState();
 
+        Render(_runState);
+    }
+
+    private void HandleShopContinueAction() {
+        if (_runState == null) {
+            return;
+        }
+
+        _runState = _runState.LeaveShop(initialHandCards: GetDebugHand());
         Render(_runState);
     }
 
@@ -226,6 +245,34 @@ public class RoundScreen : MonoBehaviour {
         }
     }
 
+    private void RenderShopOverlay(RoundViewModel viewModel) {
+        if (shopOverlay == null) {
+            return;
+        }
+
+        shopOverlay.SetActive(viewModel.ShowShopOverlay);
+
+        if (!viewModel.ShowShopOverlay) {
+            return;
+        }
+
+        if (shopBannerText != null) {
+            shopBannerText.text = viewModel.ShopBannerText;
+        }
+
+        if (shopSummaryText != null) {
+            shopSummaryText.text = viewModel.ShopSummaryText;
+        }
+
+        if (shopDetailsText != null) {
+            shopDetailsText.text = viewModel.ShopDetailsText;
+        }
+
+        if (shopContinueButtonLabel != null) {
+            shopContinueButtonLabel.text = viewModel.ShopPrimaryActionText;
+        }
+    }
+
     private void ResolveRoundEndOverlayReferences() {
         if (roundEndOverlay == null) {
             return;
@@ -240,6 +287,18 @@ public class RoundScreen : MonoBehaviour {
         exitButton ??= FindOverlayComponent<Button>("Panel/ExitButton");
     }
 
+    private void ResolveShopOverlayReferences() {
+        if (shopOverlay == null) {
+            return;
+        }
+
+        shopBannerText ??= FindOverlayComponent<TextMeshProUGUI>(shopOverlay, "Panel/Banner/BannerText");
+        shopSummaryText ??= FindOverlayComponent<TextMeshProUGUI>(shopOverlay, "Panel/SummaryText");
+        shopDetailsText ??= FindOverlayComponent<TextMeshProUGUI>(shopOverlay, "Panel/DetailsText");
+        shopContinueButton ??= FindOverlayComponent<Button>(shopOverlay, "Panel/ContinueButton");
+        shopContinueButtonLabel ??= FindOverlayComponent<TextMeshProUGUI>(shopOverlay, "Panel/ContinueButton/Label");
+    }
+
     private void RegisterButtonListeners() {
         if (newRunButton != null) {
             newRunButton.onClick.AddListener(HandlePrimaryRoundEndAction);
@@ -247,6 +306,10 @@ public class RoundScreen : MonoBehaviour {
 
         if (exitButton != null) {
             exitButton.onClick.AddListener(ExitRun);
+        }
+
+        if (shopContinueButton != null) {
+            shopContinueButton.onClick.AddListener(HandleShopContinueAction);
         }
 
         if (sortByRankButton != null) {
@@ -267,6 +330,10 @@ public class RoundScreen : MonoBehaviour {
             exitButton.onClick.RemoveListener(ExitRun);
         }
 
+        if (shopContinueButton != null) {
+            shopContinueButton.onClick.RemoveListener(HandleShopContinueAction);
+        }
+
         if (sortByRankButton != null) {
             sortByRankButton.onClick.RemoveListener(OnSortByRankButtonClicked);
         }
@@ -282,6 +349,15 @@ public class RoundScreen : MonoBehaviour {
         }
 
         Transform target = roundEndOverlay.transform.Find(relativePath);
+        return target != null ? target.GetComponent<T>() : null;
+    }
+
+    private static T FindOverlayComponent<T>(GameObject overlayRoot, string relativePath) where T : Component {
+        if (overlayRoot == null) {
+            return null;
+        }
+
+        Transform target = overlayRoot.transform.Find(relativePath);
         return target != null ? target.GetComponent<T>() : null;
     }
 

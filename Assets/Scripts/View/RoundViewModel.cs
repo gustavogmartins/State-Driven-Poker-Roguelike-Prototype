@@ -28,6 +28,11 @@ namespace View {
         public string RoundEndSummaryText;
         public string RoundEndDetailsText;
         public string RoundEndPrimaryActionText;
+        public bool ShowShopOverlay;
+        public string ShopBannerText;
+        public string ShopSummaryText;
+        public string ShopDetailsText;
+        public string ShopPrimaryActionText;
         public bool CanPlayHand;
         public bool CanDiscard;
         public bool CanSort;
