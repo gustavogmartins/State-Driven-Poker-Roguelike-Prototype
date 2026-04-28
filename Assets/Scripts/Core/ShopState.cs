@@ -50,7 +50,7 @@ namespace Core {
                 new(
                     id: "glass-joker",
                     title: "Glass Joker",
-                    description: "+10 Chips on first scoring hand",
+                    description: "+10 Chips on every scoring hand",
                     cost: 6),
                 new(
                     id: "ace-tag",

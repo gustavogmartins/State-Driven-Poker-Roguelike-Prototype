@@ -31,6 +31,10 @@ namespace Presenters {
                 activeScore = ScoreResult.Zero;
             }
 
+            if (hasPreviewSelection) {
+                activeScore = RunModifierService.ApplyScoreModifiers(activeScore, runState.OwnedOfferIds, selectedCards);
+            }
+
             var viewModel = new RoundViewModel {
                 BlindTitleText = roundState.BlindName,
                 BlindDescriptionText = BuildBlindDescription(roundState.BlindName),

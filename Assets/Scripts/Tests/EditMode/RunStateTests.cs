@@ -76,6 +76,7 @@ public sealed class RunStateTests {
                 lastScoreResult: ScoreResult.Zero
             ),
             currentShop: null,
+            ownedOfferIds: System.Array.Empty<string>(),
             money: 25,
             phase: RunPhase.Blind
         );
@@ -113,6 +114,7 @@ public sealed class RunStateTests {
                 lastScoreResult: ScoreResult.Zero
             ),
             currentShop: null,
+            ownedOfferIds: System.Array.Empty<string>(),
             money: 40,
             phase: RunPhase.Blind
         );
@@ -158,6 +160,7 @@ public sealed class RunStateTests {
                 lastScoreResult: ScoreResult.Zero
             ),
             currentShop: null,
+            ownedOfferIds: System.Array.Empty<string>(),
             money: 25,
             phase: RunPhase.Blind
         );
@@ -194,6 +197,7 @@ public sealed class RunStateTests {
                 lastScoreResult: ScoreResult.Zero
             ),
             currentShop: new ShopState(25, new BlindState(BlindType.Big, 1)),
+            ownedOfferIds: System.Array.Empty<string>(),
             money: 25,
             phase: RunPhase.Shop
         );
@@ -230,6 +234,7 @@ public sealed class RunStateTests {
                 lastScoreResult: ScoreResult.Zero
             ),
             currentShop: new ShopState(25, new BlindState(BlindType.Big, 1)),
+            ownedOfferIds: System.Array.Empty<string>(),
             money: 25,
             phase: RunPhase.Shop
         );
@@ -240,6 +245,7 @@ public sealed class RunStateTests {
         Assert.That(nextState.CurrentShop, Is.Not.Null);
         Assert.That(nextState.CurrentShop.FirstOffer, Is.Not.Null);
         Assert.That(nextState.CurrentShop.FirstOffer.IsPurchased, Is.True);
+        Assert.That(nextState.OwnedOfferIds, Does.Contain("glass-joker"));
         Assert.That(nextState.CanBuyFirstShopOffer, Is.False);
     }
 
@@ -271,6 +277,7 @@ public sealed class RunStateTests {
                 new ShopOfferState[] {
                     new("glass-joker", "Glass Joker", "+10 Chips on first scoring hand", 6)
                 }),
+            ownedOfferIds: System.Array.Empty<string>(),
             money: 4,
             phase: RunPhase.Shop
         );
@@ -278,5 +285,38 @@ public sealed class RunStateTests {
         RunState nextState = state.BuyFirstShopOffer();
 
         Assert.That(nextState, Is.SameAs(state));
+    }
+
+    [Test]
+    public void PlaySelectedCards_WhenGlassJokerWasBought_AddsBonusChipsToScore() {
+        CardData[] handCards = {
+            TestCardFactory.Create(Rank.Ace, Suit.Spades),
+            TestCardFactory.Create(Rank.Ace, Suit.Hearts),
+            TestCardFactory.Create(Rank.Three, Suit.Clubs),
+            TestCardFactory.Create(Rank.Four, Suit.Diamonds),
+            TestCardFactory.Create(Rank.Nine, Suit.Spades)
+        };
+
+        RunState state = new RunState(
+            currentRound: RoundState.CreateInitial(
+                blind: new BlindState(BlindType.Small, 1),
+                handsLeft: 2,
+                maxHandSize: 5,
+                initialHandCards: handCards
+            ),
+            currentShop: null,
+            ownedOfferIds: new[] { "glass-joker" },
+            money: 10,
+            phase: RunPhase.Blind
+        );
+
+        for (int i = 0; i < 5; i++) {
+            state = state.ToggleCardSelection(i);
+        }
+
+        RunState nextState = state.PlaySelectedCards();
+
+        Assert.That(nextState.CurrentRound.LastScoreResult.TotalChips, Is.EqualTo(58));
+        Assert.That(nextState.CurrentRound.LastScoreResult.FinalScore, Is.EqualTo(116));
     }
 }

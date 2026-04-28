@@ -5,6 +5,7 @@ namespace Core {
     public sealed class RunState {
         public RoundState CurrentRound { get; }
         public ShopState CurrentShop { get; }
+        public IReadOnlyList<string> OwnedOfferIds { get; }
         public int Money { get; }
         public RunPhase Phase { get; }
         public BlindState CurrentBlind => CurrentRound.Blind;
@@ -15,9 +16,15 @@ namespace Core {
         public bool IsInShop => Phase == RunPhase.Shop;
         public bool CanBuyFirstShopOffer => IsInShop && CurrentShop?.FirstOffer?.CanBuy(Money) == true;
 
-        public RunState(RoundState currentRound, ShopState currentShop, int money, RunPhase phase) {
+        public RunState(
+            RoundState currentRound,
+            ShopState currentShop,
+            IReadOnlyList<string> ownedOfferIds,
+            int money,
+            RunPhase phase) {
             CurrentRound = currentRound ?? throw new ArgumentNullException(nameof(currentRound));
             CurrentShop = currentShop;
+            OwnedOfferIds = new List<string>(ownedOfferIds ?? Array.Empty<string>()).AsReadOnly();
 
             if (money < 0) {
                 throw new ArgumentOutOfRangeException(nameof(money));
@@ -42,7 +49,7 @@ namespace Core {
                 initialHandCards: initialHandCards
             );
 
-            return new RunState(roundState, null, startingMoney, RunPhase.Blind);
+            return new RunState(roundState, null, Array.Empty<string>(), startingMoney, RunPhase.Blind);
         }
 
         public RunState ToggleCardSelection(int index) {
@@ -50,7 +57,11 @@ namespace Core {
         }
 
         public RunState PlaySelectedCards() {
-            RoundState nextRound = CurrentRound.PlaySelectedCards();
+            IReadOnlyList<CardData> selectedCards = CurrentRound.GetSelectedCards();
+            PokerHandResult handResult = PokerHandEvaluator.Evaluate(selectedCards);
+            ScoreResult baseScore = ScoreCalculator.Calculate(selectedCards, handResult);
+            ScoreResult modifiedScore = RunModifierService.ApplyScoreModifiers(baseScore, OwnedOfferIds, selectedCards);
+            RoundState nextRound = CurrentRound.PlaySelectedCards(modifiedScore);
             int nextMoney = Money;
             RunPhase nextPhase = nextRound.HasLostRound ? RunPhase.RunEnd : Phase;
 
@@ -58,7 +69,7 @@ namespace Core {
                 nextMoney += nextRound.BlindReward;
             }
 
-            return new RunState(nextRound, null, nextMoney, nextPhase);
+            return new RunState(nextRound, null, OwnedOfferIds, nextMoney, nextPhase);
         }
 
         public RunState DiscardCards() {
@@ -85,7 +96,7 @@ namespace Core {
                 initialHandCards: initialHandCards
             );
 
-            return new RunState(nextRound, null, Money, RunPhase.Blind);
+            return new RunState(nextRound, null, OwnedOfferIds, Money, RunPhase.Blind);
         }
 
         public RunState EnterShop() {
@@ -95,7 +106,7 @@ namespace Core {
 
             BlindState nextBlind = CurrentBlind.Advance();
             ShopState shopState = new ShopState(Money, nextBlind);
-            return new RunState(CurrentRound, shopState, Money, RunPhase.Shop);
+            return new RunState(CurrentRound, shopState, OwnedOfferIds, Money, RunPhase.Shop);
         }
 
         public RunState LeaveShop(IReadOnlyList<CardData> initialHandCards = null) {
@@ -109,7 +120,7 @@ namespace Core {
                 initialHandCards: initialHandCards
             );
 
-            return new RunState(nextRound, null, Money, RunPhase.Blind);
+            return new RunState(nextRound, null, OwnedOfferIds, Money, RunPhase.Blind);
         }
 
         public RunState BuyFirstShopOffer() {
@@ -124,7 +135,12 @@ namespace Core {
 
             int updatedMoney = Money - firstOffer.Cost;
             ShopState updatedShop = CurrentShop.PurchaseOffer(firstOffer.Id, updatedMoney);
-            return new RunState(CurrentRound, updatedShop, updatedMoney, Phase);
+            var updatedOwnedOffers = new List<string>(OwnedOfferIds);
+            if (!updatedOwnedOffers.Contains(firstOffer.Id)) {
+                updatedOwnedOffers.Add(firstOffer.Id);
+            }
+
+            return new RunState(CurrentRound, updatedShop, updatedOwnedOffers, updatedMoney, Phase);
         }
 
         private RunState CopyWith(
@@ -134,6 +150,7 @@ namespace Core {
             return new RunState(
                 currentRound ?? CurrentRound,
                 CurrentShop,
+                OwnedOfferIds,
                 money ?? Money,
                 phase ?? Phase
             );
