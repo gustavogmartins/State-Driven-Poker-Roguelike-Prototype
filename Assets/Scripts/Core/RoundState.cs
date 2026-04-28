@@ -13,7 +13,6 @@ namespace Core {
         public string BlindName => Blind.Name;
         public int TargetScore { get; }
         public int CurrentScore { get; }
-        public int Money { get; }
         public int Ante => Blind.Ante;
         public int RoundNumber => Blind.RoundNumber;
         public int HandsLeft { get; }
@@ -37,7 +36,6 @@ namespace Core {
         public bool HasClearedBlind => CurrentScore >= TargetScore;
         public bool HasWonRound => IsRoundOver && HasClearedBlind;
         public bool HasLostRound => IsRoundOver && !HasClearedBlind && HandsLeft == 0;
-        public bool CanAdvanceToNextBlind => HasWonRound;
         public bool CanPlaySelectedCards => !IsRoundOver && SelectedCardsCount > 0 && HandsLeft > 0;
         public bool CanDiscardSelectedCards => !IsRoundOver && SelectedCardsCount > 0 && DiscardsLeft > 0;
         public bool CanSortHand => !IsRoundOver && HandCards.Count > 1;
@@ -46,7 +44,6 @@ namespace Core {
             BlindState blind,
             int targetScore,
             int currentScore,
-            int money,
             int handsLeft,
             int discardsLeft,
             RoundPhase phase,
@@ -73,10 +70,6 @@ namespace Core {
                 throw new ArgumentOutOfRangeException(nameof(currentScore));
             }
 
-            if (money < 0) {
-                throw new ArgumentOutOfRangeException(nameof(money));
-            }
-
             if (handsLeft < 0) {
                 throw new ArgumentOutOfRangeException(nameof(handsLeft));
             }
@@ -92,7 +85,6 @@ namespace Core {
             Blind = blind;
             TargetScore = targetScore;
             CurrentScore = currentScore;
-            Money = money;
             HandsLeft = handsLeft;
             DiscardsLeft = discardsLeft;
             Phase = phase;
@@ -112,7 +104,6 @@ namespace Core {
         public static RoundState CreateInitial(
             BlindState blind = null,
             int? targetScore = null,
-            int money = 10,
             int handsLeft = DefaultHandsPerBlind,
             int discardsLeft = DefaultDiscardsPerBlind,
             int maxHandSize = 8,
@@ -145,7 +136,6 @@ namespace Core {
                 blind: blind,
                 targetScore: resolvedTargetScore,
                 currentScore: 0,
-                money: money,
                 handsLeft: handsLeft,
                 discardsLeft: discardsLeft,
                 phase: RoundPhase.PlayerTurn,
@@ -165,24 +155,6 @@ namespace Core {
 
         public static RoundState CreateDebug() {
             return CreateInitial();
-        }
-
-        public RoundState StartNextBlind(IReadOnlyList<CardData> initialHandCards = null) {
-            if (!CanAdvanceToNextBlind) {
-                return this;
-            }
-
-            BlindState nextBlind = Blind.Advance();
-
-            return CreateInitial(
-                blind: nextBlind,
-                targetScore: nextBlind.TargetScore,
-                money: Money,
-                handsLeft: DefaultHandsPerBlind,
-                discardsLeft: DefaultDiscardsPerBlind,
-                maxHandSize: MaxHandSize,
-                initialHandCards: initialHandCards
-            );
         }
 
         public bool IsSelected(int index) {
@@ -264,7 +236,6 @@ namespace Core {
                 blind: Blind,
                 targetScore: TargetScore,
                 currentScore: newCurrentScore,
-                money: blindCleared ? Money + BlindReward : Money,
                 handsLeft: newHandsLeft,
                 discardsLeft: DiscardsLeft,
                 phase: blindCleared || roundLost ? RoundPhase.RoundEnd : RoundPhase.PlayerTurn,
@@ -317,7 +288,6 @@ namespace Core {
                 blind: Blind,
                 targetScore: TargetScore,
                 currentScore: CurrentScore,
-                money: Money,
                 handsLeft: HandsLeft,
                 discardsLeft: newDiscardsLeft,
                 phase: RoundPhase.PlayerTurn,
@@ -391,7 +361,6 @@ namespace Core {
                 blind: Blind,
                 targetScore: TargetScore,
                 currentScore: CurrentScore,
-                money: Money,
                 handsLeft: HandsLeft,
                 discardsLeft: DiscardsLeft,
                 phase: Phase,

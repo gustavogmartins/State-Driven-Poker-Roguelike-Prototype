@@ -6,7 +6,8 @@ namespace Presenters {
     public sealed class RoundPresenter {
         private const int TotalDeckSize = 52;
 
-        public RoundViewModel Present(RoundState roundState) {
+        public RoundViewModel Present(RunState runState) {
+            RoundState roundState = runState.CurrentRound;
             var selectedCards = roundState.GetSelectedCards();
             bool hasPreviewSelection = selectedCards.Count > 0;
             bool hasPlayedCards = roundState.LastPlayedCards.Count > 0;
@@ -41,7 +42,7 @@ namespace Presenters {
                 MultText = activeScore.BaseMult.ToString(),
                 HandsLeftText = roundState.HandsLeft.ToString(),
                 DiscardsLeftText = roundState.DiscardsLeft.ToString(),
-                MoneyText = $"${roundState.Money}",
+                MoneyText = $"${runState.Money}",
                 AnteText = roundState.Ante.ToString(),
                 RoundText = roundState.RoundNumber.ToString(),
                 PhaseText = FormatPhase(roundState.Phase),
@@ -54,8 +55,8 @@ namespace Presenters {
                 IsWinningRoundEnd = roundState.HasWonRound,
                 RoundEndBannerText = BuildRoundEndBannerText(roundState),
                 RoundEndSummaryText = BuildRoundEndSummaryText(roundState),
-                RoundEndDetailsText = BuildRoundEndDetailsText(roundState),
-                RoundEndPrimaryActionText = BuildRoundEndPrimaryActionText(roundState),
+                RoundEndDetailsText = BuildRoundEndDetailsText(runState),
+                RoundEndPrimaryActionText = BuildRoundEndPrimaryActionText(runState),
                 CanPlayHand = roundState.CanPlaySelectedCards,
                 CanDiscard = roundState.CanDiscardSelectedCards,
                 CanSort = roundState.CanSortHand
@@ -149,7 +150,9 @@ namespace Presenters {
             return string.Empty;
         }
 
-        private static string BuildRoundEndDetailsText(RoundState roundState) {
+        private static string BuildRoundEndDetailsText(RunState runState) {
+            RoundState roundState = runState.CurrentRound;
+
             if (roundState.HasWonRound) {
                 BlindState nextBlind = roundState.Blind.Advance();
                 string nextBlindLabel = $"Ante {nextBlind.Ante} | {nextBlind.Name}";
@@ -157,7 +160,7 @@ namespace Presenters {
                 return
                     $"Blind reward        ${roundState.BlindReward}\n" +
                     $"Next blind          {nextBlindLabel}\n" +
-                    $"Money total         ${roundState.Money}";
+                    $"Money total         ${runState.Money}";
             }
 
             if (roundState.HasLostRound) {
@@ -167,14 +170,16 @@ namespace Presenters {
 
                 return
                     $"{lastHandText}\n" +
-                    $"Money total         ${roundState.Money}\n" +
+                    $"Money total         ${runState.Money}\n" +
                     "Start a new run or exit";
             }
 
             return string.Empty;
         }
 
-        private static string BuildRoundEndPrimaryActionText(RoundState roundState) {
+        private static string BuildRoundEndPrimaryActionText(RunState runState) {
+            RoundState roundState = runState.CurrentRound;
+
             if (roundState.HasWonRound) {
                 BlindState nextBlind = roundState.Blind.Advance();
 

@@ -63,7 +63,7 @@ public class RoundScreen : MonoBehaviour {
     [SerializeField] private DebugHandScenario debugHandScenario = DebugHandScenario.None;
 
     private RoundPresenter _roundPresenter;
-    private RoundState _roundState;
+    private RunState _runState;
 
     private void Awake() {
         ResolveRoundEndOverlayReferences();
@@ -72,43 +72,43 @@ public class RoundScreen : MonoBehaviour {
 
     private void Start() {
         _roundPresenter = new RoundPresenter();
-        _roundState = CreateInitialState();
+        _runState = CreateInitialState();
 
-        Render(_roundState);
+        Render(_runState);
     }
 
     private void OnDestroy() {
         UnregisterButtonListeners();
     }
 
-    private RoundState CreateInitialState() {
+    private RunState CreateInitialState() {
         var debugHand = GetDebugHand();
 
-        return RoundState.CreateInitial(initialHandCards: debugHand);
+        return RunState.CreateInitial(initialHandCards: debugHand);
     }
 
     public void OnPlayHandButtonClicked() {
-        _roundState = _roundState.PlaySelectedCards();
-        Render(_roundState);
+        _runState = _runState.PlaySelectedCards();
+        Render(_runState);
     }
 
     public void OnDiscardButtonClicked() {
-        _roundState = _roundState.DiscardCards();
-        Render(_roundState);
+        _runState = _runState.DiscardCards();
+        Render(_runState);
     }
 
     public void OnSortByRankButtonClicked() {
-        _roundState = _roundState.SortHandByRank();
-        Render(_roundState);
+        _runState = _runState.SortHandByRank();
+        Render(_runState);
     }
 
     public void OnSortBySuitButtonClicked() {
-        _roundState = _roundState.SortHandBySuit();
-        Render(_roundState);
+        _runState = _runState.SortHandBySuit();
+        Render(_runState);
     }
 
-    private void Render(RoundState roundState) {
-        var viewModel = _roundPresenter.Present(roundState);
+    private void Render(RunState runState) {
+        var viewModel = _roundPresenter.Present(runState);
 
         blindTitleText.text = viewModel.BlindTitleText;
         blindDescriptionText.text = viewModel.BlindDescriptionText;
@@ -174,16 +174,16 @@ public class RoundScreen : MonoBehaviour {
     }
 
     private void OnCardSelected(int index) {
-        _roundState = _roundState.ToggleCardSelection(index);
-        Render(_roundState);
+        _runState = _runState.ToggleCardSelection(index);
+        Render(_runState);
     }
 
     private void HandlePrimaryRoundEndAction() {
-        _roundState = _roundState != null && _roundState.CanAdvanceToNextBlind
-            ? _roundState.StartNextBlind(initialHandCards: GetDebugHand())
+        _runState = _runState != null && _runState.CanAdvanceToNextBlind
+            ? _runState.StartNextBlind(initialHandCards: GetDebugHand())
             : CreateInitialState();
 
-        Render(_roundState);
+        Render(_runState);
     }
 
     private void ExitRun() {
