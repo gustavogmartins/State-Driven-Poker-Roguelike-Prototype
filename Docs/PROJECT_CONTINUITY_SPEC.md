@@ -51,7 +51,8 @@ Planned in docs:
 Actually implemented today:
 
 - one active playable round scene
-- one concrete gameplay state: `RoundState`
+- one run-level gameplay state: `RunState`
+- one blind-level gameplay state: `RoundState`
 - a presenter-driven UI refresh path
 - card selection
 - hand preview evaluation while selecting cards
@@ -60,6 +61,8 @@ Actually implemented today:
 - score accumulation toward a target
 - explicit round win/loss derived state in `RoundState`
 - centralized round setup through `RoundState.CreateInitial(...)`
+- blind progression owned by `RunState`
+- shop transition scaffolding through `ShopState`
 - Edit Mode tests for core gameplay rules
 - Balatro-inspired HUD and playfield UI
 
@@ -79,10 +82,9 @@ The project has reached:
 
 The project has not yet reached:
 
-- shop
+- shop UI and purchase flow
 - modifiers/jokers
 - boss-specific gameplay rules/debuffs
-- a separate `RunState` / store-driven run loop
 - full manual verification of the new tests through the Unity Test Runner
 - production-ready content pipeline
 
@@ -92,7 +94,8 @@ Current real flow:
 
 - card click
 - `CardView` raises selection event
-- `RoundScreen` updates `RoundState`
+- `RoundScreen` updates `RunState`
+- `RunState` updates `RoundState`
 - `RoundPresenter` converts state to `RoundViewModel`
 - `RoundScreen` renders texts, buttons, hand cards, and played cards
 
@@ -101,7 +104,8 @@ Important recent architecture changes:
 - `RoundState.CreateInitial(...)` now owns round bootstrap instead of `RoundScreen` manually building domain state
 - `BlindState` now owns blind type, ante, reward, and target score progression
 - `RoundState` now exposes derived values such as `BlindReward`, `RemainingScore`, `HasWonRound`, and `HasLostRound`
-- `RoundState.StartNextBlind(...)` now advances Small Blind -> Big Blind -> Boss Blind -> next ante
+- `RunState` now owns money, blind advancement, and run phase transitions
+- `RunState.EnterShop()` and `RunState.LeaveShop()` now provide the first `Blind -> Shop -> Blind` run loop
 - `RoundPresenter` now derives clearer round-end status text from domain state
 - gameplay scripts now compile through a dedicated runtime assembly: `Assets/Scripts/StateDrivenPokerRoguelike.asmdef`
 - gameplay tests live in `Assets/Scripts/Tests/EditMode`
@@ -110,8 +114,10 @@ This is state-driven enough to be workable, but it is not yet the full action/st
 
 ### Main files that currently define the project
 
+- `Assets/Scripts/Core/RunState.cs`
 - `Assets/Scripts/Core/BlindState.cs`
 - `Assets/Scripts/Core/RoundState.cs`
+- `Assets/Scripts/Core/ShopState.cs`
 - `Assets/Scripts/Core/PokerHandEvaluator.cs`
 - `Assets/Scripts/Core/ScoreCalculator.cs`
 - `Assets/Scripts/Core/ScoringCardSelector.cs`
@@ -236,6 +242,8 @@ Implemented:
 - last played hand tracking
 - status text updates
 - real Small Blind / Big Blind / Boss Blind sequence
+- advance to shop after a blind win
+- exit shop into the pending blind
 - advance to next blind after a win
 - advance to next ante after clearing Boss Blind
 - blind reward and money carry-over between blinds
@@ -247,8 +255,25 @@ Partially implemented only as data/presentation:
 Not implemented yet:
 
 - boss blind behavior
-- shop phase
-- separate run win/loss loop outside the `RoundState`-driven flow
+- shop UI
+- shop offers, buying, and selling
+
+### Run flow
+
+Implemented:
+
+- `RunState` owns persistent money
+- `RunState` owns current phase through `RunPhase`
+- `RunState` owns blind advancement and ante rollover
+- `RunState` can enter a `ShopState` after a blind win
+- `RunState` can leave `ShopState` into the pending next blind
+
+Not implemented yet:
+
+- run-owned modifier inventory
+- shop offer generation
+- shop transaction rules
+- run win condition beyond the current blind-loss end state
 
 ## Milestone Mapping
 
@@ -285,11 +310,12 @@ Remaining caveat:
 
 Status:
 
-- Core flow implemented in code
+- Implemented in code
 
 Completed:
 
 - `BlindState` domain model
+- `RunState` run-level domain model
 - Small Blind / Big Blind / Boss Blind sequence
 - advancing to the next blind
 - advancing to the next ante
@@ -300,22 +326,28 @@ Completed:
 Still missing if Milestone 2 should be considered fully polished:
 
 - manual end-to-end verification in the Unity Test Runner / play mode
-- boss-specific special rule or debuff behavior, if desired before Milestone 3
-- a dedicated run-level state object, if progression should move out of `RoundState`
+- boss-specific special rule or debuff behavior, if desired before later milestones
 
 ### Milestone 3 - Shop
 
 Status:
 
-- Not implemented
+- Started in code
 
-Missing:
+Completed in this first slice:
 
-- shop state
+- `ShopState`
+- `RunState.EnterShop()`
+- `RunState.LeaveShop()`
+- Edit Mode coverage for shop entry/exit transitions
+
+Still missing:
+
 - shop screen
 - offer generation
 - purchase flow
 - sell flow
+- modifier persistence through shop purchases
 
 ### Milestone 4 - Modifiers/Jokers
 
@@ -399,18 +431,18 @@ This is intentionally a temporary basic structure before a future slot-based sys
 - There are Unity Assistant Account API warnings in the editor; these are unrelated to gameplay logic
 - A stale Burst/editor log appeared during the first asmdef refresh when the new test assembly was introduced; gameplay code later recompiled successfully, but the Test Runner should still be checked manually in-editor
 - Current architecture is partly state-driven but not yet reducer/store based
-- Run progression still lives inside `RoundState`; there is no separate `RunState` yet
 - Card layout is still an intermediate UI solution, not the final slot system
+- shop exists only as domain/run scaffolding right now; there is no shop UI or transaction logic yet
 
 ## Recommended Next Steps
 
 Recommended order from here:
 
 1. Run the new Edit Mode suite manually in Unity Test Runner and clear any remaining editor/test-runner issues
-2. Decide whether boss blinds need a simple special rule before Milestone 3
-3. Add shop state and a minimal shop flow
-4. Add first modifier/joker layer after shop entry/exit path exists
-5. Extract run progression out of `RoundState` into a dedicated run-level state if needed
+2. Build the first shop screen in `GameScene` and wire it to `RunState.IsInShop`
+3. Add minimal shop offers plus one purchase path that spends persistent money
+4. Add first modifier/joker layer after shop purchase flow exists
+5. Decide whether boss blinds need a simple special rule before modifier depth increases
 6. Replace temporary layout rows with a real slot-based hand/play-area system
 7. Continue polishing public docs and portfolio materials
 
@@ -419,13 +451,14 @@ Recommended order from here:
 When reopening this repository on another computer, read in this order:
 
 1. `Docs/PROJECT_CONTINUITY_SPEC.md`
-2. `Assets/Scripts/Core/RoundState.cs`
-3. `Assets/Scripts/Presenters/RoundPresenter.cs`
-4. `Assets/Scripts/MonoBehaviours/RoundScreen.cs`
-5. `Assets/Scripts/Core/PokerHandEvaluator.cs`
-6. `Assets/Scripts/Core/ScoreCalculator.cs`
-7. `Assets/Scripts/Tests/EditMode`
-8. `Assets/Scenes/GameScene.unity`
+2. `Assets/Scripts/Core/RunState.cs`
+3. `Assets/Scripts/Core/RoundState.cs`
+4. `Assets/Scripts/Presenters/RoundPresenter.cs`
+5. `Assets/Scripts/MonoBehaviours/RoundScreen.cs`
+6. `Assets/Scripts/Core/PokerHandEvaluator.cs`
+7. `Assets/Scripts/Core/ScoreCalculator.cs`
+8. `Assets/Scripts/Tests/EditMode`
+9. `Assets/Scenes/GameScene.unity`
 
 After that, inspect only if needed:
 
@@ -437,15 +470,16 @@ After that, inspect only if needed:
 
 If opens this repo later, it should assume:
 
-- the active gameplay loop is centered on `RoundState`
+- the active gameplay loop is centered on `RunState -> RoundState`
 - the active UI loop is `RoundScreen -> RoundPresenter -> RoundViewModel`
 - Milestone 1 and Milestone 2 core flow are complete in code, with tests added
+- Milestone 3 has started at the domain layer through `ShopState` and run phase transitions
 - docs in `Docs/` are aspirational unless confirmed by code
-- the current stage is "playable ante flow prototype with tests and UI pass", not "full run/store architecture"
+- the current stage is "playable ante flow plus early shop scaffolding", not "full run/store architecture"
 - legacy files at repo root under `Assets/Scripts/` should not be used as the default source of truth
 
 The first question future work should answer is:
 
-- "Are we polishing Milestone 2, or are we starting Milestone 3?"
+- "Are we wiring the first shop UI, or are we building shop offer/purchase rules first?"
 
 That decision should drive the next implementation slice.

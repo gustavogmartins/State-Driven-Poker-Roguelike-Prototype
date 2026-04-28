@@ -4,14 +4,19 @@ using System.Collections.Generic;
 namespace Core {
     public sealed class RunState {
         public RoundState CurrentRound { get; }
+        public ShopState CurrentShop { get; }
         public int Money { get; }
         public RunPhase Phase { get; }
         public BlindState CurrentBlind => CurrentRound.Blind;
+        public BlindState PendingBlind => CurrentShop?.NextBlind;
         public bool IsRunOver => Phase == RunPhase.RunEnd;
         public bool CanAdvanceToNextBlind => !IsRunOver && CurrentRound.HasWonRound;
+        public bool CanEnterShop => Phase == RunPhase.Blind && CurrentRound.HasWonRound;
+        public bool IsInShop => Phase == RunPhase.Shop;
 
-        public RunState(RoundState currentRound, int money, RunPhase phase) {
+        public RunState(RoundState currentRound, ShopState currentShop, int money, RunPhase phase) {
             CurrentRound = currentRound ?? throw new ArgumentNullException(nameof(currentRound));
+            CurrentShop = currentShop;
 
             if (money < 0) {
                 throw new ArgumentOutOfRangeException(nameof(money));
@@ -36,7 +41,7 @@ namespace Core {
                 initialHandCards: initialHandCards
             );
 
-            return new RunState(roundState, startingMoney, RunPhase.Blind);
+            return new RunState(roundState, null, startingMoney, RunPhase.Blind);
         }
 
         public RunState ToggleCardSelection(int index) {
@@ -52,7 +57,7 @@ namespace Core {
                 nextMoney += nextRound.BlindReward;
             }
 
-            return new RunState(nextRound, nextMoney, nextPhase);
+            return new RunState(nextRound, null, nextMoney, nextPhase);
         }
 
         public RunState DiscardCards() {
@@ -79,7 +84,31 @@ namespace Core {
                 initialHandCards: initialHandCards
             );
 
-            return new RunState(nextRound, Money, RunPhase.Blind);
+            return new RunState(nextRound, null, Money, RunPhase.Blind);
+        }
+
+        public RunState EnterShop() {
+            if (!CanEnterShop) {
+                return this;
+            }
+
+            BlindState nextBlind = CurrentBlind.Advance();
+            ShopState shopState = new ShopState(Money, nextBlind);
+            return new RunState(CurrentRound, shopState, Money, RunPhase.Shop);
+        }
+
+        public RunState LeaveShop(IReadOnlyList<CardData> initialHandCards = null) {
+            if (!IsInShop || CurrentShop == null) {
+                return this;
+            }
+
+            RoundState nextRound = RoundState.CreateInitial(
+                blind: CurrentShop.NextBlind,
+                maxHandSize: CurrentRound.MaxHandSize,
+                initialHandCards: initialHandCards
+            );
+
+            return new RunState(nextRound, null, Money, RunPhase.Blind);
         }
 
         private RunState CopyWith(
@@ -88,6 +117,7 @@ namespace Core {
             RunPhase? phase = null) {
             return new RunState(
                 currentRound ?? CurrentRound,
+                CurrentShop,
                 money ?? Money,
                 phase ?? Phase
             );

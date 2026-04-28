@@ -145,6 +145,7 @@ Examples:
 - current ante
 - current blind
 - current money
+- current shop transition state
 - owned modifiers
 - current phase of the run
 - overall win / loss state
@@ -162,6 +163,8 @@ Examples:
 - blind target score
 - accumulated round score
 - round status
+
+`RunState` owns run-level progression such as money, blind advancement, and shop entry/exit.
 
 ### `GameStateStore`
 Stores the current state and coordinates action dispatch.
@@ -287,7 +290,8 @@ Assets/
 
 ### Milestone 3 — Shop
 - [ ] basic shop screen
-- [ ] money system
+- [x] money system
+- [x] enter / leave shop flow
 - [ ] buy / sell modifiers
 - [ ] persistent modifiers across the run
 
@@ -440,10 +444,12 @@ Current playable slice:
 - state-driven round flow working
 - Small Blind -> Big Blind -> Boss Blind -> next ante progression working
 - blind rewards and money carry-over between blinds working
+- `RunState` owns run-level progression and shop transitions
+- `ShopState` exists and the run can transition `Blind -> Shop -> Blind`
 - Edit Mode test assemblies compile successfully
 
 Still missing from later milestones:
-- shop flow
+- shop UI and offer/purchase flow
 - modifiers / jokers
 - boss-specific debuff rules
 - full manual verification in Unity Test Runner
@@ -512,7 +518,7 @@ Through this project, I want to improve my ability to:
 - [x] score calculator
 - [ ] round reducer flow
 - [x] blind progression
-- [ ] shop prototype
+- [x] shop prototype
 - [ ] modifier system
 - [x] tests for core systems
 - [ ] architecture diagram

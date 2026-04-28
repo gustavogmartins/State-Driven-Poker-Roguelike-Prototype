@@ -75,6 +75,7 @@ public sealed class RunStateTests {
                 lastPlayedHandResult: PokerHandType.None,
                 lastScoreResult: ScoreResult.Zero
             ),
+            currentShop: null,
             money: 25,
             phase: RunPhase.Blind
         );
@@ -111,6 +112,7 @@ public sealed class RunStateTests {
                 lastPlayedHandResult: PokerHandType.None,
                 lastScoreResult: ScoreResult.Zero
             ),
+            currentShop: null,
             money: 40,
             phase: RunPhase.Blind
         );
@@ -131,5 +133,77 @@ public sealed class RunStateTests {
         RunState nextState = state.StartNextBlind();
 
         Assert.That(nextState, Is.SameAs(state));
+    }
+
+    [Test]
+    public void EnterShop_WhenBlindWasWon_TransitionsRunToShopPhase() {
+        RunState state = new RunState(
+            currentRound: new RoundState(
+                blind: new BlindState(BlindType.Small, 1),
+                targetScore: 300,
+                currentScore: 300,
+                handsLeft: 0,
+                discardsLeft: 3,
+                phase: RoundPhase.RoundEnd,
+                maxHandSize: 1,
+                deckCards: System.Array.Empty<CardData>(),
+                handCards: System.Array.Empty<CardData>(),
+                discardPileCards: System.Array.Empty<CardData>(),
+                selectedCardsIndexes: System.Array.Empty<int>(),
+                lastActionText: "Blind cleared",
+                lastPlayedCardsText: "None",
+                lastPlayedCards: System.Array.Empty<CardData>(),
+                lastPlayedCardsCount: 0,
+                lastPlayedHandResult: PokerHandType.None,
+                lastScoreResult: ScoreResult.Zero
+            ),
+            currentShop: null,
+            money: 25,
+            phase: RunPhase.Blind
+        );
+
+        RunState nextState = state.EnterShop();
+
+        Assert.That(nextState.Phase, Is.EqualTo(RunPhase.Shop));
+        Assert.That(nextState.IsInShop, Is.True);
+        Assert.That(nextState.CurrentShop, Is.Not.Null);
+        Assert.That(nextState.CurrentShop.NextBlind.Type, Is.EqualTo(BlindType.Big));
+        Assert.That(nextState.CurrentShop.Money, Is.EqualTo(25));
+    }
+
+    [Test]
+    public void LeaveShop_WhenInShop_StartsPendingBlind() {
+        RunState state = new RunState(
+            currentRound: new RoundState(
+                blind: new BlindState(BlindType.Small, 1),
+                targetScore: 300,
+                currentScore: 300,
+                handsLeft: 0,
+                discardsLeft: 3,
+                phase: RoundPhase.RoundEnd,
+                maxHandSize: 5,
+                deckCards: System.Array.Empty<CardData>(),
+                handCards: System.Array.Empty<CardData>(),
+                discardPileCards: System.Array.Empty<CardData>(),
+                selectedCardsIndexes: System.Array.Empty<int>(),
+                lastActionText: "Blind cleared",
+                lastPlayedCardsText: "None",
+                lastPlayedCards: System.Array.Empty<CardData>(),
+                lastPlayedCardsCount: 0,
+                lastPlayedHandResult: PokerHandType.None,
+                lastScoreResult: ScoreResult.Zero
+            ),
+            currentShop: new ShopState(25, new BlindState(BlindType.Big, 1)),
+            money: 25,
+            phase: RunPhase.Shop
+        );
+
+        RunState nextState = state.LeaveShop();
+
+        Assert.That(nextState.Phase, Is.EqualTo(RunPhase.Blind));
+        Assert.That(nextState.CurrentShop, Is.Null);
+        Assert.That(nextState.CurrentBlind.Type, Is.EqualTo(BlindType.Big));
+        Assert.That(nextState.CurrentRound.Phase, Is.EqualTo(RoundPhase.PlayerTurn));
+        Assert.That(nextState.Money, Is.EqualTo(25));
     }
 }
