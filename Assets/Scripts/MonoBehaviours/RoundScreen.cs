@@ -68,6 +68,8 @@ public class RoundScreen : MonoBehaviour {
     [SerializeField] private Button shopNextOfferButton;
     [SerializeField] private Button shopBuyButton;
     [SerializeField] private TextMeshProUGUI shopBuyButtonLabel;
+    [SerializeField] private Button shopRerollButton;
+    [SerializeField] private TextMeshProUGUI shopRerollButtonLabel;
     [SerializeField] private Button shopContinueButton;
     [SerializeField] private TextMeshProUGUI shopContinueButtonLabel;
 
@@ -237,6 +239,15 @@ public class RoundScreen : MonoBehaviour {
         Render(_runState);
     }
 
+    private void HandleShopRerollAction() {
+        if (_runState == null) {
+            return;
+        }
+
+        _runState = _runState.RerollShop();
+        Render(_runState);
+    }
+
     private void ExitRun() {
 #if UNITY_EDITOR
         EditorApplication.isPlaying = false;
@@ -312,6 +323,14 @@ public class RoundScreen : MonoBehaviour {
             shopBuyButtonLabel.text = viewModel.ShopBuyButtonText;
         }
 
+        if (shopRerollButton != null) {
+            shopRerollButton.interactable = viewModel.CanRerollShop;
+        }
+
+        if (shopRerollButtonLabel != null) {
+            shopRerollButtonLabel.text = viewModel.ShopRerollButtonText;
+        }
+
         if (shopContinueButtonLabel != null) {
             shopContinueButtonLabel.text = viewModel.ShopPrimaryActionText;
         }
@@ -344,6 +363,8 @@ public class RoundScreen : MonoBehaviour {
         shopNextOfferButton ??= FindOverlayComponent<Button>(shopOverlay, "Panel/NextOfferButton");
         shopBuyButton ??= FindOverlayComponent<Button>(shopOverlay, "Panel/BuyOfferButton");
         shopBuyButtonLabel ??= FindOverlayComponent<TextMeshProUGUI>(shopOverlay, "Panel/BuyOfferButton/Label");
+        shopRerollButton ??= FindOverlayComponent<Button>(shopOverlay, "Panel/RerollButton");
+        shopRerollButtonLabel ??= FindOverlayComponent<TextMeshProUGUI>(shopOverlay, "Panel/RerollButton/Label");
         shopContinueButton ??= FindOverlayComponent<Button>(shopOverlay, "Panel/ContinueButton");
         shopContinueButtonLabel ??= FindOverlayComponent<TextMeshProUGUI>(shopOverlay, "Panel/ContinueButton/Label");
     }
@@ -371,6 +392,10 @@ public class RoundScreen : MonoBehaviour {
 
         if (shopNextOfferButton != null) {
             shopNextOfferButton.onClick.AddListener(HandleNextShopOfferAction);
+        }
+
+        if (shopRerollButton != null) {
+            shopRerollButton.onClick.AddListener(HandleShopRerollAction);
         }
 
         if (sortByRankButton != null) {
@@ -405,6 +430,10 @@ public class RoundScreen : MonoBehaviour {
 
         if (shopNextOfferButton != null) {
             shopNextOfferButton.onClick.RemoveListener(HandleNextShopOfferAction);
+        }
+
+        if (shopRerollButton != null) {
+            shopRerollButton.onClick.RemoveListener(HandleShopRerollAction);
         }
 
         if (sortByRankButton != null) {

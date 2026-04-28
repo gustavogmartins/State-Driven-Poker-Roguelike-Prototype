@@ -15,6 +15,7 @@ namespace Core {
         public bool CanEnterShop => Phase == RunPhase.Blind && CurrentRound.HasWonRound;
         public bool IsInShop => Phase == RunPhase.Shop;
         public bool CanBuySelectedShopOffer => IsInShop && CurrentShop?.SelectedOffer?.CanBuy(Money) == true;
+        public bool CanRerollShop => IsInShop && CurrentShop?.CanReroll(Money) == true;
 
         public RunState(
             RoundState currentRound,
@@ -60,7 +61,7 @@ namespace Core {
             IReadOnlyList<CardData> selectedCards = CurrentRound.GetSelectedCards();
             PokerHandResult handResult = PokerHandEvaluator.Evaluate(selectedCards);
             ScoreResult baseScore = ScoreCalculator.Calculate(selectedCards, handResult);
-            ScoreResult modifiedScore = RunModifierService.ApplyScoreModifiers(baseScore, OwnedOfferIds, selectedCards);
+            ScoreResult modifiedScore = RunModifierService.ApplyScoreModifiers(baseScore, OwnedOfferIds, selectedCards, handResult);
             RoundState nextRound = CurrentRound.PlaySelectedCards(modifiedScore);
             int nextMoney = Money;
             RunPhase nextPhase = nextRound.HasLostRound ? RunPhase.RunEnd : Phase;
@@ -105,7 +106,7 @@ namespace Core {
             }
 
             BlindState nextBlind = CurrentBlind.Advance();
-            ShopState shopState = new ShopState(Money, nextBlind);
+            ShopState shopState = new ShopState(Money, nextBlind).MarkOwnedOffers(OwnedOfferIds);
             return new RunState(CurrentRound, shopState, OwnedOfferIds, Money, RunPhase.Shop);
         }
 
@@ -141,6 +142,16 @@ namespace Core {
             }
 
             return new RunState(CurrentRound, updatedShop, updatedOwnedOffers, updatedMoney, Phase);
+        }
+
+        public RunState RerollShop() {
+            if (!IsInShop || CurrentShop == null || !CurrentShop.CanReroll(Money)) {
+                return this;
+            }
+
+            int updatedMoney = Money - CurrentShop.RerollCost;
+            ShopState rerolledShop = CurrentShop.Reroll(updatedMoney, OwnedOfferIds);
+            return new RunState(CurrentRound, rerolledShop, OwnedOfferIds, updatedMoney, Phase);
         }
 
         public RunState SelectNextShopOffer() {

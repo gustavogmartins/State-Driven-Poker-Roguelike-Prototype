@@ -32,7 +32,7 @@ namespace Presenters {
             }
 
             if (hasPreviewSelection) {
-                activeScore = RunModifierService.ApplyScoreModifiers(activeScore, runState.OwnedOfferIds, selectedCards);
+                activeScore = RunModifierService.ApplyScoreModifiers(activeScore, runState.OwnedOfferIds, selectedCards, activeHandResult);
             }
 
             var viewModel = new RoundViewModel {
@@ -69,7 +69,9 @@ namespace Presenters {
                 ShopOffersText = BuildShopOffersText(runState),
                 ShopPrimaryActionText = BuildShopPrimaryActionText(runState),
                 ShopBuyButtonText = BuildShopBuyButtonText(runState),
+                ShopRerollButtonText = BuildShopRerollButtonText(runState),
                 CanBuySelectedShopOffer = runState.CanBuySelectedShopOffer,
+                CanRerollShop = runState.CanRerollShop,
                 CanPlayHand = !runState.IsInShop && roundState.CanPlaySelectedCards,
                 CanDiscard = !runState.IsInShop && roundState.CanDiscardSelectedCards,
                 CanSort = !runState.IsInShop && roundState.CanSortHand
@@ -231,7 +233,7 @@ namespace Presenters {
             return
                 $"Money available     ${runState.Money}\n" +
                 $"Pending blind        Ante {nextBlind.Ante} | {nextBlind.Name}\n" +
-                "First purchase       Live and spends money";
+                $"Reroll cost          ${runState.CurrentShop.RerollCost}";
         }
 
         private static string BuildShopOffersText(RunState runState) {
@@ -291,6 +293,18 @@ namespace Presenters {
             }
 
             return $"Buy {firstOffer.Title} (${firstOffer.Cost})";
+        }
+
+        private static string BuildShopRerollButtonText(RunState runState) {
+            if (!runState.IsInShop || runState.CurrentShop == null) {
+                return string.Empty;
+            }
+
+            if (!runState.CurrentShop.CanReroll(runState.Money)) {
+                return $"Need ${runState.CurrentShop.RerollCost}";
+            }
+
+            return $"Reroll (${runState.CurrentShop.RerollCost})";
         }
 
         private static string FormatTopDiscard(RoundState roundState) {
