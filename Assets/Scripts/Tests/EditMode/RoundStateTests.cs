@@ -115,7 +115,72 @@ public sealed class RoundStateTests {
         Assert.That(state.BlindName, Is.EqualTo("Big Blind"));
         Assert.That(state.Ante, Is.EqualTo(2));
         Assert.That(state.RoundNumber, Is.EqualTo(2));
-        Assert.That(state.BlindReward, Is.EqualTo(20));
+        Assert.That(state.BlindReward, Is.EqualTo(30));
+        Assert.That(state.TargetScore, Is.EqualTo(750));
+    }
+
+    [Test]
+    public void StartNextBlind_WhenRoundWasWon_AdvancesBlindAndKeepsMoney() {
+        var state = CreateState(
+            handCards: new[] { TestCardFactory.Create(Rank.Ace, Suit.Spades) },
+            blind: new BlindState(BlindType.Small, 1),
+            targetScore: 300,
+            currentScore: 300,
+            money: 25,
+            handsLeft: 0,
+            phase: RoundPhase.RoundEnd,
+            maxHandSize: 1
+        );
+
+        RoundState nextState = state.StartNextBlind();
+
+        Assert.That(nextState.Blind.Type, Is.EqualTo(BlindType.Big));
+        Assert.That(nextState.Ante, Is.EqualTo(1));
+        Assert.That(nextState.RoundNumber, Is.EqualTo(2));
+        Assert.That(nextState.TargetScore, Is.EqualTo(450));
+        Assert.That(nextState.Money, Is.EqualTo(25));
+        Assert.That(nextState.Phase, Is.EqualTo(RoundPhase.PlayerTurn));
+        Assert.That(nextState.CurrentScore, Is.EqualTo(0));
+        Assert.That(nextState.HandsLeft, Is.EqualTo(4));
+        Assert.That(nextState.DiscardsLeft, Is.EqualTo(3));
+    }
+
+    [Test]
+    public void StartNextBlind_WhenBossBlindWasWon_StartsNextAnte() {
+        var state = CreateState(
+            handCards: new[] { TestCardFactory.Create(Rank.Ace, Suit.Spades) },
+            blind: new BlindState(BlindType.Boss, 1),
+            targetScore: 600,
+            currentScore: 600,
+            money: 40,
+            handsLeft: 0,
+            phase: RoundPhase.RoundEnd,
+            maxHandSize: 1
+        );
+
+        RoundState nextState = state.StartNextBlind();
+
+        Assert.That(nextState.Blind.Type, Is.EqualTo(BlindType.Small));
+        Assert.That(nextState.Ante, Is.EqualTo(2));
+        Assert.That(nextState.RoundNumber, Is.EqualTo(1));
+        Assert.That(nextState.TargetScore, Is.EqualTo(500));
+        Assert.That(nextState.Money, Is.EqualTo(40));
+    }
+
+    [Test]
+    public void StartNextBlind_WhenRoundWasNotWon_ReturnsSameState() {
+        var state = CreateState(
+            handCards: new[] { TestCardFactory.Create(Rank.Ace, Suit.Spades) },
+            blind: new BlindState(BlindType.Small, 1),
+            currentScore: 100,
+            targetScore: 300,
+            phase: RoundPhase.PlayerTurn,
+            maxHandSize: 1
+        );
+
+        RoundState nextState = state.StartNextBlind();
+
+        Assert.That(nextState, Is.SameAs(state));
     }
 
     private static RoundState CreateState(
@@ -123,7 +188,7 @@ public sealed class RoundStateTests {
         BlindState blind = null,
         IReadOnlyList<CardData> deckCards = null,
         IReadOnlyList<int> selectedIndexes = null,
-        int targetScore = 300,
+        int? targetScore = null,
         int currentScore = 0,
         int money = 10,
         int ante = 1,
@@ -131,9 +196,11 @@ public sealed class RoundStateTests {
         int discardsLeft = 3,
         RoundPhase phase = RoundPhase.PlayerTurn,
         int maxHandSize = 8) {
+        BlindState resolvedBlind = blind ?? new BlindState(BlindType.Small, ante);
+
         return new RoundState(
-            blind: blind ?? new BlindState(BlindType.Small, ante),
-            targetScore: targetScore,
+            blind: resolvedBlind,
+            targetScore: targetScore ?? resolvedBlind.TargetScore,
             currentScore: currentScore,
             money: money,
             handsLeft: handsLeft,

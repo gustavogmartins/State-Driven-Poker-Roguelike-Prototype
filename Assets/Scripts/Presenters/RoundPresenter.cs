@@ -55,6 +55,7 @@ namespace Presenters {
                 RoundEndBannerText = BuildRoundEndBannerText(roundState),
                 RoundEndSummaryText = BuildRoundEndSummaryText(roundState),
                 RoundEndDetailsText = BuildRoundEndDetailsText(roundState),
+                RoundEndPrimaryActionText = BuildRoundEndPrimaryActionText(roundState),
                 CanPlayHand = roundState.CanPlaySelectedCards,
                 CanDiscard = roundState.CanDiscardSelectedCards,
                 CanSort = roundState.CanSortHand
@@ -103,6 +104,7 @@ namespace Presenters {
                 "The Club" => "All Club cards\nare debuffed",
                 "Small Blind" => "Opening blind\nNo debuffs active",
                 "Big Blind" => "Higher stakes\nBeat the target cleanly",
+                "Boss Blind" => "Final blind of the ante\nClear it to advance",
                 _ => "Beat the blind\nand keep the run alive"
             };
         }
@@ -149,9 +151,12 @@ namespace Presenters {
 
         private static string BuildRoundEndDetailsText(RoundState roundState) {
             if (roundState.HasWonRound) {
+                BlindState nextBlind = roundState.Blind.Advance();
+                string nextBlindLabel = $"Ante {nextBlind.Ante} | {nextBlind.Name}";
+
                 return
                     $"Blind reward        ${roundState.BlindReward}\n" +
-                    $"Hands remaining     {roundState.HandsLeft}\n" +
+                    $"Next blind          {nextBlindLabel}\n" +
                     $"Money total         ${roundState.Money}";
             }
 
@@ -164,6 +169,22 @@ namespace Presenters {
                     $"{lastHandText}\n" +
                     $"Money total         ${roundState.Money}\n" +
                     "Start a new run or exit";
+            }
+
+            return string.Empty;
+        }
+
+        private static string BuildRoundEndPrimaryActionText(RoundState roundState) {
+            if (roundState.HasWonRound) {
+                BlindState nextBlind = roundState.Blind.Advance();
+
+                return nextBlind.Type == BlindType.Small
+                    ? $"Start Ante {nextBlind.Ante}"
+                    : $"Play {nextBlind.Name}";
+            }
+
+            if (roundState.HasLostRound) {
+                return "New Run";
             }
 
             return string.Empty;

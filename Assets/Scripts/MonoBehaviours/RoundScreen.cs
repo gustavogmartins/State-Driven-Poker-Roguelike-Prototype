@@ -55,6 +55,7 @@ public class RoundScreen : MonoBehaviour {
     [SerializeField] private TextMeshProUGUI roundEndSummaryText;
     [SerializeField] private TextMeshProUGUI roundEndDetailsText;
     [SerializeField] private Button newRunButton;
+    [SerializeField] private TextMeshProUGUI newRunButtonLabel;
     [SerializeField] private Button exitButton;
 
     [Header("Debug")]
@@ -81,9 +82,7 @@ public class RoundScreen : MonoBehaviour {
     }
 
     private RoundState CreateInitialState() {
-        var debugHand = useDebugHandScenario && debugHandScenario != DebugHandScenario.None
-            ? DebugHandFactory.Create(debugHandScenario)
-            : null;
+        var debugHand = GetDebugHand();
 
         return RoundState.CreateInitial(initialHandCards: debugHand);
     }
@@ -179,8 +178,11 @@ public class RoundScreen : MonoBehaviour {
         Render(_roundState);
     }
 
-    private void StartNewRun() {
-        _roundState = CreateInitialState();
+    private void HandlePrimaryRoundEndAction() {
+        _roundState = _roundState != null && _roundState.CanAdvanceToNextBlind
+            ? _roundState.StartNextBlind(initialHandCards: GetDebugHand())
+            : CreateInitialState();
+
         Render(_roundState);
     }
 
@@ -218,6 +220,10 @@ public class RoundScreen : MonoBehaviour {
         if (roundEndDetailsText != null) {
             roundEndDetailsText.text = viewModel.RoundEndDetailsText;
         }
+
+        if (newRunButtonLabel != null) {
+            newRunButtonLabel.text = viewModel.RoundEndPrimaryActionText;
+        }
     }
 
     private void ResolveRoundEndOverlayReferences() {
@@ -230,12 +236,13 @@ public class RoundScreen : MonoBehaviour {
         roundEndSummaryText ??= FindOverlayComponent<TextMeshProUGUI>("Panel/SummaryText");
         roundEndDetailsText ??= FindOverlayComponent<TextMeshProUGUI>("Panel/DetailsText");
         newRunButton ??= FindOverlayComponent<Button>("Panel/NewRunButton");
+        newRunButtonLabel ??= FindOverlayComponent<TextMeshProUGUI>("Panel/NewRunButton/Label");
         exitButton ??= FindOverlayComponent<Button>("Panel/ExitButton");
     }
 
     private void RegisterButtonListeners() {
         if (newRunButton != null) {
-            newRunButton.onClick.AddListener(StartNewRun);
+            newRunButton.onClick.AddListener(HandlePrimaryRoundEndAction);
         }
 
         if (exitButton != null) {
@@ -253,7 +260,7 @@ public class RoundScreen : MonoBehaviour {
 
     private void UnregisterButtonListeners() {
         if (newRunButton != null) {
-            newRunButton.onClick.RemoveListener(StartNewRun);
+            newRunButton.onClick.RemoveListener(HandlePrimaryRoundEndAction);
         }
 
         if (exitButton != null) {
@@ -276,6 +283,12 @@ public class RoundScreen : MonoBehaviour {
 
         Transform target = roundEndOverlay.transform.Find(relativePath);
         return target != null ? target.GetComponent<T>() : null;
+    }
+
+    private IReadOnlyList<CardData> GetDebugHand() {
+        return useDebugHandScenario && debugHandScenario != DebugHandScenario.None
+            ? DebugHandFactory.Create(debugHandScenario)
+            : null;
     }
 
     private static void ClearCardArea(RectTransform cardArea) {

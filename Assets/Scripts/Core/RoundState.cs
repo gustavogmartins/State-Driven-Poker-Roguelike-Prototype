@@ -5,6 +5,8 @@ using UnityEngine;
 
 namespace Core {
     public sealed class RoundState {
+        private const int DefaultHandsPerBlind = 4;
+        private const int DefaultDiscardsPerBlind = 3;
         private const int MaxSelectableCards = 5;
 
         public BlindState Blind { get; }
@@ -35,6 +37,7 @@ namespace Core {
         public bool HasClearedBlind => CurrentScore >= TargetScore;
         public bool HasWonRound => IsRoundOver && HasClearedBlind;
         public bool HasLostRound => IsRoundOver && !HasClearedBlind && HandsLeft == 0;
+        public bool CanAdvanceToNextBlind => HasWonRound;
         public bool CanPlaySelectedCards => !IsRoundOver && SelectedCardsCount > 0 && HandsLeft > 0;
         public bool CanDiscardSelectedCards => !IsRoundOver && SelectedCardsCount > 0 && DiscardsLeft > 0;
         public bool CanSortHand => !IsRoundOver && HandCards.Count > 1;
@@ -108,13 +111,14 @@ namespace Core {
 
         public static RoundState CreateInitial(
             BlindState blind = null,
-            int targetScore = 300,
+            int? targetScore = null,
             int money = 10,
-            int handsLeft = 4,
-            int discardsLeft = 3,
+            int handsLeft = DefaultHandsPerBlind,
+            int discardsLeft = DefaultDiscardsPerBlind,
             int maxHandSize = 8,
             IReadOnlyList<CardData> initialHandCards = null) {
             blind ??= BlindState.CreateFirst();
+            int resolvedTargetScore = targetScore ?? blind.TargetScore;
             var fullDeck = DeckBuilder.CreateStandard52();
             var shuffledDeck = DeckShuffler.Shuffle(fullDeck);
 
@@ -139,7 +143,7 @@ namespace Core {
 
             return new RoundState(
                 blind: blind,
-                targetScore: targetScore,
+                targetScore: resolvedTargetScore,
                 currentScore: 0,
                 money: money,
                 handsLeft: handsLeft,
@@ -161,6 +165,24 @@ namespace Core {
 
         public static RoundState CreateDebug() {
             return CreateInitial();
+        }
+
+        public RoundState StartNextBlind(IReadOnlyList<CardData> initialHandCards = null) {
+            if (!CanAdvanceToNextBlind) {
+                return this;
+            }
+
+            BlindState nextBlind = Blind.Advance();
+
+            return CreateInitial(
+                blind: nextBlind,
+                targetScore: nextBlind.TargetScore,
+                money: Money,
+                handsLeft: DefaultHandsPerBlind,
+                discardsLeft: DefaultDiscardsPerBlind,
+                maxHandSize: MaxHandSize,
+                initialHandCards: initialHandCards
+            );
         }
 
         public bool IsSelected(int index) {
