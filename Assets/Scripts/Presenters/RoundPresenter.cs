@@ -1,4 +1,5 @@
 using Core;
+using System.Text;
 using UnityEngine;
 using View;
 
@@ -61,7 +62,10 @@ namespace Presenters {
                 ShopBannerText = BuildShopBannerText(runState),
                 ShopSummaryText = BuildShopSummaryText(runState),
                 ShopDetailsText = BuildShopDetailsText(runState),
+                ShopOffersText = BuildShopOffersText(runState),
                 ShopPrimaryActionText = BuildShopPrimaryActionText(runState),
+                ShopBuyButtonText = BuildShopBuyButtonText(runState),
+                CanBuyFirstShopOffer = runState.CanBuyFirstShopOffer,
                 CanPlayHand = !runState.IsInShop && roundState.CanPlaySelectedCards,
                 CanDiscard = !runState.IsInShop && roundState.CanDiscardSelectedCards,
                 CanSort = !runState.IsInShop && roundState.CanSortHand
@@ -211,7 +215,7 @@ namespace Presenters {
             }
 
             BlindState nextBlind = runState.CurrentShop.NextBlind;
-            return $"Spend your cash or move on\nNext blind: {nextBlind.Name}";
+            return $"3 fake offers loaded\nNext blind: {nextBlind.Name}";
         }
 
         private static string BuildShopDetailsText(RunState runState) {
@@ -223,7 +227,35 @@ namespace Presenters {
             return
                 $"Money available     ${runState.Money}\n" +
                 $"Pending blind        Ante {nextBlind.Ante} | {nextBlind.Name}\n" +
-                "Shop stock           Coming next slice";
+                "First purchase       Live and spends money";
+        }
+
+        private static string BuildShopOffersText(RunState runState) {
+            if (!runState.IsInShop || runState.CurrentShop == null) {
+                return string.Empty;
+            }
+
+            var builder = new StringBuilder();
+
+            for (int i = 0; i < runState.CurrentShop.Offers.Count; i++) {
+                ShopOfferState offer = runState.CurrentShop.Offers[i];
+                string purchasedTag = offer.IsPurchased ? " [BOUGHT]" : string.Empty;
+
+                builder.Append(i + 1);
+                builder.Append(". ");
+                builder.Append(offer.Title);
+                builder.Append("  $");
+                builder.Append(offer.Cost);
+                builder.Append(purchasedTag);
+                builder.Append('\n');
+                builder.Append(offer.Description);
+
+                if (i < runState.CurrentShop.Offers.Count - 1) {
+                    builder.Append("\n\n");
+                }
+            }
+
+            return builder.ToString();
         }
 
         private static string BuildShopPrimaryActionText(RunState runState) {
@@ -235,6 +267,24 @@ namespace Presenters {
             return nextBlind.Type == BlindType.Small
                 ? $"Start Ante {nextBlind.Ante}"
                 : $"Play {nextBlind.Name}";
+        }
+
+        private static string BuildShopBuyButtonText(RunState runState) {
+            if (!runState.IsInShop || runState.CurrentShop?.FirstOffer == null) {
+                return string.Empty;
+            }
+
+            ShopOfferState firstOffer = runState.CurrentShop.FirstOffer;
+
+            if (firstOffer.IsPurchased) {
+                return "Bought";
+            }
+
+            if (!firstOffer.CanBuy(runState.Money)) {
+                return $"Need ${firstOffer.Cost}";
+            }
+
+            return $"Buy {firstOffer.Title} (${firstOffer.Cost})";
         }
 
         private static string FormatTopDiscard(RoundState roundState) {

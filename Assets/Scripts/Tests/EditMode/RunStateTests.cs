@@ -206,4 +206,77 @@ public sealed class RunStateTests {
         Assert.That(nextState.CurrentRound.Phase, Is.EqualTo(RoundPhase.PlayerTurn));
         Assert.That(nextState.Money, Is.EqualTo(25));
     }
+
+    [Test]
+    public void BuyFirstShopOffer_WhenAffordable_SpendsMoneyAndMarksOfferPurchased() {
+        RunState state = new RunState(
+            currentRound: new RoundState(
+                blind: new BlindState(BlindType.Small, 1),
+                targetScore: 300,
+                currentScore: 300,
+                handsLeft: 0,
+                discardsLeft: 3,
+                phase: RoundPhase.RoundEnd,
+                maxHandSize: 5,
+                deckCards: System.Array.Empty<CardData>(),
+                handCards: System.Array.Empty<CardData>(),
+                discardPileCards: System.Array.Empty<CardData>(),
+                selectedCardsIndexes: System.Array.Empty<int>(),
+                lastActionText: "Blind cleared",
+                lastPlayedCardsText: "None",
+                lastPlayedCards: System.Array.Empty<CardData>(),
+                lastPlayedCardsCount: 0,
+                lastPlayedHandResult: PokerHandType.None,
+                lastScoreResult: ScoreResult.Zero
+            ),
+            currentShop: new ShopState(25, new BlindState(BlindType.Big, 1)),
+            money: 25,
+            phase: RunPhase.Shop
+        );
+
+        RunState nextState = state.BuyFirstShopOffer();
+
+        Assert.That(nextState.Money, Is.EqualTo(19));
+        Assert.That(nextState.CurrentShop, Is.Not.Null);
+        Assert.That(nextState.CurrentShop.FirstOffer, Is.Not.Null);
+        Assert.That(nextState.CurrentShop.FirstOffer.IsPurchased, Is.True);
+        Assert.That(nextState.CanBuyFirstShopOffer, Is.False);
+    }
+
+    [Test]
+    public void BuyFirstShopOffer_WhenNotAffordable_KeepsStateUnchanged() {
+        RunState state = new RunState(
+            currentRound: new RoundState(
+                blind: new BlindState(BlindType.Small, 1),
+                targetScore: 300,
+                currentScore: 300,
+                handsLeft: 0,
+                discardsLeft: 3,
+                phase: RoundPhase.RoundEnd,
+                maxHandSize: 5,
+                deckCards: System.Array.Empty<CardData>(),
+                handCards: System.Array.Empty<CardData>(),
+                discardPileCards: System.Array.Empty<CardData>(),
+                selectedCardsIndexes: System.Array.Empty<int>(),
+                lastActionText: "Blind cleared",
+                lastPlayedCardsText: "None",
+                lastPlayedCards: System.Array.Empty<CardData>(),
+                lastPlayedCardsCount: 0,
+                lastPlayedHandResult: PokerHandType.None,
+                lastScoreResult: ScoreResult.Zero
+            ),
+            currentShop: new ShopState(
+                4,
+                new BlindState(BlindType.Big, 1),
+                new ShopOfferState[] {
+                    new("glass-joker", "Glass Joker", "+10 Chips on first scoring hand", 6)
+                }),
+            money: 4,
+            phase: RunPhase.Shop
+        );
+
+        RunState nextState = state.BuyFirstShopOffer();
+
+        Assert.That(nextState, Is.SameAs(state));
+    }
 }

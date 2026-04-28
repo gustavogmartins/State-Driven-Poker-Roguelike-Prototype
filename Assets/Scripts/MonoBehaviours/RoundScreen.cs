@@ -63,6 +63,9 @@ public class RoundScreen : MonoBehaviour {
     [SerializeField] private TextMeshProUGUI shopBannerText;
     [SerializeField] private TextMeshProUGUI shopSummaryText;
     [SerializeField] private TextMeshProUGUI shopDetailsText;
+    [SerializeField] private TextMeshProUGUI shopOffersText;
+    [SerializeField] private Button shopBuyButton;
+    [SerializeField] private TextMeshProUGUI shopBuyButtonLabel;
     [SerializeField] private Button shopContinueButton;
     [SerializeField] private TextMeshProUGUI shopContinueButtonLabel;
 
@@ -205,6 +208,15 @@ public class RoundScreen : MonoBehaviour {
         Render(_runState);
     }
 
+    private void HandleShopBuyAction() {
+        if (_runState == null) {
+            return;
+        }
+
+        _runState = _runState.BuyFirstShopOffer();
+        Render(_runState);
+    }
+
     private void ExitRun() {
 #if UNITY_EDITOR
         EditorApplication.isPlaying = false;
@@ -268,6 +280,18 @@ public class RoundScreen : MonoBehaviour {
             shopDetailsText.text = viewModel.ShopDetailsText;
         }
 
+        if (shopOffersText != null) {
+            shopOffersText.text = viewModel.ShopOffersText;
+        }
+
+        if (shopBuyButton != null) {
+            shopBuyButton.interactable = viewModel.CanBuyFirstShopOffer;
+        }
+
+        if (shopBuyButtonLabel != null) {
+            shopBuyButtonLabel.text = viewModel.ShopBuyButtonText;
+        }
+
         if (shopContinueButtonLabel != null) {
             shopContinueButtonLabel.text = viewModel.ShopPrimaryActionText;
         }
@@ -295,6 +319,9 @@ public class RoundScreen : MonoBehaviour {
         shopBannerText ??= FindOverlayComponent<TextMeshProUGUI>(shopOverlay, "Panel/Banner/BannerText");
         shopSummaryText ??= FindOverlayComponent<TextMeshProUGUI>(shopOverlay, "Panel/SummaryText");
         shopDetailsText ??= FindOverlayComponent<TextMeshProUGUI>(shopOverlay, "Panel/DetailsText");
+        shopOffersText ??= FindOverlayComponent<TextMeshProUGUI>(shopOverlay, "Panel/OffersText");
+        shopBuyButton ??= FindOverlayComponent<Button>(shopOverlay, "Panel/BuyOfferButton");
+        shopBuyButtonLabel ??= FindOverlayComponent<TextMeshProUGUI>(shopOverlay, "Panel/BuyOfferButton/Label");
         shopContinueButton ??= FindOverlayComponent<Button>(shopOverlay, "Panel/ContinueButton");
         shopContinueButtonLabel ??= FindOverlayComponent<TextMeshProUGUI>(shopOverlay, "Panel/ContinueButton/Label");
     }
@@ -310,6 +337,10 @@ public class RoundScreen : MonoBehaviour {
 
         if (shopContinueButton != null) {
             shopContinueButton.onClick.AddListener(HandleShopContinueAction);
+        }
+
+        if (shopBuyButton != null) {
+            shopBuyButton.onClick.AddListener(HandleShopBuyAction);
         }
 
         if (sortByRankButton != null) {
@@ -332,6 +363,10 @@ public class RoundScreen : MonoBehaviour {
 
         if (shopContinueButton != null) {
             shopContinueButton.onClick.RemoveListener(HandleShopContinueAction);
+        }
+
+        if (shopBuyButton != null) {
+            shopBuyButton.onClick.RemoveListener(HandleShopBuyAction);
         }
 
         if (sortByRankButton != null) {

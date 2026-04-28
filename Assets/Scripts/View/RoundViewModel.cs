@@ -32,7 +32,10 @@ namespace View {
         public string ShopBannerText;
         public string ShopSummaryText;
         public string ShopDetailsText;
+        public string ShopOffersText;
         public string ShopPrimaryActionText;
+        public string ShopBuyButtonText;
+        public bool CanBuyFirstShopOffer;
         public bool CanPlayHand;
         public bool CanDiscard;
         public bool CanSort;

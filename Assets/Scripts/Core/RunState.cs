@@ -13,6 +13,7 @@ namespace Core {
         public bool CanAdvanceToNextBlind => !IsRunOver && CurrentRound.HasWonRound;
         public bool CanEnterShop => Phase == RunPhase.Blind && CurrentRound.HasWonRound;
         public bool IsInShop => Phase == RunPhase.Shop;
+        public bool CanBuyFirstShopOffer => IsInShop && CurrentShop?.FirstOffer?.CanBuy(Money) == true;
 
         public RunState(RoundState currentRound, ShopState currentShop, int money, RunPhase phase) {
             CurrentRound = currentRound ?? throw new ArgumentNullException(nameof(currentRound));
@@ -109,6 +110,21 @@ namespace Core {
             );
 
             return new RunState(nextRound, null, Money, RunPhase.Blind);
+        }
+
+        public RunState BuyFirstShopOffer() {
+            if (!IsInShop || CurrentShop == null) {
+                return this;
+            }
+
+            ShopOfferState firstOffer = CurrentShop.FirstOffer;
+            if (firstOffer == null || !firstOffer.CanBuy(Money)) {
+                return this;
+            }
+
+            int updatedMoney = Money - firstOffer.Cost;
+            ShopState updatedShop = CurrentShop.PurchaseOffer(firstOffer.Id, updatedMoney);
+            return new RunState(CurrentRound, updatedShop, updatedMoney, Phase);
         }
 
         private RunState CopyWith(
