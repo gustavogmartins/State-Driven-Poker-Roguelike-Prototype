@@ -50,6 +50,11 @@ namespace Presenters {
                 DeckCountText = $"{roundState.DeckCards.Count}/{TotalDeckSize}",
                 HandSizeText = $"{roundState.HandCards.Count}/{roundState.MaxHandSize}",
                 TopDiscardText = FormatTopDiscard(roundState),
+                ShowRoundEndOverlay = roundState.IsRoundOver,
+                IsWinningRoundEnd = roundState.HasWonRound,
+                RoundEndBannerText = BuildRoundEndBannerText(roundState),
+                RoundEndSummaryText = BuildRoundEndSummaryText(roundState),
+                RoundEndDetailsText = BuildRoundEndDetailsText(roundState),
                 CanPlayHand = roundState.CanPlaySelectedCards,
                 CanDiscard = roundState.CanDiscardSelectedCards,
                 CanSort = roundState.CanSortHand
@@ -116,6 +121,52 @@ namespace Presenters {
             }
 
             return $"{FormatPhase(roundState.Phase)} | {roundState.LastActionText}";
+        }
+
+        private static string BuildRoundEndBannerText(RoundState roundState) {
+            if (roundState.HasWonRound) {
+                return $"Cash Out: ${roundState.BlindReward}";
+            }
+
+            if (roundState.HasLostRound) {
+                return "Game Over";
+            }
+
+            return string.Empty;
+        }
+
+        private static string BuildRoundEndSummaryText(RoundState roundState) {
+            if (roundState.HasWonRound) {
+                return $"Blind cleared\nScored {roundState.CurrentScore} / {roundState.TargetScore}";
+            }
+
+            if (roundState.HasLostRound) {
+                return $"You scored {roundState.CurrentScore} / {roundState.TargetScore}\nNo hands remaining";
+            }
+
+            return string.Empty;
+        }
+
+        private static string BuildRoundEndDetailsText(RoundState roundState) {
+            if (roundState.HasWonRound) {
+                return
+                    $"Blind reward        ${roundState.BlindReward}\n" +
+                    $"Hands remaining     {roundState.HandsLeft}\n" +
+                    $"Money total         ${roundState.Money}";
+            }
+
+            if (roundState.HasLostRound) {
+                string lastHandText = roundState.LastPlayedHandResult == PokerHandType.None
+                    ? "No final hand played"
+                    : $"Final hand          {FormatHandType(roundState.LastPlayedHandResult)}";
+
+                return
+                    $"{lastHandText}\n" +
+                    $"Money total         ${roundState.Money}\n" +
+                    "Start a new run or exit";
+            }
+
+            return string.Empty;
         }
 
         private static string FormatTopDiscard(RoundState roundState) {

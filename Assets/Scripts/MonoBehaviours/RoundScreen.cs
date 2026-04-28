@@ -5,8 +5,14 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 using View;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 public class RoundScreen : MonoBehaviour {
+    private static readonly Color32 OverlayWinColor = new(244, 158, 27, 255);
+    private static readonly Color32 OverlayLossColor = new(214, 72, 72, 255);
+
     [Header("Left Panel")]
     [SerializeField] private TextMeshProUGUI blindTitleText;
     [SerializeField] private TextMeshProUGUI blindDescriptionText;
@@ -42,6 +48,15 @@ public class RoundScreen : MonoBehaviour {
     [SerializeField] private RectTransform playedHandArea;
     [SerializeField] private CardView cardViewPrefab;
 
+    [Header("Round End Overlay")]
+    [SerializeField] private GameObject roundEndOverlay;
+    [SerializeField] private Image roundEndBannerImage;
+    [SerializeField] private TextMeshProUGUI roundEndBannerText;
+    [SerializeField] private TextMeshProUGUI roundEndSummaryText;
+    [SerializeField] private TextMeshProUGUI roundEndDetailsText;
+    [SerializeField] private Button newRunButton;
+    [SerializeField] private Button exitButton;
+
     [Header("Debug")]
     [SerializeField] private bool useDebugHandScenario = false;
     [SerializeField] private DebugHandScenario debugHandScenario = DebugHandScenario.None;
@@ -50,6 +65,7 @@ public class RoundScreen : MonoBehaviour {
     private RoundState _roundState;
 
     private void Awake() {
+        ResolveRoundEndOverlayReferences();
         RegisterButtonListeners();
     }
 
@@ -123,6 +139,7 @@ public class RoundScreen : MonoBehaviour {
 
         RenderHand(viewModel.HandCards);
         RenderPlayedCards(viewModel.PlayedCards);
+        RenderRoundEndOverlay(viewModel);
     }
 
     private void RenderHand(IReadOnlyList<CardViewModel> handCards) {
@@ -162,7 +179,69 @@ public class RoundScreen : MonoBehaviour {
         Render(_roundState);
     }
 
+    private void StartNewRun() {
+        _roundState = CreateInitialState();
+        Render(_roundState);
+    }
+
+    private void ExitRun() {
+#if UNITY_EDITOR
+        EditorApplication.isPlaying = false;
+#else
+        Application.Quit();
+#endif
+    }
+
+    private void RenderRoundEndOverlay(RoundViewModel viewModel) {
+        if (roundEndOverlay == null) {
+            return;
+        }
+
+        roundEndOverlay.SetActive(viewModel.ShowRoundEndOverlay);
+
+        if (!viewModel.ShowRoundEndOverlay) {
+            return;
+        }
+
+        if (roundEndBannerImage != null) {
+            roundEndBannerImage.color = viewModel.IsWinningRoundEnd ? OverlayWinColor : OverlayLossColor;
+        }
+
+        if (roundEndBannerText != null) {
+            roundEndBannerText.text = viewModel.RoundEndBannerText;
+        }
+
+        if (roundEndSummaryText != null) {
+            roundEndSummaryText.text = viewModel.RoundEndSummaryText;
+        }
+
+        if (roundEndDetailsText != null) {
+            roundEndDetailsText.text = viewModel.RoundEndDetailsText;
+        }
+    }
+
+    private void ResolveRoundEndOverlayReferences() {
+        if (roundEndOverlay == null) {
+            return;
+        }
+
+        roundEndBannerImage ??= FindOverlayComponent<Image>("Panel/Banner");
+        roundEndBannerText ??= FindOverlayComponent<TextMeshProUGUI>("Panel/Banner/BannerText");
+        roundEndSummaryText ??= FindOverlayComponent<TextMeshProUGUI>("Panel/SummaryText");
+        roundEndDetailsText ??= FindOverlayComponent<TextMeshProUGUI>("Panel/DetailsText");
+        newRunButton ??= FindOverlayComponent<Button>("Panel/NewRunButton");
+        exitButton ??= FindOverlayComponent<Button>("Panel/ExitButton");
+    }
+
     private void RegisterButtonListeners() {
+        if (newRunButton != null) {
+            newRunButton.onClick.AddListener(StartNewRun);
+        }
+
+        if (exitButton != null) {
+            exitButton.onClick.AddListener(ExitRun);
+        }
+
         if (sortByRankButton != null) {
             sortByRankButton.onClick.AddListener(OnSortByRankButtonClicked);
         }
@@ -173,6 +252,14 @@ public class RoundScreen : MonoBehaviour {
     }
 
     private void UnregisterButtonListeners() {
+        if (newRunButton != null) {
+            newRunButton.onClick.RemoveListener(StartNewRun);
+        }
+
+        if (exitButton != null) {
+            exitButton.onClick.RemoveListener(ExitRun);
+        }
+
         if (sortByRankButton != null) {
             sortByRankButton.onClick.RemoveListener(OnSortByRankButtonClicked);
         }
@@ -180,6 +267,15 @@ public class RoundScreen : MonoBehaviour {
         if (sortBySuitButton != null) {
             sortBySuitButton.onClick.RemoveListener(OnSortBySuitButtonClicked);
         }
+    }
+
+    private T FindOverlayComponent<T>(string relativePath) where T : Component {
+        if (roundEndOverlay == null) {
+            return null;
+        }
+
+        Transform target = roundEndOverlay.transform.Find(relativePath);
+        return target != null ? target.GetComponent<T>() : null;
     }
 
     private static void ClearCardArea(RectTransform cardArea) {

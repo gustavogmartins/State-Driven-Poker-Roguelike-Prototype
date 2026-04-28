@@ -22,6 +22,11 @@ namespace View {
         public string DeckCountText;
         public string HandSizeText;
         public string TopDiscardText;
+        public bool ShowRoundEndOverlay;
+        public bool IsWinningRoundEnd;
+        public string RoundEndBannerText;
+        public string RoundEndSummaryText;
+        public string RoundEndDetailsText;
         public bool CanPlayHand;
         public bool CanDiscard;
         public bool CanSort;
