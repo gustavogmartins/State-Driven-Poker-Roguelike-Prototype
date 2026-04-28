@@ -35,7 +35,7 @@ namespace View {
         public string ShopOffersText;
         public string ShopPrimaryActionText;
         public string ShopBuyButtonText;
-        public bool CanBuyFirstShopOffer;
+        public bool CanBuySelectedShopOffer;
         public bool CanPlayHand;
         public bool CanDiscard;
         public bool CanSort;

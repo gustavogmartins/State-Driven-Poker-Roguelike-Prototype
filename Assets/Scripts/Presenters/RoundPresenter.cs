@@ -69,7 +69,7 @@ namespace Presenters {
                 ShopOffersText = BuildShopOffersText(runState),
                 ShopPrimaryActionText = BuildShopPrimaryActionText(runState),
                 ShopBuyButtonText = BuildShopBuyButtonText(runState),
-                CanBuyFirstShopOffer = runState.CanBuyFirstShopOffer,
+                CanBuySelectedShopOffer = runState.CanBuySelectedShopOffer,
                 CanPlayHand = !runState.IsInShop && roundState.CanPlaySelectedCards,
                 CanDiscard = !runState.IsInShop && roundState.CanDiscardSelectedCards,
                 CanSort = !runState.IsInShop && roundState.CanSortHand
@@ -243,8 +243,10 @@ namespace Presenters {
 
             for (int i = 0; i < runState.CurrentShop.Offers.Count; i++) {
                 ShopOfferState offer = runState.CurrentShop.Offers[i];
+                bool isSelected = i == runState.CurrentShop.SelectedOfferIndex;
                 string purchasedTag = offer.IsPurchased ? " [BOUGHT]" : string.Empty;
 
+                builder.Append(isSelected ? "> " : "  ");
                 builder.Append(i + 1);
                 builder.Append(". ");
                 builder.Append(offer.Title);
@@ -274,11 +276,11 @@ namespace Presenters {
         }
 
         private static string BuildShopBuyButtonText(RunState runState) {
-            if (!runState.IsInShop || runState.CurrentShop?.FirstOffer == null) {
+            if (!runState.IsInShop || runState.CurrentShop?.SelectedOffer == null) {
                 return string.Empty;
             }
 
-            ShopOfferState firstOffer = runState.CurrentShop.FirstOffer;
+            ShopOfferState firstOffer = runState.CurrentShop.SelectedOffer;
 
             if (firstOffer.IsPurchased) {
                 return "Bought";

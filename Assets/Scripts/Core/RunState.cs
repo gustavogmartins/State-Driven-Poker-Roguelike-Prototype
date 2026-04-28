@@ -14,7 +14,7 @@ namespace Core {
         public bool CanAdvanceToNextBlind => !IsRunOver && CurrentRound.HasWonRound;
         public bool CanEnterShop => Phase == RunPhase.Blind && CurrentRound.HasWonRound;
         public bool IsInShop => Phase == RunPhase.Shop;
-        public bool CanBuyFirstShopOffer => IsInShop && CurrentShop?.FirstOffer?.CanBuy(Money) == true;
+        public bool CanBuySelectedShopOffer => IsInShop && CurrentShop?.SelectedOffer?.CanBuy(Money) == true;
 
         public RunState(
             RoundState currentRound,
@@ -128,19 +128,35 @@ namespace Core {
                 return this;
             }
 
-            ShopOfferState firstOffer = CurrentShop.FirstOffer;
-            if (firstOffer == null || !firstOffer.CanBuy(Money)) {
+            ShopOfferState selectedOffer = CurrentShop.SelectedOffer;
+            if (selectedOffer == null || !selectedOffer.CanBuy(Money)) {
                 return this;
             }
 
-            int updatedMoney = Money - firstOffer.Cost;
-            ShopState updatedShop = CurrentShop.PurchaseOffer(firstOffer.Id, updatedMoney);
+            int updatedMoney = Money - selectedOffer.Cost;
+            ShopState updatedShop = CurrentShop.PurchaseOffer(selectedOffer.Id, updatedMoney);
             var updatedOwnedOffers = new List<string>(OwnedOfferIds);
-            if (!updatedOwnedOffers.Contains(firstOffer.Id)) {
-                updatedOwnedOffers.Add(firstOffer.Id);
+            if (!updatedOwnedOffers.Contains(selectedOffer.Id)) {
+                updatedOwnedOffers.Add(selectedOffer.Id);
             }
 
             return new RunState(CurrentRound, updatedShop, updatedOwnedOffers, updatedMoney, Phase);
+        }
+
+        public RunState SelectNextShopOffer() {
+            if (!IsInShop || CurrentShop == null) {
+                return this;
+            }
+
+            return new RunState(CurrentRound, CurrentShop.SelectNextOffer(), OwnedOfferIds, Money, Phase);
+        }
+
+        public RunState SelectPreviousShopOffer() {
+            if (!IsInShop || CurrentShop == null) {
+                return this;
+            }
+
+            return new RunState(CurrentRound, CurrentShop.SelectPreviousOffer(), OwnedOfferIds, Money, Phase);
         }
 
         private RunState CopyWith(
