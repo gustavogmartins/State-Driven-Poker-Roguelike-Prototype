@@ -5,14 +5,16 @@ using UnityEngine;
 
 namespace Core {
     public sealed class RoundState {
+        private const int DefaultHandsPerBlind = 4;
+        private const int DefaultDiscardsPerBlind = 3;
         private const int MaxSelectableCards = 5;
 
-        public string BlindName { get; }
+        public BlindState Blind { get; }
+        public string BlindName => Blind.Name;
         public int TargetScore { get; }
         public int CurrentScore { get; }
-        public int Money { get; }
-        public int Ante { get; }
-        public int RoundNumber { get; }
+        public int Ante => Blind.Ante;
+        public int RoundNumber => Blind.RoundNumber;
         public int HandsLeft { get; }
         public int DiscardsLeft { get; }
         public RoundPhase Phase { get; }
@@ -27,7 +29,7 @@ namespace Core {
         public int MaxHandSize { get; }
         public PokerHandType LastPlayedHandResult { get; }
         public ScoreResult LastScoreResult { get; }
-        public int BlindReward => Ante * 10;
+        public int BlindReward => Blind.Reward;
         public int RemainingScore => Mathf.Max(0, TargetScore - CurrentScore);
         public int SelectedCardsCount => SelectedCardsIndexes.Count;
         public bool IsRoundOver => Phase == RoundPhase.RoundEnd;
@@ -39,12 +41,9 @@ namespace Core {
         public bool CanSortHand => !IsRoundOver && HandCards.Count > 1;
 
         public RoundState(
-            string blindName,
+            BlindState blind,
             int targetScore,
             int currentScore,
-            int money,
-            int ante,
-            int roundNumber,
             int handsLeft,
             int discardsLeft,
             RoundPhase phase,
@@ -59,8 +58,8 @@ namespace Core {
             int lastPlayedCardsCount,
             PokerHandType lastPlayedHandResult,
             ScoreResult lastScoreResult) {
-            if (string.IsNullOrWhiteSpace(blindName)) {
-                throw new ArgumentException("Blind name is required.", nameof(blindName));
+            if (blind == null) {
+                throw new ArgumentNullException(nameof(blind));
             }
 
             if (targetScore < 0) {
@@ -69,18 +68,6 @@ namespace Core {
 
             if (currentScore < 0) {
                 throw new ArgumentOutOfRangeException(nameof(currentScore));
-            }
-
-            if (money < 0) {
-                throw new ArgumentOutOfRangeException(nameof(money));
-            }
-
-            if (ante < 0) {
-                throw new ArgumentOutOfRangeException(nameof(ante));
-            }
-
-            if (roundNumber < 1) {
-                throw new ArgumentOutOfRangeException(nameof(roundNumber));
             }
 
             if (handsLeft < 0) {
@@ -95,12 +82,9 @@ namespace Core {
                 throw new ArgumentOutOfRangeException(nameof(maxHandSize));
             }
 
-            BlindName = blindName;
+            Blind = blind;
             TargetScore = targetScore;
             CurrentScore = currentScore;
-            Money = money;
-            Ante = ante;
-            RoundNumber = roundNumber;
             HandsLeft = handsLeft;
             DiscardsLeft = discardsLeft;
             Phase = phase;
@@ -118,15 +102,14 @@ namespace Core {
         }
 
         public static RoundState CreateInitial(
-            string blindName = "Small Blind",
-            int targetScore = 300,
-            int money = 10,
-            int ante = 1,
-            int roundNumber = 1,
-            int handsLeft = 4,
-            int discardsLeft = 3,
+            BlindState blind = null,
+            int? targetScore = null,
+            int handsLeft = DefaultHandsPerBlind,
+            int discardsLeft = DefaultDiscardsPerBlind,
             int maxHandSize = 8,
             IReadOnlyList<CardData> initialHandCards = null) {
+            blind ??= BlindState.CreateFirst();
+            int resolvedTargetScore = targetScore ?? blind.TargetScore;
             var fullDeck = DeckBuilder.CreateStandard52();
             var shuffledDeck = DeckShuffler.Shuffle(fullDeck);
 
@@ -150,12 +133,9 @@ namespace Core {
             }
 
             return new RoundState(
-                blindName: blindName,
-                targetScore: targetScore,
+                blind: blind,
+                targetScore: resolvedTargetScore,
                 currentScore: 0,
-                money: money,
-                ante: ante,
-                roundNumber: roundNumber,
                 handsLeft: handsLeft,
                 discardsLeft: discardsLeft,
                 phase: RoundPhase.PlayerTurn,
@@ -253,12 +233,9 @@ namespace Core {
             bool roundLost = !blindCleared && newHandsLeft == 0;
 
             return new RoundState(
-                blindName: BlindName,
+                blind: Blind,
                 targetScore: TargetScore,
                 currentScore: newCurrentScore,
-                money: blindCleared ? Money + BlindReward : Money,
-                ante: Ante,
-                roundNumber: RoundNumber,
                 handsLeft: newHandsLeft,
                 discardsLeft: DiscardsLeft,
                 phase: blindCleared || roundLost ? RoundPhase.RoundEnd : RoundPhase.PlayerTurn,
@@ -308,12 +285,9 @@ namespace Core {
                 : $"Discarded {discardedCards.Count} card(s)";
 
             return new RoundState(
-                blindName: BlindName,
+                blind: Blind,
                 targetScore: TargetScore,
                 currentScore: CurrentScore,
-                money: Money,
-                ante: Ante,
-                roundNumber: RoundNumber,
                 handsLeft: HandsLeft,
                 discardsLeft: newDiscardsLeft,
                 phase: RoundPhase.PlayerTurn,
@@ -384,12 +358,9 @@ namespace Core {
             IReadOnlyList<int> selectedCardsIndexes = null,
             string lastActionText = null) {
             return new RoundState(
-                blindName: BlindName,
+                blind: Blind,
                 targetScore: TargetScore,
                 currentScore: CurrentScore,
-                money: Money,
-                ante: Ante,
-                roundNumber: RoundNumber,
                 handsLeft: HandsLeft,
                 discardsLeft: DiscardsLeft,
                 phase: Phase,

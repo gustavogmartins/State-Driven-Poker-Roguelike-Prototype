@@ -9413,7 +9413,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: New Run
+  m_text: Continue
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 1485546656}
@@ -11426,6 +11426,7 @@ MonoBehaviour:
   roundEndSummaryText: {fileID: 864710167}
   roundEndDetailsText: {fileID: 749824518}
   newRunButton: {fileID: 918642583}
+  newRunButtonLabel: {fileID: 0}
   exitButton: {fileID: 425623487}
   useDebugHandScenario: 0
   debugHandScenario: 0

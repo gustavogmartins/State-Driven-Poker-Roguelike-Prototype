@@ -27,6 +27,7 @@ namespace View {
         public string RoundEndBannerText;
         public string RoundEndSummaryText;
         public string RoundEndDetailsText;
+        public string RoundEndPrimaryActionText;
         public bool CanPlayHand;
         public bool CanDiscard;
         public bool CanSort;
