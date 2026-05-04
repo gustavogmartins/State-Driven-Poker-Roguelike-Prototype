@@ -9,6 +9,7 @@ namespace View {
         [SerializeField] private Outline selectedFrame;
         [SerializeField] private Image accent;
         [SerializeField] private TextMeshProUGUI titleText;
+        [SerializeField] private TextMeshProUGUI rarityText;
         [SerializeField] private TextMeshProUGUI costText;
         [SerializeField] private TextMeshProUGUI descriptionText;
         [SerializeField] private TextMeshProUGUI statusText;
@@ -59,6 +60,11 @@ namespace View {
 
             if (titleText != null) {
                 titleText.text = viewModel.TitleText;
+            }
+
+            if (rarityText != null) {
+                rarityText.text = viewModel.RarityText;
+                rarityText.color = viewModel.RarityColor;
             }
 
             if (costText != null) {
@@ -117,6 +123,7 @@ namespace View {
 
             accent ??= FindChildComponent<Image>("Accent");
             titleText ??= FindChildComponent<TextMeshProUGUI>("Title");
+            rarityText ??= FindChildComponent<TextMeshProUGUI>("Rarity");
             costText ??= FindChildComponent<TextMeshProUGUI>("Cost");
             descriptionText ??= FindChildComponent<TextMeshProUGUI>("Description");
             statusText ??= FindChildComponent<TextMeshProUGUI>("Status");

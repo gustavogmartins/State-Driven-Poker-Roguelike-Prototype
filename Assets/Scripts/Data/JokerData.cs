@@ -7,6 +7,7 @@ namespace Core {
         public string ShortCode { get; }
         public string Description { get; }
         public int Cost { get; }
+        public JokerRarity Rarity { get; }
         public JokerBonusType BonusType { get; }
         public JokerConditionType ConditionType { get; }
         public int BonusValue { get; }
@@ -17,6 +18,7 @@ namespace Core {
             string shortCode,
             string description,
             int cost,
+            JokerRarity rarity,
             JokerBonusType bonusType,
             JokerConditionType conditionType,
             int bonusValue) {
@@ -49,6 +51,7 @@ namespace Core {
             ShortCode = shortCode;
             Description = description;
             Cost = cost;
+            Rarity = rarity;
             BonusType = bonusType;
             ConditionType = conditionType;
             BonusValue = bonusValue;

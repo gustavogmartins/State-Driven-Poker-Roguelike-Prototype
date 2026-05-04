@@ -2,6 +2,8 @@ using Core;
 using NUnit.Framework;
 
 public sealed class RunStateTests {
+    private const int TestRunSeed = 12345;
+
     [Test]
     public void PlaySelectedCards_WhenBlindIsCleared_AwardsMoneyToRun() {
         CardData[] handCards = {
@@ -162,7 +164,8 @@ public sealed class RunStateTests {
             currentShop: null,
             ownedJokers: System.Array.Empty<JokerState>(),
             money: 25,
-            phase: RunPhase.Blind
+            phase: RunPhase.Blind,
+            runSeed: TestRunSeed
         );
 
         RunState nextState = state.EnterShop();
@@ -174,6 +177,7 @@ public sealed class RunStateTests {
         Assert.That(nextState.CurrentShop.Money, Is.EqualTo(25));
         Assert.That(nextState.CurrentShop.OfferPageIndex, Is.EqualTo(0));
         Assert.That(nextState.ShopRefreshCount, Is.EqualTo(1));
+        Assert.That(nextState.CurrentShop.RunSeed, Is.EqualTo(TestRunSeed));
     }
 
     [Test]
@@ -202,13 +206,15 @@ public sealed class RunStateTests {
             ownedJokers: System.Array.Empty<JokerState>(),
             money: 25,
             phase: RunPhase.Blind,
-            shopRefreshCount: 1
+            shopRefreshCount: 1,
+            runSeed: TestRunSeed
         );
 
         RunState nextState = state.EnterShop();
+        var expectedOffers = JokerCatalog.CreateShopOffers(1, runSeed: TestRunSeed);
 
         Assert.That(nextState.CurrentShop.OfferPageIndex, Is.EqualTo(1));
-        Assert.That(nextState.CurrentShop.FirstOffer.Id, Is.EqualTo("club-chip"));
+        Assert.That(nextState.CurrentShop.FirstOffer.Id, Is.EqualTo(expectedOffers[0].Id));
         Assert.That(nextState.ShopRefreshCount, Is.EqualTo(2));
     }
 
@@ -250,7 +256,7 @@ public sealed class RunStateTests {
     }
 
     [Test]
-    public void EnterShop_WhenRunAlreadyOwnsJoker_MarksOfferAsPurchased() {
+    public void EnterShop_WhenRunAlreadyOwnsJoker_ExcludesOwnedJokerWhenPoolHasEnoughOptions() {
         RunState state = new RunState(
             currentRound: new RoundState(
                 blind: new BlindState(BlindType.Small, 1),
@@ -274,15 +280,17 @@ public sealed class RunStateTests {
             currentShop: null,
             ownedJokers: new[] { new JokerState(JokerCatalog.GetById("glass-joker")) },
             money: 25,
-            phase: RunPhase.Blind
+            phase: RunPhase.Blind,
+            runSeed: TestRunSeed
         );
 
         RunState nextState = state.EnterShop();
 
         Assert.That(nextState.CurrentShop, Is.Not.Null);
-        Assert.That(nextState.CurrentShop.FirstOffer, Is.Not.Null);
-        Assert.That(nextState.CurrentShop.FirstOffer.Id, Is.EqualTo("glass-joker"));
-        Assert.That(nextState.CurrentShop.FirstOffer.IsPurchased, Is.True);
+        for (int i = 0; i < nextState.CurrentShop.Offers.Count; i++) {
+            Assert.That(nextState.CurrentShop.Offers[i].Id, Is.Not.EqualTo("glass-joker"));
+            Assert.That(nextState.CurrentShop.Offers[i].IsPurchased, Is.False);
+        }
     }
 
     [Test]
@@ -307,7 +315,10 @@ public sealed class RunStateTests {
                 lastPlayedHandResult: PokerHandType.None,
                 lastScoreResult: ScoreResult.Zero
             ),
-            currentShop: new ShopState(25, new BlindState(BlindType.Big, 1)),
+            currentShop: new ShopState(
+                25,
+                new BlindState(BlindType.Big, 1),
+                offers: CreateFixedShopOffers()),
             ownedJokers: System.Array.Empty<JokerState>(),
             money: 25,
             phase: RunPhase.Shop
@@ -383,7 +394,10 @@ public sealed class RunStateTests {
                 lastPlayedHandResult: PokerHandType.None,
                 lastScoreResult: ScoreResult.Zero
             ),
-            currentShop: new ShopState(25, new BlindState(BlindType.Big, 1)),
+            currentShop: new ShopState(
+                25,
+                new BlindState(BlindType.Big, 1),
+                offers: CreateFixedShopOffers()),
             ownedJokers: System.Array.Empty<JokerState>(),
             money: 25,
             phase: RunPhase.Shop
@@ -402,7 +416,7 @@ public sealed class RunStateTests {
         RunState nextState = state.SelectShopOffer(2);
 
         Assert.That(nextState.CurrentShop.SelectedOfferIndex, Is.EqualTo(2));
-        Assert.That(nextState.CurrentShop.SelectedOffer.Id, Is.EqualTo("pair-polisher"));
+        Assert.That(nextState.CurrentShop.SelectedOffer.Id, Is.EqualTo("pair-glove"));
         Assert.That(nextState.Money, Is.EqualTo(25));
     }
 
@@ -473,7 +487,11 @@ public sealed class RunStateTests {
                 lastPlayedHandResult: PokerHandType.None,
                 lastScoreResult: ScoreResult.Zero
             ),
-            currentShop: new ShopState(25, new BlindState(BlindType.Big, 1), selectedOfferIndex: 1),
+            currentShop: new ShopState(
+                25,
+                new BlindState(BlindType.Big, 1),
+                offers: CreateFixedShopOffers(),
+                selectedOfferIndex: 1),
             ownedJokers: System.Array.Empty<JokerState>(),
             money: 25,
             phase: RunPhase.Shop
@@ -549,7 +567,11 @@ public sealed class RunStateTests {
                 lastPlayedHandResult: PokerHandType.None,
                 lastScoreResult: ScoreResult.Zero
             ),
-            currentShop: new ShopState(25, new BlindState(BlindType.Big, 1)),
+            currentShop: new ShopState(
+                25,
+                new BlindState(BlindType.Big, 1),
+                offers: CreateFixedShopOffers(),
+                runSeed: TestRunSeed),
             ownedJokers: System.Array.Empty<JokerState>(),
             money: 25,
             phase: RunPhase.Shop
@@ -562,8 +584,57 @@ public sealed class RunStateTests {
         Assert.That(nextState.CurrentShop.RerollCost, Is.EqualTo(6));
         Assert.That(nextState.CurrentShop.OfferPageIndex, Is.EqualTo(1));
         Assert.That(nextState.CurrentShop.SelectedOfferIndex, Is.EqualTo(0));
-        Assert.That(nextState.CurrentShop.Offers[0].Id, Is.EqualTo("club-chip"));
+        Assert.That(nextState.CurrentShop.Offers[0].Id, Is.Not.EqualTo(state.CurrentShop.Offers[0].Id));
         Assert.That(nextState.ShopRefreshCount, Is.EqualTo(1));
+    }
+
+    [Test]
+    public void CreateShopOffers_WhenSeedAndPageMatch_ReturnsSameOffers() {
+        var first = JokerCatalog.CreateShopOffers(2, runSeed: TestRunSeed);
+        var second = JokerCatalog.CreateShopOffers(2, runSeed: TestRunSeed);
+
+        Assert.That(GetOfferIds(second), Is.EqualTo(GetOfferIds(first)));
+    }
+
+    [Test]
+    public void CreateShopOffers_WhenPageChanges_ReturnsDifferentOffers() {
+        var first = JokerCatalog.CreateShopOffers(0, runSeed: TestRunSeed);
+        var second = JokerCatalog.CreateShopOffers(1, runSeed: TestRunSeed);
+
+        Assert.That(GetOfferIds(second), Is.Not.EqualTo(GetOfferIds(first)));
+    }
+
+    [Test]
+    public void CreateShopOffers_WhenGenerated_DoesNotDuplicateJokersInSameShop() {
+        var offers = JokerCatalog.CreateShopOffers(0, runSeed: TestRunSeed);
+
+        Assert.That(offers, Has.Count.EqualTo(3));
+        Assert.That(GetOfferIds(offers), Is.Unique);
+    }
+
+    [Test]
+    public void CreateShopOffers_WhenMostJokersAreOwned_FillsWithPurchasedOwnedOffers() {
+        JokerState[] ownedJokers = {
+            new(JokerCatalog.GetById("glass-joker")),
+            new(JokerCatalog.GetById("ace-tag")),
+            new(JokerCatalog.GetById("pair-glove")),
+            new(JokerCatalog.GetById("club-chip")),
+            new(JokerCatalog.GetById("straight-polish")),
+            new(JokerCatalog.GetById("heart-tag")),
+            new(JokerCatalog.GetById("flush-foil"))
+        };
+
+        var offers = JokerCatalog.CreateShopOffers(0, ownedJokers, TestRunSeed);
+
+        Assert.That(offers, Has.Count.EqualTo(3));
+        Assert.That(HasPurchasedOffer(offers), Is.True);
+    }
+
+    [Test]
+    public void JokerCatalog_WhenRead_AllJokersHaveRarity() {
+        foreach (JokerData joker in JokerCatalog.All) {
+            Assert.That(System.Enum.IsDefined(typeof(JokerRarity), joker.Rarity), Is.True);
+        }
     }
 
     [Test]
@@ -703,10 +774,62 @@ public sealed class RunStateTests {
                 lastPlayedHandResult: PokerHandType.None,
                 lastScoreResult: ScoreResult.Zero
             ),
-            currentShop: new ShopState(money, new BlindState(BlindType.Big, 1), ownedJokers: ownedJokers),
+            currentShop: new ShopState(
+                money,
+                new BlindState(BlindType.Big, 1),
+                offers: CreateFixedShopOffers(ownedJokers),
+                runSeed: TestRunSeed),
             ownedJokers: ownedJokers ?? System.Array.Empty<JokerState>(),
             money: money,
-            phase: RunPhase.Shop
+            phase: RunPhase.Shop,
+            runSeed: TestRunSeed
         );
+    }
+
+    private static ShopOfferState[] CreateFixedShopOffers(JokerState[] ownedJokers = null) {
+        return new[] {
+            new ShopOfferState(
+                JokerCatalog.GetById("glass-joker"),
+                IsOwned(ownedJokers, "glass-joker")),
+            new ShopOfferState(
+                JokerCatalog.GetById("ace-tag"),
+                IsOwned(ownedJokers, "ace-tag")),
+            new ShopOfferState(
+                JokerCatalog.GetById("pair-glove"),
+                IsOwned(ownedJokers, "pair-glove"))
+        };
+    }
+
+    private static string[] GetOfferIds(System.Collections.Generic.IReadOnlyList<ShopOfferState> offers) {
+        var ids = new string[offers.Count];
+        for (int i = 0; i < offers.Count; i++) {
+            ids[i] = offers[i].Id;
+        }
+
+        return ids;
+    }
+
+    private static bool HasPurchasedOffer(System.Collections.Generic.IReadOnlyList<ShopOfferState> offers) {
+        for (int i = 0; i < offers.Count; i++) {
+            if (offers[i].IsPurchased) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsOwned(JokerState[] ownedJokers, string jokerId) {
+        if (ownedJokers == null) {
+            return false;
+        }
+
+        for (int i = 0; i < ownedJokers.Length; i++) {
+            if (ownedJokers[i].Id == jokerId) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

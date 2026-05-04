@@ -11,6 +11,7 @@ namespace Core {
         public int SelectedOfferIndex { get; }
         public int OfferPageIndex { get; }
         public int RerollCount { get; }
+        public int RunSeed { get; }
         public int RerollCost => BaseRerollCost + RerollCount;
         public ShopOfferState FirstOffer => Offers.Count > 0 ? Offers[0] : null;
         public ShopOfferState SelectedOffer => Offers.Count > 0 ? Offers[SelectedOfferIndex] : null;
@@ -22,14 +23,16 @@ namespace Core {
             IReadOnlyList<JokerState> ownedJokers = null,
             int selectedOfferIndex = 0,
             int offerPageIndex = 0,
-            int rerollCount = 0) {
+            int rerollCount = 0,
+            int runSeed = 0) {
             if (money < 0) {
                 throw new ArgumentOutOfRangeException(nameof(money));
             }
 
             Money = money;
             NextBlind = nextBlind ?? throw new ArgumentNullException(nameof(nextBlind));
-            Offers = offers ?? JokerCatalog.CreateShopOffers(offerPageIndex, ownedJokers);
+            RunSeed = runSeed;
+            Offers = offers ?? JokerCatalog.CreateShopOffers(offerPageIndex, ownedJokers, RunSeed);
             SelectedOfferIndex = ResolveSelectedOfferIndex(Offers, selectedOfferIndex);
             OfferPageIndex = Math.Max(0, offerPageIndex);
             RerollCount = rerollCount;
@@ -61,7 +64,8 @@ namespace Core {
                     offers: nextOffers,
                     selectedOfferIndex: SelectedOfferIndex,
                     offerPageIndex: OfferPageIndex,
-                    rerollCount: RerollCount)
+                    rerollCount: RerollCount,
+                    runSeed: RunSeed)
                 : this;
         }
 
@@ -77,7 +81,8 @@ namespace Core {
                 offers: Offers,
                 selectedOfferIndex: nextIndex,
                 offerPageIndex: OfferPageIndex,
-                rerollCount: RerollCount);
+                rerollCount: RerollCount,
+                runSeed: RunSeed);
         }
 
         public ShopState SelectPreviousOffer() {
@@ -95,7 +100,8 @@ namespace Core {
                 offers: Offers,
                 selectedOfferIndex: nextIndex,
                 offerPageIndex: OfferPageIndex,
-                rerollCount: RerollCount);
+                rerollCount: RerollCount,
+                runSeed: RunSeed);
         }
 
         public ShopState SelectOffer(int index) {
@@ -109,7 +115,8 @@ namespace Core {
                 offers: Offers,
                 selectedOfferIndex: index,
                 offerPageIndex: OfferPageIndex,
-                rerollCount: RerollCount);
+                rerollCount: RerollCount,
+                runSeed: RunSeed);
         }
 
         public bool CanReroll(int money) {
@@ -123,7 +130,8 @@ namespace Core {
                 ownedJokers: ownedJokers,
                 selectedOfferIndex: 0,
                 offerPageIndex: OfferPageIndex + 1,
-                rerollCount: RerollCount + 1
+                rerollCount: RerollCount + 1,
+                runSeed: RunSeed
             );
             return rerolledState;
         }
@@ -146,7 +154,8 @@ namespace Core {
                     offers: nextOffers,
                     selectedOfferIndex: SelectedOfferIndex,
                     offerPageIndex: OfferPageIndex,
-                    rerollCount: RerollCount)
+                    rerollCount: RerollCount,
+                    runSeed: RunSeed)
                 : this;
         }
 

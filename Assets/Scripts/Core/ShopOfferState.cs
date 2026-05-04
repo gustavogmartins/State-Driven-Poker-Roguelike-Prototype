@@ -7,6 +7,7 @@ namespace Core {
         public string Title => Joker.Name;
         public string Description => Joker.Description;
         public int Cost => Joker.Cost;
+        public JokerRarity Rarity => Joker.Rarity;
         public bool IsPurchased { get; }
 
         public ShopOfferState(JokerData joker, bool isPurchased = false) {

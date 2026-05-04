@@ -8,6 +8,7 @@ namespace Core {
         public string ShortCode => Data.ShortCode;
         public string Description => Data.Description;
         public int Cost => Data.Cost;
+        public JokerRarity Rarity => Data.Rarity;
         public JokerBonusType BonusType => Data.BonusType;
         public JokerConditionType ConditionType => Data.ConditionType;
         public int BonusValue => Data.BonusValue;

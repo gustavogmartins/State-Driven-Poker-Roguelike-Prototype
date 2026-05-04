@@ -12,6 +12,7 @@ public sealed class RoundPresenterShopTests {
 
         Assert.That(viewModel.ShopOffers, Has.Count.EqualTo(3));
         Assert.That(viewModel.ShopOffers[0].TitleText, Is.EqualTo("Glass Joker"));
+        Assert.That(viewModel.ShopOffers[0].RarityText, Is.EqualTo("Common"));
         Assert.That(viewModel.ShopOffers[0].CostText, Is.EqualTo("$6"));
         Assert.That(viewModel.ShopOffers[0].StatusText, Is.EqualTo("Selected"));
         Assert.That(viewModel.ShopOffers[0].IsSelected, Is.True);
@@ -120,10 +121,41 @@ public sealed class RoundPresenterShopTests {
 
         return new RunState(
             currentRound: wonRound,
-            currentShop: new ShopState(money, new BlindState(BlindType.Big, 1), ownedJokers: ownedJokers),
+            currentShop: new ShopState(
+                money,
+                new BlindState(BlindType.Big, 1),
+                offers: CreateFixedShopOffers(ownedJokers)),
             ownedJokers: ownedJokers ?? System.Array.Empty<JokerState>(),
             money: money,
             phase: RunPhase.Shop
         );
+    }
+
+    private static ShopOfferState[] CreateFixedShopOffers(JokerState[] ownedJokers = null) {
+        return new[] {
+            new ShopOfferState(
+                JokerCatalog.GetById("glass-joker"),
+                IsOwned(ownedJokers, "glass-joker")),
+            new ShopOfferState(
+                JokerCatalog.GetById("ace-tag"),
+                IsOwned(ownedJokers, "ace-tag")),
+            new ShopOfferState(
+                JokerCatalog.GetById("pair-glove"),
+                IsOwned(ownedJokers, "pair-glove"))
+        };
+    }
+
+    private static bool IsOwned(JokerState[] ownedJokers, string jokerId) {
+        if (ownedJokers == null) {
+            return false;
+        }
+
+        for (int i = 0; i < ownedJokers.Length; i++) {
+            if (ownedJokers[i].Id == jokerId) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

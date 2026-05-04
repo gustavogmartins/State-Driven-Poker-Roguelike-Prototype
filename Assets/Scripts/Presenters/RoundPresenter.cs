@@ -151,13 +151,15 @@ namespace Presenters {
                 viewModel.ShopOffers.Add(new ShopOfferViewModel {
                     Index = i,
                     TitleText = offer.Title,
+                    RarityText = FormatRarity(offer.Rarity),
                     DescriptionText = offer.Description,
                     CostText = $"${offer.Cost}",
                     StatusText = BuildShopOfferStatusText(offer, runState.Money, isSelected),
                     IsSelected = isSelected,
                     IsPurchased = offer.IsPurchased,
                     CanBuy = offer.CanBuy(runState.Money),
-                    AccentColor = GetJokerColor(new JokerState(offer.Joker))
+                    AccentColor = GetJokerColor(new JokerState(offer.Joker)),
+                    RarityColor = GetRarityColor(offer.Rarity)
                 });
             }
         }
@@ -355,6 +357,15 @@ namespace Presenters {
             };
         }
 
+        private static string FormatRarity(JokerRarity rarity) {
+            return rarity switch {
+                JokerRarity.Common => "Common",
+                JokerRarity.Uncommon => "Uncommon",
+                JokerRarity.Rare => "Rare",
+                _ => rarity.ToString()
+            };
+        }
+
         private static string FormatRank(Rank rank) {
             return rank switch {
                 Rank.Jack => "J",
@@ -390,6 +401,15 @@ namespace Presenters {
             return joker.BonusType switch {
                 JokerBonusType.Chips => new Color32(244, 158, 27, 255),
                 JokerBonusType.Mult => new Color32(40, 138, 91, 255),
+                _ => Color.white
+            };
+        }
+
+        private static Color GetRarityColor(JokerRarity rarity) {
+            return rarity switch {
+                JokerRarity.Common => new Color32(166, 181, 184, 255),
+                JokerRarity.Uncommon => new Color32(74, 154, 224, 255),
+                JokerRarity.Rare => new Color32(210, 125, 233, 255),
                 _ => Color.white
             };
         }
