@@ -94,7 +94,12 @@ namespace Presenters {
             }
 
             for (int i = 0; i < runState.OwnedJokers.Count; i++) {
-                viewModel.OwnedJokerCards.Add(CreateJokerCardViewModel(runState.OwnedJokers[i]));
+                viewModel.OwnedJokerCards.Add(CreateJokerCardViewModel(
+                    runState.OwnedJokers[i],
+                    index: i,
+                    canSell: runState.CanSellOwnedJoker(i),
+                    sellValue: runState.GetOwnedJokerSellValue(i)
+                ));
             }
 
             AddShopOfferViewModels(viewModel, runState);
@@ -117,14 +122,20 @@ namespace Presenters {
             };
         }
 
-        private static CardViewModel CreateJokerCardViewModel(JokerState joker) {
+        private static CardViewModel CreateJokerCardViewModel(
+            JokerState joker,
+            int index,
+            bool canSell,
+            int sellValue) {
             return new CardViewModel {
-                Index = -1,
+                Index = index,
                 RankText = joker.ShortCode,
                 SuitText = "J",
                 AccentColor = GetJokerColor(joker),
                 IsSelected = false,
-                IsInteractable = false
+                IsInteractable = canSell,
+                CanSell = canSell,
+                SellButtonText = sellValue > 0 ? $"Sell ${sellValue}" : "Sell"
             };
         }
 

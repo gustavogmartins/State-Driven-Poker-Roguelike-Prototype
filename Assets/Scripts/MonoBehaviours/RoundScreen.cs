@@ -78,6 +78,7 @@ public class RoundScreen : MonoBehaviour {
 
     private RoundPresenter _roundPresenter;
     private RunState _runState;
+    private int _selectedOwnedJokerIndex = -1;
 
     private void Awake() {
         ResolveRoundEndOverlayReferences();
@@ -124,6 +125,8 @@ public class RoundScreen : MonoBehaviour {
     }
 
     private void Render(RunState runState) {
+        NormalizeSelectedOwnedJoker(runState);
+
         var viewModel = _roundPresenter.Present(runState);
 
         blindTitleText.text = viewModel.BlindTitleText;
@@ -167,8 +170,11 @@ public class RoundScreen : MonoBehaviour {
         ClearCardArea(upperGlassArea);
 
         for (int i = 0; i < ownedJokers.Count; i++) {
+            ownedJokers[i].IsSellSelected = i == _selectedOwnedJokerIndex;
             var cardView = Instantiate(cardViewPrefab, upperGlassArea);
             cardView.Bind(ownedJokers[i]);
+            cardView.OnCardSelected += HandleOwnedJokerSelected;
+            cardView.OnSellRequested += HandleOwnedJokerSell;
         }
 
         LayoutRebuilder.ForceRebuildLayoutImmediate(upperGlassArea);
@@ -212,6 +218,7 @@ public class RoundScreen : MonoBehaviour {
     }
 
     private void HandlePrimaryRoundEndAction() {
+        _selectedOwnedJokerIndex = -1;
         _runState = _runState != null && _runState.CanEnterShop
             ? _runState.EnterShop()
             : CreateInitialState();
@@ -224,6 +231,7 @@ public class RoundScreen : MonoBehaviour {
             return;
         }
 
+        _selectedOwnedJokerIndex = -1;
         _runState = _runState.LeaveShop(initialHandCards: GetDebugHand());
         Render(_runState);
     }
@@ -242,6 +250,7 @@ public class RoundScreen : MonoBehaviour {
             return;
         }
 
+        _selectedOwnedJokerIndex = -1;
         _runState = _runState.BuyShopOffer(index);
         Render(_runState);
     }
@@ -251,7 +260,27 @@ public class RoundScreen : MonoBehaviour {
             return;
         }
 
+        _selectedOwnedJokerIndex = -1;
         _runState = _runState.RerollShop();
+        Render(_runState);
+    }
+
+    private void HandleOwnedJokerSelected(int index) {
+        if (_runState == null || !_runState.CanSellOwnedJoker(index)) {
+            return;
+        }
+
+        _selectedOwnedJokerIndex = index;
+        Render(_runState);
+    }
+
+    private void HandleOwnedJokerSell(int index) {
+        if (_runState == null) {
+            return;
+        }
+
+        _runState = _runState.SellOwnedJoker(index);
+        _selectedOwnedJokerIndex = -1;
         Render(_runState);
     }
 
@@ -496,6 +525,12 @@ public class RoundScreen : MonoBehaviour {
         return useDebugHandScenario && debugHandScenario != DebugHandScenario.None
             ? DebugHandFactory.Create(debugHandScenario)
             : null;
+    }
+
+    private void NormalizeSelectedOwnedJoker(RunState runState) {
+        if (runState == null || !runState.IsInShop || _selectedOwnedJokerIndex >= runState.OwnedJokers.Count) {
+            _selectedOwnedJokerIndex = -1;
+        }
     }
 
     private static void ClearCardArea(RectTransform cardArea) {

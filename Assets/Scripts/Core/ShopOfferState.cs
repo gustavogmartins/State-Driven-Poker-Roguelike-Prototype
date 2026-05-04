@@ -23,5 +23,11 @@ namespace Core {
                 ? this
                 : new ShopOfferState(Joker, isPurchased: true);
         }
+
+        public ShopOfferState WithPurchasedState(bool isPurchased) {
+            return IsPurchased == isPurchased
+                ? this
+                : new ShopOfferState(Joker, isPurchased);
+        }
     }
 }

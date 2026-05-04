@@ -172,6 +172,44 @@ public sealed class RunStateTests {
         Assert.That(nextState.CurrentShop, Is.Not.Null);
         Assert.That(nextState.CurrentShop.NextBlind.Type, Is.EqualTo(BlindType.Big));
         Assert.That(nextState.CurrentShop.Money, Is.EqualTo(25));
+        Assert.That(nextState.CurrentShop.OfferPageIndex, Is.EqualTo(0));
+        Assert.That(nextState.ShopRefreshCount, Is.EqualTo(1));
+    }
+
+    [Test]
+    public void EnterShop_WhenRunHasPriorShopRefreshes_LoadsNextOfferPage() {
+        RunState state = new RunState(
+            currentRound: new RoundState(
+                blind: new BlindState(BlindType.Big, 1),
+                targetScore: 450,
+                currentScore: 450,
+                handsLeft: 0,
+                discardsLeft: 3,
+                phase: RoundPhase.RoundEnd,
+                maxHandSize: 1,
+                deckCards: System.Array.Empty<CardData>(),
+                handCards: System.Array.Empty<CardData>(),
+                discardPileCards: System.Array.Empty<CardData>(),
+                selectedCardsIndexes: System.Array.Empty<int>(),
+                lastActionText: "Blind cleared",
+                lastPlayedCardsText: "None",
+                lastPlayedCards: System.Array.Empty<CardData>(),
+                lastPlayedCardsCount: 0,
+                lastPlayedHandResult: PokerHandType.None,
+                lastScoreResult: ScoreResult.Zero
+            ),
+            currentShop: null,
+            ownedJokers: System.Array.Empty<JokerState>(),
+            money: 25,
+            phase: RunPhase.Blind,
+            shopRefreshCount: 1
+        );
+
+        RunState nextState = state.EnterShop();
+
+        Assert.That(nextState.CurrentShop.OfferPageIndex, Is.EqualTo(1));
+        Assert.That(nextState.CurrentShop.FirstOffer.Id, Is.EqualTo("club-chip"));
+        Assert.That(nextState.ShopRefreshCount, Is.EqualTo(2));
     }
 
     [Test]
@@ -519,10 +557,96 @@ public sealed class RunStateTests {
 
         RunState nextState = state.RerollShop();
 
-        Assert.That(nextState.Money, Is.EqualTo(24));
+        Assert.That(nextState.Money, Is.EqualTo(20));
         Assert.That(nextState.CurrentShop.RerollCount, Is.EqualTo(1));
+        Assert.That(nextState.CurrentShop.RerollCost, Is.EqualTo(6));
+        Assert.That(nextState.CurrentShop.OfferPageIndex, Is.EqualTo(1));
         Assert.That(nextState.CurrentShop.SelectedOfferIndex, Is.EqualTo(0));
         Assert.That(nextState.CurrentShop.Offers[0].Id, Is.EqualTo("club-chip"));
+        Assert.That(nextState.ShopRefreshCount, Is.EqualTo(1));
+    }
+
+    [Test]
+    public void SellOwnedJoker_WhenNotInShop_KeepsStateUnchanged() {
+        RunState state = new RunState(
+            currentRound: RoundState.CreateInitial(),
+            currentShop: null,
+            ownedJokers: new[] { new JokerState(JokerCatalog.GetById("glass-joker")) },
+            money: 10,
+            phase: RunPhase.Blind
+        );
+
+        RunState nextState = state.SellOwnedJoker(0);
+
+        Assert.That(nextState, Is.SameAs(state));
+    }
+
+    [Test]
+    public void SellOwnedJoker_WhenIndexIsInvalid_KeepsStateUnchanged() {
+        RunState state = CreateShopRunState(
+            money: 25,
+            ownedJokers: new[] { new JokerState(JokerCatalog.GetById("glass-joker")) }
+        );
+
+        RunState nextState = state.SellOwnedJoker(3);
+
+        Assert.That(nextState, Is.SameAs(state));
+    }
+
+    [Test]
+    public void SellOwnedJoker_WhenInShop_RemovesJokerAndAddsSellValue() {
+        RunState state = CreateShopRunState(
+            money: 25,
+            ownedJokers: new[] { new JokerState(JokerCatalog.GetById("glass-joker")) }
+        );
+
+        RunState nextState = state.SellOwnedJoker(0);
+
+        Assert.That(nextState.Money, Is.EqualTo(28));
+        Assert.That(nextState.OwnedJokers, Has.Count.EqualTo(0));
+    }
+
+    [Test]
+    public void SellOwnedJoker_WhenVisibleOfferMatchesSoldJoker_MakesOfferBuyableAgain() {
+        RunState state = CreateShopRunState(
+            money: 25,
+            ownedJokers: new[] { new JokerState(JokerCatalog.GetById("glass-joker")) }
+        );
+
+        Assert.That(state.CurrentShop.FirstOffer.IsPurchased, Is.True);
+
+        RunState nextState = state.SellOwnedJoker(0);
+
+        Assert.That(nextState.CurrentShop.FirstOffer.Id, Is.EqualTo("glass-joker"));
+        Assert.That(nextState.CurrentShop.FirstOffer.IsPurchased, Is.False);
+        Assert.That(nextState.CurrentShop.FirstOffer.CanBuy(nextState.Money), Is.True);
+    }
+
+    [Test]
+    public void PlaySelectedCards_WhenGlassJokerWasSold_DoesNotApplySoldJokerBonus() {
+        CardData[] handCards = {
+            TestCardFactory.Create(Rank.Ace, Suit.Spades),
+            TestCardFactory.Create(Rank.Ace, Suit.Hearts),
+            TestCardFactory.Create(Rank.Three, Suit.Clubs),
+            TestCardFactory.Create(Rank.Four, Suit.Diamonds),
+            TestCardFactory.Create(Rank.Nine, Suit.Spades)
+        };
+
+        RunState state = CreateShopRunState(
+            money: 10,
+            ownedJokers: new[] { new JokerState(JokerCatalog.GetById("glass-joker")) }
+        );
+
+        state = state.SellOwnedJoker(0).LeaveShop(initialHandCards: handCards);
+
+        for (int i = 0; i < 5; i++) {
+            state = state.ToggleCardSelection(i);
+        }
+
+        RunState nextState = state.PlaySelectedCards();
+
+        Assert.That(nextState.CurrentRound.LastScoreResult.TotalChips, Is.EqualTo(48));
+        Assert.That(nextState.CurrentRound.LastScoreResult.FinalScore, Is.EqualTo(96));
     }
 
     [Test]

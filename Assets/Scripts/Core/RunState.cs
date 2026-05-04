@@ -8,6 +8,7 @@ namespace Core {
         public IReadOnlyList<JokerState> OwnedJokers { get; }
         public int Money { get; }
         public RunPhase Phase { get; }
+        public int ShopRefreshCount { get; }
         public BlindState CurrentBlind => CurrentRound.Blind;
         public BlindState PendingBlind => CurrentShop?.NextBlind;
         public bool IsRunOver => Phase == RunPhase.RunEnd;
@@ -21,7 +22,8 @@ namespace Core {
             ShopState currentShop,
             IReadOnlyList<JokerState> ownedJokers,
             int money,
-            RunPhase phase) {
+            RunPhase phase,
+            int shopRefreshCount = 0) {
             CurrentRound = currentRound ?? throw new ArgumentNullException(nameof(currentRound));
             CurrentShop = currentShop;
             OwnedJokers = new List<JokerState>(ownedJokers ?? Array.Empty<JokerState>()).AsReadOnly();
@@ -32,6 +34,7 @@ namespace Core {
 
             Money = money;
             Phase = phase;
+            ShopRefreshCount = Math.Max(0, shopRefreshCount);
         }
 
         public static RunState CreateInitial(
@@ -69,7 +72,7 @@ namespace Core {
                 nextMoney += nextRound.BlindReward;
             }
 
-            return new RunState(nextRound, null, OwnedJokers, nextMoney, nextPhase);
+            return new RunState(nextRound, null, OwnedJokers, nextMoney, nextPhase, ShopRefreshCount);
         }
 
         public RunState DiscardCards() {
@@ -96,7 +99,7 @@ namespace Core {
                 initialHandCards: initialHandCards
             );
 
-            return new RunState(nextRound, null, OwnedJokers, Money, RunPhase.Blind);
+            return new RunState(nextRound, null, OwnedJokers, Money, RunPhase.Blind, ShopRefreshCount);
         }
 
         public RunState EnterShop() {
@@ -108,9 +111,10 @@ namespace Core {
             ShopState shopState = new ShopState(
                 Money,
                 nextBlind,
-                ownedJokers: OwnedJokers
+                ownedJokers: OwnedJokers,
+                offerPageIndex: ShopRefreshCount
             );
-            return new RunState(CurrentRound, shopState, OwnedJokers, Money, RunPhase.Shop);
+            return new RunState(CurrentRound, shopState, OwnedJokers, Money, RunPhase.Shop, ShopRefreshCount + 1);
         }
 
         public RunState LeaveShop(IReadOnlyList<CardData> initialHandCards = null) {
@@ -124,7 +128,7 @@ namespace Core {
                 initialHandCards: initialHandCards
             );
 
-            return new RunState(nextRound, null, OwnedJokers, Money, RunPhase.Blind);
+            return new RunState(nextRound, null, OwnedJokers, Money, RunPhase.Blind, ShopRefreshCount);
         }
 
         public RunState BuySelectedShopOffer() {
@@ -144,7 +148,7 @@ namespace Core {
                 updatedOwnedJokers.Add(new JokerState(selectedOffer.Joker));
             }
 
-            return new RunState(CurrentRound, updatedShop, updatedOwnedJokers, updatedMoney, Phase);
+            return new RunState(CurrentRound, updatedShop, updatedOwnedJokers, updatedMoney, Phase, ShopRefreshCount);
         }
 
         public RunState BuyShopOffer(int index) {
@@ -161,7 +165,7 @@ namespace Core {
 
             int updatedMoney = Money - CurrentShop.RerollCost;
             ShopState rerolledShop = CurrentShop.Reroll(updatedMoney, OwnedJokers);
-            return new RunState(CurrentRound, rerolledShop, OwnedJokers, updatedMoney, Phase);
+            return new RunState(CurrentRound, rerolledShop, OwnedJokers, updatedMoney, Phase, ShopRefreshCount + 1);
         }
 
         public RunState SelectNextShopOffer() {
@@ -169,7 +173,7 @@ namespace Core {
                 return this;
             }
 
-            return new RunState(CurrentRound, CurrentShop.SelectNextOffer(), OwnedJokers, Money, Phase);
+            return new RunState(CurrentRound, CurrentShop.SelectNextOffer(), OwnedJokers, Money, Phase, ShopRefreshCount);
         }
 
         public RunState SelectPreviousShopOffer() {
@@ -177,7 +181,7 @@ namespace Core {
                 return this;
             }
 
-            return new RunState(CurrentRound, CurrentShop.SelectPreviousOffer(), OwnedJokers, Money, Phase);
+            return new RunState(CurrentRound, CurrentShop.SelectPreviousOffer(), OwnedJokers, Money, Phase, ShopRefreshCount);
         }
 
         public RunState SelectShopOffer(int index) {
@@ -188,7 +192,30 @@ namespace Core {
             ShopState selectedShop = CurrentShop.SelectOffer(index);
             return ReferenceEquals(selectedShop, CurrentShop)
                 ? this
-                : new RunState(CurrentRound, selectedShop, OwnedJokers, Money, Phase);
+                : new RunState(CurrentRound, selectedShop, OwnedJokers, Money, Phase, ShopRefreshCount);
+        }
+
+        public bool CanSellOwnedJoker(int index) {
+            return IsInShop && CurrentShop != null && index >= 0 && index < OwnedJokers.Count;
+        }
+
+        public int GetOwnedJokerSellValue(int index) {
+            return CanSellOwnedJoker(index)
+                ? Math.Max(1, OwnedJokers[index].Cost / 2)
+                : 0;
+        }
+
+        public RunState SellOwnedJoker(int index) {
+            if (!CanSellOwnedJoker(index)) {
+                return this;
+            }
+
+            int updatedMoney = Money + GetOwnedJokerSellValue(index);
+            var updatedOwnedJokers = new List<JokerState>(OwnedJokers);
+            updatedOwnedJokers.RemoveAt(index);
+
+            ShopState updatedShop = CurrentShop.SyncPurchasedOffers(updatedOwnedJokers, updatedMoney);
+            return new RunState(CurrentRound, updatedShop, updatedOwnedJokers, updatedMoney, Phase, ShopRefreshCount);
         }
 
         private RunState CopyWith(
@@ -200,7 +227,8 @@ namespace Core {
                 CurrentShop,
                 OwnedJokers,
                 money ?? Money,
-                phase ?? Phase
+                phase ?? Phase,
+                ShopRefreshCount
             );
         }
 

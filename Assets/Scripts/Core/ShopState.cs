@@ -3,14 +3,15 @@ using System.Collections.Generic;
 
 namespace Core {
     public sealed class ShopState {
-        private const int DefaultRerollCost = 1;
+        private const int BaseRerollCost = 5;
 
         public int Money { get; }
         public BlindState NextBlind { get; }
         public IReadOnlyList<ShopOfferState> Offers { get; }
         public int SelectedOfferIndex { get; }
+        public int OfferPageIndex { get; }
         public int RerollCount { get; }
-        public int RerollCost => DefaultRerollCost;
+        public int RerollCost => BaseRerollCost + RerollCount;
         public ShopOfferState FirstOffer => Offers.Count > 0 ? Offers[0] : null;
         public ShopOfferState SelectedOffer => Offers.Count > 0 ? Offers[SelectedOfferIndex] : null;
 
@@ -20,6 +21,7 @@ namespace Core {
             IReadOnlyList<ShopOfferState> offers = null,
             IReadOnlyList<JokerState> ownedJokers = null,
             int selectedOfferIndex = 0,
+            int offerPageIndex = 0,
             int rerollCount = 0) {
             if (money < 0) {
                 throw new ArgumentOutOfRangeException(nameof(money));
@@ -27,8 +29,9 @@ namespace Core {
 
             Money = money;
             NextBlind = nextBlind ?? throw new ArgumentNullException(nameof(nextBlind));
-            Offers = offers ?? JokerCatalog.CreateShopOffers(rerollCount, ownedJokers);
+            Offers = offers ?? JokerCatalog.CreateShopOffers(offerPageIndex, ownedJokers);
             SelectedOfferIndex = ResolveSelectedOfferIndex(Offers, selectedOfferIndex);
+            OfferPageIndex = Math.Max(0, offerPageIndex);
             RerollCount = rerollCount;
         }
 
@@ -57,6 +60,7 @@ namespace Core {
                     NextBlind,
                     offers: nextOffers,
                     selectedOfferIndex: SelectedOfferIndex,
+                    offerPageIndex: OfferPageIndex,
                     rerollCount: RerollCount)
                 : this;
         }
@@ -72,6 +76,7 @@ namespace Core {
                 NextBlind,
                 offers: Offers,
                 selectedOfferIndex: nextIndex,
+                offerPageIndex: OfferPageIndex,
                 rerollCount: RerollCount);
         }
 
@@ -89,6 +94,7 @@ namespace Core {
                 NextBlind,
                 offers: Offers,
                 selectedOfferIndex: nextIndex,
+                offerPageIndex: OfferPageIndex,
                 rerollCount: RerollCount);
         }
 
@@ -102,6 +108,7 @@ namespace Core {
                 NextBlind,
                 offers: Offers,
                 selectedOfferIndex: index,
+                offerPageIndex: OfferPageIndex,
                 rerollCount: RerollCount);
         }
 
@@ -115,9 +122,32 @@ namespace Core {
                 NextBlind,
                 ownedJokers: ownedJokers,
                 selectedOfferIndex: 0,
+                offerPageIndex: OfferPageIndex + 1,
                 rerollCount: RerollCount + 1
             );
             return rerolledState;
+        }
+
+        public ShopState SyncPurchasedOffers(IReadOnlyList<JokerState> ownedJokers, int updatedMoney) {
+            var nextOffers = new ShopOfferState[Offers.Count];
+            bool changed = Money != updatedMoney;
+
+            for (int i = 0; i < Offers.Count; i++) {
+                ShopOfferState offer = Offers[i];
+                bool isOwned = ContainsOwnedJoker(ownedJokers, offer.Id);
+                nextOffers[i] = offer.WithPurchasedState(isOwned);
+                changed |= !ReferenceEquals(nextOffers[i], offer);
+            }
+
+            return changed
+                ? new ShopState(
+                    updatedMoney,
+                    NextBlind,
+                    offers: nextOffers,
+                    selectedOfferIndex: SelectedOfferIndex,
+                    offerPageIndex: OfferPageIndex,
+                    rerollCount: RerollCount)
+                : this;
         }
 
         private static int ResolveSelectedOfferIndex(IReadOnlyList<ShopOfferState> offers, int selectedOfferIndex) {
@@ -134,6 +164,20 @@ namespace Core {
             }
 
             return selectedOfferIndex;
+        }
+
+        private static bool ContainsOwnedJoker(IReadOnlyList<JokerState> ownedJokers, string jokerId) {
+            if (ownedJokers == null) {
+                return false;
+            }
+
+            for (int i = 0; i < ownedJokers.Count; i++) {
+                if (ownedJokers[i].Id == jokerId) {
+                    return true;
+                }
+            }
+
+            return false;
         }
     }
 }
