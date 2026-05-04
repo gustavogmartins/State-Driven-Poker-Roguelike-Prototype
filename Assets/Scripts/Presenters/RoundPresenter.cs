@@ -18,7 +18,7 @@ namespace Presenters {
                 : new PokerHandResult(roundState.LastPlayedHandResult);
 
             ScoreResult activeScore = hasPreviewSelection
-                ? ScoreCalculator.Calculate(selectedCards, activeHandResult)
+                ? ScoreCalculator.Calculate(selectedCards, activeHandResult, roundState.Blind)
                 : roundState.LastScoreResult;
 
             string handName = hasPreviewSelection
@@ -101,6 +101,8 @@ namespace Presenters {
                 viewModel.OwnedJokerCards.Add(CreateJokerCardViewModel(runState.OwnedJokers[i]));
             }
 
+            AddShopOfferViewModels(viewModel, runState);
+
             return viewModel;
         }
 
@@ -128,6 +130,41 @@ namespace Presenters {
                 IsSelected = false,
                 IsInteractable = false
             };
+        }
+
+        private static void AddShopOfferViewModels(RoundViewModel viewModel, RunState runState) {
+            if (!runState.IsInShop || runState.CurrentShop == null) {
+                return;
+            }
+
+            for (int i = 0; i < runState.CurrentShop.Offers.Count; i++) {
+                ShopOfferState offer = runState.CurrentShop.Offers[i];
+                bool isSelected = i == runState.CurrentShop.SelectedOfferIndex;
+
+                viewModel.ShopOffers.Add(new ShopOfferViewModel {
+                    Index = i,
+                    TitleText = offer.Title,
+                    DescriptionText = offer.Description,
+                    CostText = $"${offer.Cost}",
+                    StatusText = BuildShopOfferStatusText(offer, runState.Money, isSelected),
+                    IsSelected = isSelected,
+                    IsPurchased = offer.IsPurchased,
+                    CanBuy = offer.CanBuy(runState.Money),
+                    AccentColor = GetJokerColor(new JokerState(offer.Joker))
+                });
+            }
+        }
+
+        private static string BuildShopOfferStatusText(ShopOfferState offer, int money, bool isSelected) {
+            if (offer.IsPurchased) {
+                return "Bought";
+            }
+
+            if (!offer.CanBuy(money)) {
+                return $"Need ${offer.Cost}";
+            }
+
+            return isSelected ? "Selected" : "Available";
         }
 
         private static string BuildBlindDescription(string blindName) {

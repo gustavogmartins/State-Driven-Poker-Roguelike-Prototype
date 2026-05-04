@@ -1,18 +1,18 @@
 # Project Continuity Spec
 
-Last updated: 2026-04-28
+Last updated: 2026-05-04
 
 ## Purpose
 
-This file is the continuity spec for the project.
+This file is the current working spec for the project.
 
 It exists to let:
 
-- the project resume on another computer without re-mapping the whole repository
+- the project resume on another computer without re-mapping the repository
 - a future AI session get useful context quickly
 - the repo keep a single source of truth for current status, not only original intent
 
-This file should be treated as the current working spec of the project.
+When this file disagrees with older docs, this file should be treated as the current source of truth.
 
 ## Project Summary
 
@@ -26,105 +26,115 @@ Project intent:
 - Keep the project portfolio-friendly and technically explainable
 - Prioritize state-driven gameplay rules, clean UI binding, and scalable architecture
 
-Important legal/product framing:
+Important framing:
 
 - This is a study/portfolio project
 - It should not be presented as a commercial clone
-- Current UI direction is visually inspired by Balatro references, but the codebase should continue being treated as an original prototype
+- The codebase should continue being treated as an original prototype
 
 ## Docs vs Reality
 
-The files in `Docs/` describe a broader target architecture than what is currently implemented.
-
-Planned in docs:
-
-- `RunState`
-- `BlindState`
-- `ShopState`
-- `GameStateStore`
-- action/reducer/store flow
-- shop
-- modifiers/jokers
-- ante progression through small blind / big blind / boss blind
-- automated tests
+Older docs described a broader aspirational action/store/reducer architecture. The real codebase is currently a simpler state-driven architecture centered on `RunState`, `RoundState`, and `ShopState`.
 
 Actually implemented today:
 
-- one active playable round scene
+- one active playable scene: `Assets/Scenes/GameScene.unity`
 - one run-level gameplay state: `RunState`
 - one blind-level gameplay state: `RoundState`
-- a presenter-driven UI refresh path
-- card selection
-- hand preview evaluation while selecting cards
-- score calculation
-- discard/play flow
-- score accumulation toward a target
-- explicit round win/loss derived state in `RoundState`
-- centralized round setup through `RoundState.CreateInitial(...)`
-- blind progression owned by `RunState`
-- shop transition scaffolding through `ShopState`
-- Edit Mode tests for core gameplay rules
-- Balatro-inspired HUD and playfield UI
+- one shop-level gameplay state: `ShopState`
+- presenter-driven UI refresh through `RoundPresenter` and `RoundViewModel`
+- card selection, play, discard, draw, sort, and score preview
+- Small Blind / Big Blind / The Club boss progression
+- ante rollover after The Club
+- persistent money and blind rewards
+- `Blind -> Shop -> Blind` flow after won blinds
+- deterministic shop offer pages
+- offer selection, buy, reroll, and continue actions
+- persistent owned jokers
+- additive Chips/Mult joker modifiers applied to preview and played score
+- textual shop overlay in `GameScene`
+- Edit Mode tests for core gameplay, run flow, shop flow, and modifier behavior
+
+Not implemented yet:
+
+- full action/store/reducer layer
+- structured 3-slot shop offer UI
+- sell flow
+- randomized shop generation
+- xMult, economy, extra hand, or extra discard joker effects
+- boss debuff feedback polish
+- final slot-based hand/play-area layout
+- final portfolio media and release polish
 
 Conclusion:
 
-- The current codebase is closer to "Milestone 2 core flow plus partial UI/presentation polish" than to the full architecture described in the older docs
-- This file supersedes the older docs when there is a mismatch about implementation status
+- Milestone 1 and Milestone 2 are complete in code.
+- Milestone 3 is partially complete and already includes shop transactions.
+- Milestone 4 has a v1 implementation through additive jokers.
+- The next best feature slice is Shop/Jokers v1 consolidation, not a store/reducer refactor.
 
 ## Current Codebase Stage
 
 The project has reached:
 
 - a single-scene playable prototype with real ante/blind progression
-- with state, scoring, rendering, selection, play, discard, and score preview working
-- with a custom HUD and card presentation already integrated into `GameScene`
-- with Milestone 1 and Milestone 2 core gameplay rules covered by Edit Mode tests
+- state, scoring, rendering, selection, play, discard, sort, and score preview
+- a custom HUD and card presentation integrated into `GameScene`
+- a textual shop overlay with buy/reroll/continue actions
+- persistent owned jokers that affect scoring
+- Edit Mode coverage for the main domain behavior
 
 The project has not yet reached:
 
-- shop UI and purchase flow
-- modifiers/jokers
-- boss-specific gameplay rules/debuffs
-- full manual verification of the new tests through the Unity Test Runner
+- polished shop UI
+- boss-specific feedback polish
+- non-additive modifier effects
+- full manual Unity Test Runner verification after the newest tests
 - production-ready content pipeline
 
 ## Actual Architecture In Use
 
 Current real flow:
 
-- card click
-- `CardView` raises selection event
-- `RoundScreen` updates `RunState`
-- `RunState` updates `RoundState`
-- `RoundPresenter` converts state to `RoundViewModel`
-- `RoundScreen` renders texts, buttons, hand cards, and played cards
+```text
+CardView / Button click
+-> RoundScreen
+-> RunState
+-> RoundState / ShopState
+-> RoundPresenter
+-> RoundViewModel
+-> RoundScreen render
+```
 
-Important recent architecture changes:
+Important architecture notes:
 
-- `RoundState.CreateInitial(...)` now owns round bootstrap instead of `RoundScreen` manually building domain state
-- `BlindState` now owns blind type, ante, reward, and target score progression
-- `RoundState` now exposes derived values such as `BlindReward`, `RemainingScore`, `HasWonRound`, and `HasLostRound`
-- `RunState` now owns money, blind advancement, and run phase transitions
-- `RunState.EnterShop()` and `RunState.LeaveShop()` now provide the first `Blind -> Shop -> Blind` run loop
-- `RoundPresenter` now derives clearer round-end status text from domain state
-- gameplay scripts now compile through a dedicated runtime assembly: `Assets/Scripts/StateDrivenPokerRoguelike.asmdef`
-- gameplay tests live in `Assets/Scripts/Tests/EditMode`
+- `RoundState.CreateInitial(...)` owns round bootstrap.
+- `BlindState` owns blind type, ante, reward, and target score progression.
+- `RunState` owns money, current phase, blind advancement, shop entry/exit, purchases, rerolls, and owned jokers.
+- `ShopState` owns next blind, offers, selected offer, and reroll state.
+- `JokerCatalog` owns deterministic offer pages and joker data lookup.
+- `RunModifierService` applies owned joker effects to `ScoreResult`.
+- `RoundPresenter` derives UI copy, button states, card view models, shop text, and owned joker cards.
+- gameplay scripts compile through `Assets/Scripts/StateDrivenPokerRoguelike.asmdef`.
+- gameplay tests live in `Assets/Scripts/Tests/EditMode`.
 
-This is state-driven enough to be workable, but it is not yet the full action/store/reducer architecture described in the original docs.
+This is state-driven enough to be workable, but it is not yet the full action/store/reducer architecture from the original target docs.
 
 ### Main files that currently define the project
 
 - `Assets/Scripts/Core/RunState.cs`
-- `Assets/Scripts/Core/BlindState.cs`
 - `Assets/Scripts/Core/RoundState.cs`
+- `Assets/Scripts/Core/BlindState.cs`
 - `Assets/Scripts/Core/ShopState.cs`
+- `Assets/Scripts/Core/ShopOfferState.cs`
+- `Assets/Scripts/Core/JokerCatalog.cs`
+- `Assets/Scripts/Core/JokerState.cs`
+- `Assets/Scripts/Data/JokerData.cs`
+- `Assets/Scripts/Core/RunModifierService.cs`
 - `Assets/Scripts/Core/PokerHandEvaluator.cs`
 - `Assets/Scripts/Core/ScoreCalculator.cs`
-- `Assets/Scripts/Core/ScoringCardSelector.cs`
 - `Assets/Scripts/Presenters/RoundPresenter.cs`
 - `Assets/Scripts/MonoBehaviours/RoundScreen.cs`
-- `Assets/Scripts/View/CardView.cs`
-- `Assets/Scripts/View/CardViewModel.cs`
 - `Assets/Scripts/View/RoundViewModel.cs`
 - `Assets/Scenes/GameScene.unity`
 - `Assets/Prefabs/CardViewPrefab.prefab`
@@ -141,22 +151,26 @@ Main screen script:
 
 UI state today:
 
-- Left HUD panel exists and is bound to gameplay state
+- left HUD panel exists and is bound to gameplay state
 - `HandNameText` updates from evaluated selected cards
 - `PlayHandButton` and `DiscardButton` are wired as persistent scene button events
-- sort buttons are still wired in code at runtime
-- round-end overlay primary action advances to next blind when the player wins
+- sort buttons are registered in code at runtime
+- round-end overlay primary action sends won blinds to shop
+- shop overlay exists in `GameScene`
+- shop overlay can show offers, selected offer marker, bought marker, money, next blind, buy, reroll, and continue copy
+- shop buttons are resolved and registered in `RoundScreen`
+- owned jokers are rendered as card-like views under `UpperGlass`
 - bottom hand container uses `HorizontalLayoutGroup`
 - middle played-cards container uses `HorizontalLayoutGroup`
-- `CardViewPrefab` is the prefab used for both hand cards and played cards
+- `CardViewPrefab` is reused for hand cards, played cards, and owned joker cards
 - generated placeholder UI art exists under `Assets/Art/UI/Generated`
 - screenshot references exist under `Assets/ReferenceScreenShots`
 
-Important recent UI decisions:
+Current UI limitation:
 
-- card placement is no longer manually mapped in script
-- hand and played cards now depend on layout containers
-- this is a temporary base structure for a future slot-based layout system
+- shop offers are still rendered through one text block, `ShopOffersText`
+- the next shop slice should introduce structured offer view models and 3 offer slots
+- card layout is still an intermediate row layout before a future slot-based system
 
 ## Gameplay Systems Implemented
 
@@ -170,6 +184,8 @@ Implemented:
 - discard selected cards and redraw
 - play selected cards and redraw
 - selected card cap of 5
+- sort hand by rank
+- sort hand by suit
 
 Main files:
 
@@ -192,10 +208,10 @@ Implemented:
 - Four of a Kind
 - Straight Flush
 
-Recent rule fix already applied:
+Rule note:
 
-- `Flush` now only validates when exactly 5 cards are played and all share the same suit
-- this also fixes `Straight Flush`, since it depends on the same flush validation
+- `Flush` validates only when exactly 5 cards are played and all share the same suit.
+- `Straight Flush` depends on the same flush validation.
 
 Main files:
 
@@ -212,12 +228,13 @@ Implemented:
 - final score from `Chips x Mult`
 - round score accumulation
 - preview score while cards are selected
+- owned joker modifier application in preview and final scoring
 
 Current scoring simplification:
 
 - for `High Card`, only the highest card scores
 - for all other hand types, the current implementation scores all played cards
-- there is no modifier/joker layer yet
+- jokers currently add flat Chips or flat Mult only
 
 Main files:
 
@@ -225,13 +242,41 @@ Main files:
 - `Assets/Scripts/Core/ScoreCalculator.cs`
 - `Assets/Scripts/Core/ScoreResult.cs`
 - `Assets/Scripts/Core/ScoringCardSelector.cs`
+- `Assets/Scripts/Core/RunModifierService.cs`
 - `Assets/Scripts/Utility/CardChipValueUtility.cs`
 
-### Round flow
+### Shop and jokers
 
 Implemented:
 
-- target score for the blind
+- `JokerData` model
+- `JokerCatalog` with 9 deterministic jokers
+- 3 deterministic offer pages
+- `ShopOfferState`
+- `ShopState`
+- selected offer navigation
+- buy selected offer
+- prevent buying unaffordable or already bought offers
+- mark already owned offers as purchased
+- reroll offers with money cost
+- persistent owned jokers through `RunState.OwnedJokers`
+- owned joker rendering in the upper playfield area
+- additive Chips/Mult modifiers
+- conditions for Always, Ace, Pair, Clubs, Straight, Hearts, Flush, face cards, and Two Pair
+
+Still missing:
+
+- structured shop offer slot UI
+- sell flow
+- random shop generation
+- rarity, weights, and balancing rules
+- xMult, economy, extra hand, and extra discard effects
+
+### Round and run flow
+
+Implemented:
+
+- target score for each blind
 - hands remaining
 - discards remaining
 - current score accumulation
@@ -240,40 +285,16 @@ Implemented:
 - explicit domain flags for round over / round won / round lost
 - last played cards tracking
 - last played hand tracking
-- status text updates
-- real Small Blind / Big Blind / Boss Blind sequence
+- real Small Blind / Big Blind / The Club boss sequence
 - advance to shop after a blind win
 - exit shop into the pending blind
-- advance to next blind after a win
-- advance to next ante after clearing Boss Blind
+- advance to next ante after clearing The Club
 - blind reward and money carry-over between blinds
+- run loss state when the player loses a blind
 
-Partially implemented only as data/presentation:
+Partially implemented:
 
-- boss blind identity and progression exist, but no special boss debuff/rule exists yet
-
-Not implemented yet:
-
-- boss blind behavior
-- shop UI
-- shop offers, buying, and selling
-
-### Run flow
-
-Implemented:
-
-- `RunState` owns persistent money
-- `RunState` owns current phase through `RunPhase`
-- `RunState` owns blind advancement and ante rollover
-- `RunState` can enter a `ShopState` after a blind win
-- `RunState` can leave `ShopState` into the pending next blind
-
-Not implemented yet:
-
-- run-owned modifier inventory
-- shop offer generation
-- shop transaction rules
-- run win condition beyond the current blind-loss end state
+- The Club boss identity and Clubs debuff exist; card-level debuff feedback still needs polish.
 
 ## Milestone Mapping
 
@@ -281,7 +302,7 @@ Not implemented yet:
 
 Status:
 
-- Implemented and stabilized in code
+- Complete in code
 
 Completed:
 
@@ -298,75 +319,102 @@ Completed:
 - detect round end
 - render current hand and played cards
 - centralized round setup in domain state
-- clearer round loss/win messaging and derived state
-- validation around constructor/state edge cases
-- Edit Mode tests for `PokerHandEvaluator`, `ScoreCalculator`, and `RoundState`
+- clear round win/loss messaging and derived state
+- constructor/state edge-case validation
+- Edit Mode tests for evaluator, scoring, blind, round, and run behavior
 
 Remaining caveat:
 
-- run the new Edit Mode suite manually in Unity Test Runner as a final human verification step
+- run the Edit Mode suite manually in Unity Test Runner after closing any other Unity instance that has this project open
 
 ### Milestone 2 - Ante/blind progression
 
 Status:
 
-- Implemented in code
+- Complete in code
 
 Completed:
 
 - `BlindState` domain model
 - `RunState` run-level domain model
-- Small Blind / Big Blind / Boss Blind sequence
-- advancing to the next blind
-- advancing to the next ante
+- Small Blind / Big Blind / The Club boss sequence
+- advancing to next blind
+- advancing to next ante
 - blind-specific target score and reward scaling
-- transition UI through the round-end overlay in `GameScene`
+- transition UI through the round-end overlay
 - money carry-over between blinds
+- shop entry between won blinds
 
-Still missing if Milestone 2 should be considered fully polished:
+Still missing for polish:
 
-- manual end-to-end verification in the Unity Test Runner / play mode
-- boss-specific special rule or debuff behavior, if desired before later milestones
+- boss-specific visual feedback polish
+- manual play-mode pass through multiple antes
 
 ### Milestone 3 - Shop
 
 Status:
 
-- Started in code
+- Partially implemented; v1 domain and textual UI exist
 
-Completed in this first slice:
+Completed:
 
 - `ShopState`
+- `ShopOfferState`
+- deterministic offer generation through `JokerCatalog`
 - `RunState.EnterShop()`
 - `RunState.LeaveShop()`
-- Edit Mode coverage for shop entry/exit transitions
+- selected offer navigation
+- buy selected offer
+- reroll offers
+- spend persistent money on buy/reroll
+- mark purchased offers
+- preserve bought jokers across blinds
+- textual shop overlay in `GameScene`
+- Edit Mode coverage for shop entry, exit, purchase, selection, reroll, and purchased offer marking
 
 Still missing:
 
-- shop screen
-- offer generation
-- purchase flow
+- structured 3-slot shop UI
+- dedicated shop offer view model
 - sell flow
-- modifier persistence through shop purchases
+- randomized shop generation
+- final visual polish
 
 ### Milestone 4 - Modifiers/Jokers
 
 Status:
 
-- Not implemented
+- v1 implemented
 
-Missing:
+Completed:
 
-- modifier data model
-- modifier ownership across run
-- modifier effect resolution in score/round flow
-- modifier UI
+- `JokerData`
+- `JokerState`
+- `JokerCatalog`
+- `JokerBonusType`
+- `JokerConditionType`
+- `RunModifierService`
+- additive Chips bonuses
+- additive Mult bonuses
+- basic condition matching
+- preview score modifier application
+- final play score modifier application
+- owned joker rendering
+- Edit Mode coverage for modifier behavior
+
+Still missing:
+
+- xMult
+- economy effects
+- extra hand/discard effects
+- triggered effect feedback in UI
+- balancing/rarity rules
 
 ### Milestone 5 - Portfolio polish
 
 Status:
 
-- Partially started only on visuals/UI
+- Partially started
 
 Already present:
 
@@ -374,28 +422,50 @@ Already present:
 - Balatro-inspired layout study
 - generated placeholder art
 - card prefab for presentation
+- screenshot references
+- README and continuity spec aligned to current state
 
 Still missing:
 
 - architecture diagram
-- cleaned final README aligned with real code
 - changelog/release structure
-- gameplay capture/gifs
+- gameplay capture/GIF
+- final screenshots
 - final repository hygiene pass
+- documented manual test pass
 
 ## Important Technical Notes
 
-### Hand name preview behavior
+### Hand name and score preview behavior
 
-When a card is selected:
+When cards are selected:
 
 - `CardView` emits the selected index
-- `RoundScreen` calls `RoundState.ToggleCardSelection`
+- `RoundScreen` calls `RunState.ToggleCardSelection`
 - `RoundScreen` re-renders
-- `RoundPresenter` evaluates currently selected cards
-- `HandNameText` is updated from the evaluated `PokerHandType`
+- `RoundPresenter` evaluates selected cards
+- `ScoreCalculator` calculates base score
+- `RunModifierService` applies owned joker modifiers
+- `HandNameText`, chips, and mult update from presenter-derived values
 
-This means the hand name is a presenter-derived preview, not a direct field manually mutated by the UI.
+### Shop behavior
+
+Current shop flow:
+
+- won round shows round-end overlay
+- primary action calls `RunState.EnterShop()`
+- shop overlay displays offer text and buttons
+- previous/next changes `ShopState.SelectedOfferIndex`
+- buy calls `RunState.BuySelectedShopOffer()`
+- reroll calls `RunState.RerollShop()`
+- continue calls `RunState.LeaveShop()`
+
+Current shop constraints:
+
+- offers are deterministic pages based on `RerollCount`
+- reroll cost is currently fixed at `$1`
+- bought offers cannot be bought again
+- already owned jokers are marked as bought when they appear
 
 ### Button wiring
 
@@ -403,18 +473,9 @@ Current setup:
 
 - `PlayHandButton` uses persistent scene event binding to `RoundScreen.OnPlayHandButtonClicked`
 - `DiscardButton` uses persistent scene event binding to `RoundScreen.OnDiscardButtonClicked`
-- sort buttons are registered in `RoundScreen.Awake`
+- sort and shop buttons are registered in `RoundScreen.Awake`
 
 If button behavior changes later, keep this split in mind to avoid duplicate listeners.
-
-### Round setup and ownership
-
-Current setup:
-
-- `RoundScreen` now asks `RoundState.CreateInitial(...)` for the initial round state
-- debug hands still come from `DebugHandFactory`, but deck reconciliation now happens in the domain layer
-
-This means round bootstrap is no longer duplicated in the UI script.
 
 ### Layout system
 
@@ -422,43 +483,65 @@ Current setup:
 
 - `HandArea` uses `HorizontalLayoutGroup`
 - `PlayedHandArea` uses `HorizontalLayoutGroup`
+- `UpperGlass` displays owned joker cards
 
-This is intentionally a temporary basic structure before a future slot-based system.
+This is intentionally a temporary base before a future slot-based layout system.
 
 ## Known Issues and Technical Debt
 
-- Docs still describe broader architecture that is not implemented yet
-- There are Unity Assistant Account API warnings in the editor; these are unrelated to gameplay logic
-- A stale Burst/editor log appeared during the first asmdef refresh when the new test assembly was introduced; gameplay code later recompiled successfully, but the Test Runner should still be checked manually in-editor
-- Current architecture is partly state-driven but not yet reducer/store based
-- Card layout is still an intermediate UI solution, not the final slot system
-- shop exists only as domain/run scaffolding right now; there is no shop UI or transaction logic yet
+- Unity batchmode test run on 2026-05-04 failed because another Unity instance had this project open.
+- Manual Unity Test Runner verification is still needed.
+- There are Unity Assistant Account API warnings in the editor; these are unrelated to gameplay logic.
+- Current architecture is state-driven but not full reducer/store based.
+- Shop offers are still rendered as text instead of structured offer slots.
+- Card layout is still an intermediate UI solution.
+- The Club debuffs Clubs in scoring, but visual card-level feedback is not implemented yet.
+- Selling jokers is not implemented.
+- Random shop generation is not implemented.
+- xMult/economy/extra hand/extra discard effects are not implemented.
+- Worktree contained pre-existing local changes when this spec was updated: `JokerData.cs` moved from `Core` to `Data`, and TextMesh Pro fallback asset modified. Do not revert without explicit confirmation.
 
 ## Recommended Next Steps
 
 Recommended order from here:
 
-1. Run the new Edit Mode suite manually in Unity Test Runner and clear any remaining editor/test-runner issues
-2. Build the first shop screen in `GameScene` and wire it to `RunState.IsInShop`
-3. Add minimal shop offers plus one purchase path that spends persistent money
-4. Add first modifier/joker layer after shop purchase flow exists
-5. Decide whether boss blinds need a simple special rule before modifier depth increases
-6. Replace temporary layout rows with a real slot-based hand/play-area system
-7. Continue polishing public docs and portfolio materials
+1. Run the Edit Mode suite manually in Unity Test Runner after closing other Unity instances.
+2. Consolidate Shop/Jokers v1 with structured 3-slot offer UI.
+3. Add a dedicated structured shop offer view model instead of relying on `ShopOffersText`.
+4. Keep deterministic offer pages for v1; defer random generation.
+5. Keep additive Chips/Mult for v1; defer xMult and economy effects.
+6. Verify bought jokers render in `UpperGlass` and affect preview and final score.
+7. Polish Boss Blind v1 feedback for `The Club`.
+8. Add portfolio polish: screenshots, gameplay GIF, architecture diagram, changelog, release tags.
+9. Consider full action/store/reducer refactor only after the playable loop is stronger.
+
+## Manual Test Checklist
+
+Run in `Assets/Scenes/GameScene.unity`:
+
+- Win Small Blind, enter shop, buy `Glass Joker`, confirm money decreases and joker appears in `UpperGlass`.
+- Continue to Big Blind, select a scoring hand, confirm `Glass Joker` adds +10 Chips in preview.
+- Play that hand, confirm final score also includes the +10 Chips.
+- Use reroll, confirm money decreases by `$1` and offer page changes.
+- Try to buy without enough money, confirm buy action is blocked.
+- Try to buy an already bought offer, confirm no duplicate joker is added.
+- Continue through The Club to next ante, confirm next shop still preserves owned jokers.
 
 ## Resume Checklist For Another Machine
 
 When reopening this repository on another computer, read in this order:
 
 1. `Docs/PROJECT_CONTINUITY_SPEC.md`
-2. `Assets/Scripts/Core/RunState.cs`
-3. `Assets/Scripts/Core/RoundState.cs`
-4. `Assets/Scripts/Presenters/RoundPresenter.cs`
-5. `Assets/Scripts/MonoBehaviours/RoundScreen.cs`
-6. `Assets/Scripts/Core/PokerHandEvaluator.cs`
-7. `Assets/Scripts/Core/ScoreCalculator.cs`
-8. `Assets/Scripts/Tests/EditMode`
-9. `Assets/Scenes/GameScene.unity`
+2. `README.md`
+3. `Assets/Scripts/Core/RunState.cs`
+4. `Assets/Scripts/Core/ShopState.cs`
+5. `Assets/Scripts/Core/JokerCatalog.cs`
+6. `Assets/Scripts/Core/RunModifierService.cs`
+7. `Assets/Scripts/Core/RoundState.cs`
+8. `Assets/Scripts/Presenters/RoundPresenter.cs`
+9. `Assets/Scripts/MonoBehaviours/RoundScreen.cs`
+10. `Assets/Scripts/Tests/EditMode`
+11. `Assets/Scenes/GameScene.unity`
 
 After that, inspect only if needed:
 
@@ -468,18 +551,13 @@ After that, inspect only if needed:
 
 ## Guidance For Future Sessions
 
-If opens this repo later, it should assume:
+Future work should assume:
 
 - the active gameplay loop is centered on `RunState -> RoundState`
+- the active shop loop is centered on `RunState -> ShopState`
 - the active UI loop is `RoundScreen -> RoundPresenter -> RoundViewModel`
-- Milestone 1 and Milestone 2 core flow are complete in code, with tests added
-- Milestone 3 has started at the domain layer through `ShopState` and run phase transitions
-- docs in `Docs/` are aspirational unless confirmed by code
-- the current stage is "playable ante flow plus early shop scaffolding", not "full run/store architecture"
-- legacy files at repo root under `Assets/Scripts/` should not be used as the default source of truth
-
-The first question future work should answer is:
-
-- "Are we wiring the first shop UI, or are we building shop offer/purchase rules first?"
-
-That decision should drive the next implementation slice.
+- Milestone 1 and Milestone 2 are complete in code
+- Milestone 3 has shop transaction functionality but needs UI consolidation
+- Milestone 4 has additive joker v1 functionality but needs richer effects later
+- docs in `Docs/` are current only after checking this continuity spec
+- the next implementation slice should be shop UI polish and manual validation, not store/reducer refactor
