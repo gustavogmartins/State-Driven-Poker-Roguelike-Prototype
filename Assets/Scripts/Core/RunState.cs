@@ -60,7 +60,7 @@ namespace Core {
         public RunState PlaySelectedCards() {
             IReadOnlyList<CardData> selectedCards = CurrentRound.GetSelectedCards();
             PokerHandResult handResult = PokerHandEvaluator.Evaluate(selectedCards);
-            ScoreResult baseScore = ScoreCalculator.Calculate(selectedCards, handResult);
+            ScoreResult baseScore = ScoreCalculator.Calculate(selectedCards, handResult, CurrentRound.Blind);
             ScoreResult modifiedScore = RunModifierService.ApplyScoreModifiers(baseScore, OwnedJokers, selectedCards, handResult);
             RoundState nextRound = CurrentRound.PlaySelectedCards(modifiedScore);
             int nextMoney = Money;

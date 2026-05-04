@@ -395,6 +395,46 @@ public sealed class RunStateTests {
     }
 
     [Test]
+    public void BuySelectedShopOffer_WhenJokerIsAlreadyOwned_DoesNotDuplicateInventory() {
+        RunState state = new RunState(
+            currentRound: new RoundState(
+                blind: new BlindState(BlindType.Small, 1),
+                targetScore: 300,
+                currentScore: 300,
+                handsLeft: 0,
+                discardsLeft: 3,
+                phase: RoundPhase.RoundEnd,
+                maxHandSize: 5,
+                deckCards: System.Array.Empty<CardData>(),
+                handCards: System.Array.Empty<CardData>(),
+                discardPileCards: System.Array.Empty<CardData>(),
+                selectedCardsIndexes: System.Array.Empty<int>(),
+                lastActionText: "Blind cleared",
+                lastPlayedCardsText: "None",
+                lastPlayedCards: System.Array.Empty<CardData>(),
+                lastPlayedCardsCount: 0,
+                lastPlayedHandResult: PokerHandType.None,
+                lastScoreResult: ScoreResult.Zero
+            ),
+            currentShop: new ShopState(
+                25,
+                new BlindState(BlindType.Big, 1),
+                new ShopOfferState[] {
+                    new(JokerCatalog.GetById("glass-joker"))
+                }),
+            ownedJokers: new[] { new JokerState(JokerCatalog.GetById("glass-joker")) },
+            money: 25,
+            phase: RunPhase.Shop
+        );
+
+        RunState nextState = state.BuySelectedShopOffer();
+
+        Assert.That(nextState.OwnedJokers.Count, Is.EqualTo(1));
+        Assert.That(nextState.OwnedJokers[0].Id, Is.EqualTo("glass-joker"));
+        Assert.That(nextState.CurrentShop.FirstOffer.IsPurchased, Is.True);
+    }
+
+    [Test]
     public void RerollShop_WhenInShop_SpendsMoneyAndChangesOfferPage() {
         RunState state = new RunState(
             currentRound: new RoundState(

@@ -47,7 +47,7 @@ namespace Core {
             return type switch {
                 BlindType.Small => "Small Blind",
                 BlindType.Big => "Big Blind",
-                BlindType.Boss => "Boss Blind",
+                BlindType.Boss => "The Club",
                 _ => throw new ArgumentOutOfRangeException(nameof(type), type, null)
             };
         }
