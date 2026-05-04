@@ -47,17 +47,23 @@ public class CardView : MonoBehaviour, IPointerUpHandler {
         suitBottomRightText.text = viewModel.SuitText;
         centerSuitText.text = viewModel.SuitText;
 
-        rankTopLeftText.color = viewModel.AccentColor;
-        suitTopLeftText.color = viewModel.AccentColor;
-        rankBottomRightText.color = viewModel.AccentColor;
-        suitBottomRightText.color = viewModel.AccentColor;
-        centerSuitText.color = viewModel.AccentColor;
+        Color textColor = viewModel.IsDebuffed
+            ? new Color32(96, 103, 107, 255)
+            : viewModel.AccentColor;
+
+        rankTopLeftText.color = textColor;
+        suitTopLeftText.color = textColor;
+        rankBottomRightText.color = textColor;
+        suitBottomRightText.color = textColor;
+        centerSuitText.color = textColor;
 
         bool isVisuallySelected = viewModel.IsSelected || viewModel.IsSellSelected;
 
         cardImage.color = isVisuallySelected
             ? new Color32(255, 248, 221, 255)
-            : Color.white;
+            : viewModel.IsDebuffed
+                ? new Color32(174, 178, 180, 255)
+                : Color.white;
 
         selectionGlow.enabled = isVisuallySelected;
         cardImage.raycastTarget = viewModel.IsInteractable;
