@@ -17,7 +17,7 @@ This is not a commercial clone. It is an original portfolio study inspired by po
 
 ## Current Status
 
-Status as of 2026-05-04: active development, playable ante flow, randomized shop/joker v1 implemented.
+Status as of 2026-05-04: active development, playable ante flow, randomized shop, and Milestone 4 joker modifiers implemented.
 
 Current playable slice:
 
@@ -32,15 +32,17 @@ Current playable slice:
 - deterministic random shop generation by run seed, shop refresh index, and joker rarity weights
 - Common / Uncommon / Rare joker rarity labels in shop offers
 - persistent owned jokers across blinds
-- additive joker score modifiers for Chips and Mult
+- joker score modifiers for additive Chips/Mult and xMult
+- money, extra hand, and extra discard joker effects
+- 5-slot joker inventory cap
 - owned jokers rendered in the upper playfield area
+- card-level Club debuff feedback during The Club
 - Edit Mode tests for core systems, run flow, shop flow, and modifier behavior
 
 Still missing:
 
-- deeper shop balancing and a larger joker pool
-- richer joker effects such as xMult, economy, extra hand, or extra discard
-- boss debuff feedback polish
+- deeper shop balancing beyond the initial 18-joker pool
+- boss debuff animation/audio polish
 - slot-based hand/play-area layout
 - final screenshots, gameplay GIF, architecture diagram, changelog, and release/tag polish
 - manual Unity Test Runner verification with the project closed in other Unity instances
@@ -197,10 +199,11 @@ Future architecture may still introduce a formal action/store/reducer layer, but
 - [x] preview and real score modifier application
 - [x] owned joker rendering
 - [x] basic rarity model
-- [ ] xMult effects
-- [ ] economy effects
-- [ ] extra hand / discard effects
-- [ ] richer balancing and larger rarity pool
+- [x] xMult effects
+- [x] economy effects
+- [x] extra hand / discard effects
+- [x] triggered joker feedback
+- [x] 18-joker rarity pool
 
 ### Milestone 5 - Portfolio Polish
 
@@ -262,34 +265,34 @@ Current simplification:
 
 - for `High Card`, only the highest card scores
 - for all other hand types, the current implementation scores all played cards
-- joker effects are additive Chips/Mult only
+- xMult applies after additive Chips and additive Mult
 
 ### Shop and Jokers
 
 Implemented:
 
-- deterministic joker catalog with 9 jokers
+- deterministic joker catalog with 18 jokers
 - Common / Uncommon / Rare rarity metadata
 - random weighted shop generation with deterministic run seed
 - shop state with selected offer index, reroll count, and reroll cost
 - structured 3-slot offer view model and `Offer.prefab` UI
 - click an offer slot to select it
 - buy selected offer through the slot's `BuyJokerButton` when affordable
-- block bought/unaffordable offers
+- block bought/unaffordable offers and full-inventory purchases
 - reroll offers for money, starting at `$5` and increasing by `$1`
 - refresh offers on every shop phase
 - exclude already owned jokers while enough unowned jokers remain
 - mark fallback owned offers as bought when the pool is exhausted
 - sell owned jokers during shop for half cost rounded down, minimum `$1`
+- cap owned jokers at 5 slots
 - persist owned jokers in `RunState`
-- apply owned jokers through `RunModifierService`
+- apply additive Chips/Mult, xMult, money, extra hand, and extra discard effects through `RunModifierService` and `RunState`
 
 Next shop-related slices:
 
-- increase joker pool per rarity
 - tune rarity weights, costs, and power
-- add inventory slot limits
-- keep additive Chips/Mult until xMult/economy effects are introduced
+- add richer content and polish beyond the current Milestone 4 pool
+- improve sell/inventory presentation polish
 
 ## Testing Strategy
 
@@ -318,6 +321,9 @@ Manual validation still needed in Unity:
 - sell a joker from `UpperGlass`, confirm money increases and the effect is removed
 - attempt purchase without enough money and confirm the action is blocked
 - attempt duplicate purchase and confirm no duplicate joker is added
+- fill all 5 joker slots, confirm full inventory blocks buying, then sell one joker and buy again
+- confirm xMult, money, extra hand, and extra discard jokers apply in their expected timing
+- during The Club, confirm Club cards are visually debuffed and do not add card chips
 
 Batchmode note:
 
@@ -330,11 +336,10 @@ Batchmode note:
 Priority order:
 
 1. Run Unity Test Runner Edit Mode manually and do a multi-shop playthrough.
-2. Expand joker content per rarity and tune rarity/cost/power balance.
-3. Add inventory slot limits and clearer shop economy rules.
-4. Polish Boss Blind v1 feedback for `The Club`, whose current rule debuffs Clubs.
-5. Add portfolio polish: screenshots, gameplay GIF, architecture diagram, changelog, and release tags.
-6. Consider full action/store/reducer refactor only after the playable loop is stronger.
+2. Tune rarity weights, costs, and power after playtesting the 18-joker pool.
+3. Polish Boss Blind animation/audio feedback for `The Club`, whose current rule debuffs Clubs.
+4. Add portfolio polish: screenshots, gameplay GIF, architecture diagram, changelog, and release tags.
+5. Consider full action/store/reducer refactor only after the playable loop is stronger.
 
 ## Worktree Note
 
