@@ -49,17 +49,15 @@ Actually implemented today:
 - persistent money and blind rewards
 - `Blind -> Shop -> Blind` flow after won blinds
 - deterministic shop offer pages
-- offer selection, buy, reroll, and continue actions
+- structured offer selection, buy, reroll, sell, and continue actions
 - persistent owned jokers
 - additive Chips/Mult joker modifiers applied to preview and played score
-- textual shop overlay in `GameScene`
+- structured shop overlay in `GameScene`
 - Edit Mode tests for core gameplay, run flow, shop flow, and modifier behavior
 
 Not implemented yet:
 
 - full action/store/reducer layer
-- structured 3-slot shop offer UI
-- sell flow
 - randomized shop generation
 - xMult, economy, extra hand, or extra discard joker effects
 - boss debuff feedback polish
@@ -69,9 +67,9 @@ Not implemented yet:
 Conclusion:
 
 - Milestone 1 and Milestone 2 are complete in code.
-- Milestone 3 is partially complete and already includes shop transactions.
+- Milestone 3 is mostly complete for v1 and now includes structured offers, buy, sell, and progressive reroll.
 - Milestone 4 has a v1 implementation through additive jokers.
-- The next best feature slice is Shop/Jokers v1 consolidation, not a store/reducer refactor.
+- The next best feature slice is random shop generation/weights or boss feedback polish, not a store/reducer refactor.
 
 ## Current Codebase Stage
 
@@ -80,13 +78,13 @@ The project has reached:
 - a single-scene playable prototype with real ante/blind progression
 - state, scoring, rendering, selection, play, discard, sort, and score preview
 - a custom HUD and card presentation integrated into `GameScene`
-- a textual shop overlay with buy/reroll/continue actions
+- a structured shop overlay with clickable offers, buy/reroll/sell/continue actions
 - persistent owned jokers that affect scoring
-- Edit Mode coverage for the main domain behavior
+- 56 Edit Mode test methods covering the main domain behavior
 
 The project has not yet reached:
 
-- polished shop UI
+- random shop generation and rarity/balancing rules
 - boss-specific feedback polish
 - non-additive modifier effects
 - full manual Unity Test Runner verification after the newest tests
@@ -110,8 +108,8 @@ Important architecture notes:
 
 - `RoundState.CreateInitial(...)` owns round bootstrap.
 - `BlindState` owns blind type, ante, reward, and target score progression.
-- `RunState` owns money, current phase, blind advancement, shop entry/exit, purchases, rerolls, and owned jokers.
-- `ShopState` owns next blind, offers, selected offer, and reroll state.
+- `RunState` owns money, current phase, blind advancement, shop entry/exit, purchases, sells, rerolls, shop refresh count, and owned jokers.
+- `ShopState` owns next blind, offers, selected offer, offer page index, and reroll state.
 - `JokerCatalog` owns deterministic offer pages and joker data lookup.
 - `RunModifierService` applies owned joker effects to `ScoreResult`.
 - `RoundPresenter` derives UI copy, button states, card view models, shop text, and owned joker cards.
@@ -136,8 +134,11 @@ This is state-driven enough to be workable, but it is not yet the full action/st
 - `Assets/Scripts/Presenters/RoundPresenter.cs`
 - `Assets/Scripts/MonoBehaviours/RoundScreen.cs`
 - `Assets/Scripts/View/RoundViewModel.cs`
+- `Assets/Scripts/View/ShopOfferViewModel.cs`
+- `Assets/Scripts/View/OfferView.cs`
 - `Assets/Scenes/GameScene.unity`
 - `Assets/Prefabs/CardViewPrefab.prefab`
+- `Assets/Prefabs/Offer.prefab`
 
 ## Scene and UI Status
 
@@ -157,9 +158,12 @@ UI state today:
 - sort buttons are registered in code at runtime
 - round-end overlay primary action sends won blinds to shop
 - shop overlay exists in `GameScene`
-- shop overlay can show offers, selected offer marker, bought marker, money, next blind, buy, reroll, and continue copy
+- shop overlay shows 3 structured offer slots, selected/bought/affordable states, money, next blind, buy, reroll, and continue copy
+- `Offer.prefab` is instantiated into the fixed `ShopOverlay/Panel/OfferSlots` container
+- `OfferView` owns the clickable offer slot, `Toggle`, accent, status text, and child `BuyJokerButton`
 - shop buttons are resolved and registered in `RoundScreen`
 - owned jokers are rendered as card-like views under `UpperGlass`
+- during shop phase, clicking an owned joker selects it and reveals its `Sell` button
 - bottom hand container uses `HorizontalLayoutGroup`
 - middle played-cards container uses `HorizontalLayoutGroup`
 - `CardViewPrefab` is reused for hand cards, played cards, and owned joker cards
@@ -168,9 +172,8 @@ UI state today:
 
 Current UI limitation:
 
-- shop offers are still rendered through one text block, `ShopOffersText`
-- the next shop slice should introduce structured offer view models and 3 offer slots
 - card layout is still an intermediate row layout before a future slot-based system
+- sell UI is functional but still visually basic
 
 ## Gameplay Systems Implemented
 
@@ -254,11 +257,16 @@ Implemented:
 - 3 deterministic offer pages
 - `ShopOfferState`
 - `ShopState`
-- selected offer navigation
-- buy selected offer
+- structured `ShopOfferViewModel`
+- clickable offer selection with a `ToggleGroup`
+- buy through the selected offer slot's `BuyJokerButton`
 - prevent buying unaffordable or already bought offers
 - mark already owned offers as purchased
-- reroll offers with money cost
+- shop refreshes to a new offer page every time the run enters a shop
+- reroll refreshes offers, starts at `$5`, and increases after each refresh in the current shop
+- sell owned jokers during shop for half cost rounded down, minimum `$1`
+- sold jokers are removed from owned modifiers immediately
+- sold visible offers become buyable again
 - persistent owned jokers through `RunState.OwnedJokers`
 - owned joker rendering in the upper playfield area
 - additive Chips/Mult modifiers
@@ -266,8 +274,6 @@ Implemented:
 
 Still missing:
 
-- structured shop offer slot UI
-- sell flow
 - random shop generation
 - rarity, weights, and balancing rules
 - xMult, economy, extra hand, and extra discard effects
@@ -354,30 +360,36 @@ Still missing for polish:
 
 Status:
 
-- Partially implemented; v1 domain and textual UI exist
+- Mostly complete for v1; structured UI, buy, sell, and progressive reroll exist
 
 Completed:
 
 - `ShopState`
 - `ShopOfferState`
 - deterministic offer generation through `JokerCatalog`
+- shop refresh count at run level
 - `RunState.EnterShop()`
 - `RunState.LeaveShop()`
-- selected offer navigation
-- buy selected offer
-- reroll offers
+- each shop phase loads a fresh deterministic offer page
+- structured `ShopOfferViewModel`
+- `Offer.prefab`
+- `OfferView`
+- clickable offer slots with `ToggleGroup`
+- buy through the selected slot's `BuyJokerButton`
+- reroll offers through the global reroll button
+- reroll cost starts at `$5` and increases after each refresh
 - spend persistent money on buy/reroll
 - mark purchased offers
+- sell owned jokers from `UpperGlass` during shop
+- sold visible offers become buyable again
 - preserve bought jokers across blinds
-- textual shop overlay in `GameScene`
-- Edit Mode coverage for shop entry, exit, purchase, selection, reroll, and purchased offer marking
+- structured shop overlay in `GameScene`
+- Edit Mode coverage for shop entry, exit, purchase, selection, reroll, sell, and purchased offer marking
 
 Still missing:
 
-- structured 3-slot shop UI
-- dedicated shop offer view model
-- sell flow
 - randomized shop generation
+- rarity, weights, and balancing rules
 - final visual polish
 
 ### Milestone 4 - Modifiers/Jokers
@@ -400,6 +412,7 @@ Completed:
 - preview score modifier application
 - final play score modifier application
 - owned joker rendering
+- sold joker removal from future preview/final score
 - Edit Mode coverage for modifier behavior
 
 Still missing:
@@ -454,18 +467,23 @@ Current shop flow:
 
 - won round shows round-end overlay
 - primary action calls `RunState.EnterShop()`
-- shop overlay displays offer text and buttons
-- previous/next changes `ShopState.SelectedOfferIndex`
-- buy calls `RunState.BuySelectedShopOffer()`
+- shop overlay instantiates `Offer.prefab` slots in `ShopOverlay/Panel/OfferSlots`
+- clicking an offer slot changes `ShopState.SelectedOfferIndex`
+- the selected offer slot shows its child `BuyJokerButton` when it can be bought
+- buy calls `RunState.BuyShopOffer(index)`
 - reroll calls `RunState.RerollShop()`
+- clicking a joker in `UpperGlass` during shop selects it and shows `Sell`
+- sell calls `RunState.SellOwnedJoker(index)`
 - continue calls `RunState.LeaveShop()`
 
 Current shop constraints:
 
-- offers are deterministic pages based on `RerollCount`
-- reroll cost is currently fixed at `$1`
+- offers are deterministic pages based on the run's shop refresh count and the current shop's offer page index
+- every shop phase loads a new deterministic offer page within the run
+- reroll cost starts at `$5` and increases by `$1` after each refresh in the current shop
 - bought offers cannot be bought again
 - already owned jokers are marked as bought when they appear
+- sold jokers are removed from `OwnedJokers`; if the sold joker is visible in the current shop, its offer becomes buyable again
 
 ### Button wiring
 
@@ -489,31 +507,26 @@ This is intentionally a temporary base before a future slot-based layout system.
 
 ## Known Issues and Technical Debt
 
+- `dotnet build StateDrivenPokerRoguelike.EditModeTests.csproj --no-restore` passes locally.
 - Unity batchmode test run on 2026-05-04 failed because another Unity instance had this project open.
 - Manual Unity Test Runner verification is still needed.
-- There are Unity Assistant Account API warnings in the editor; these are unrelated to gameplay logic.
 - Current architecture is state-driven but not full reducer/store based.
-- Shop offers are still rendered as text instead of structured offer slots.
 - Card layout is still an intermediate UI solution.
 - The Club debuffs Clubs in scoring, but visual card-level feedback is not implemented yet.
-- Selling jokers is not implemented.
 - Random shop generation is not implemented.
 - xMult/economy/extra hand/extra discard effects are not implemented.
-- Worktree contained pre-existing local changes when this spec was updated: `JokerData.cs` moved from `Core` to `Data`, and TextMesh Pro fallback asset modified. Do not revert without explicit confirmation.
+- Worktree contained local changes when this spec was updated, including UI/prefab work, `JokerData.cs` under `Data`, TextMesh Pro fallback asset changes, and removal of the Unity AI Assistant package. Do not revert unrelated changes without explicit confirmation.
 
 ## Recommended Next Steps
 
 Recommended order from here:
 
-1. Run the Edit Mode suite manually in Unity Test Runner after closing other Unity instances.
-2. Consolidate Shop/Jokers v1 with structured 3-slot offer UI.
-3. Add a dedicated structured shop offer view model instead of relying on `ShopOffersText`.
-4. Keep deterministic offer pages for v1; defer random generation.
-5. Keep additive Chips/Mult for v1; defer xMult and economy effects.
-6. Verify bought jokers render in `UpperGlass` and affect preview and final score.
-7. Polish Boss Blind v1 feedback for `The Club`.
-8. Add portfolio polish: screenshots, gameplay GIF, architecture diagram, changelog, release tags.
-9. Consider full action/store/reducer refactor only after the playable loop is stronger.
+1. Run the Edit Mode suite manually in Unity Test Runner and do a short playthrough through multiple shops.
+2. Add random shop generation, weights, and basic rarity/balancing rules.
+3. Keep additive Chips/Mult for now; defer xMult and economy effects.
+4. Polish Boss Blind v1 feedback for `The Club`.
+5. Add portfolio polish: screenshots, gameplay GIF, architecture diagram, changelog, release tags.
+6. Consider full action/store/reducer refactor only after the playable loop is stronger.
 
 ## Manual Test Checklist
 
@@ -522,7 +535,11 @@ Run in `Assets/Scenes/GameScene.unity`:
 - Win Small Blind, enter shop, buy `Glass Joker`, confirm money decreases and joker appears in `UpperGlass`.
 - Continue to Big Blind, select a scoring hand, confirm `Glass Joker` adds +10 Chips in preview.
 - Play that hand, confirm final score also includes the +10 Chips.
-- Use reroll, confirm money decreases by `$1` and offer page changes.
+- Use reroll, confirm money decreases by `$5`, the offer page changes, and the next reroll cost becomes `$6`.
+- Enter a later shop in the same run and confirm a fresh offer page is loaded.
+- Click an owned joker in `UpperGlass` during shop, sell it, confirm money increases and the joker disappears.
+- After selling, confirm the sold joker no longer affects preview/final score.
+- If the sold joker is visible in the current shop offers, confirm it becomes buyable again.
 - Try to buy without enough money, confirm buy action is blocked.
 - Try to buy an already bought offer, confirm no duplicate joker is added.
 - Continue through The Club to next ante, confirm next shop still preserves owned jokers.
@@ -557,7 +574,7 @@ Future work should assume:
 - the active shop loop is centered on `RunState -> ShopState`
 - the active UI loop is `RoundScreen -> RoundPresenter -> RoundViewModel`
 - Milestone 1 and Milestone 2 are complete in code
-- Milestone 3 has shop transaction functionality but needs UI consolidation
+- Milestone 3 has v1 shop transaction, structured offer UI, sell flow, and progressive reroll
 - Milestone 4 has additive joker v1 functionality but needs richer effects later
 - docs in `Docs/` are current only after checking this continuity spec
-- the next implementation slice should be shop UI polish and manual validation, not store/reducer refactor
+- the next implementation slice should be random shop generation or boss feedback polish, not store/reducer refactor

@@ -179,7 +179,7 @@ Future architecture may still introduce a formal action/store/reducer layer, but
 - [x] reroll offers
 - [x] persistent owned jokers across the run
 - [x] textual shop overlay in `GameScene`
-- [ ] structured 3-slot shop offer UI
+- [x] structured 3-slot shop offer UI
 - [ ] sell flow
 - [ ] randomized shop generation
 
