@@ -614,15 +614,23 @@ public sealed class RunStateTests {
 
     [Test]
     public void CreateShopOffers_WhenMostJokersAreOwned_FillsWithPurchasedOwnedOffers() {
-        JokerState[] ownedJokers = {
-            new(JokerCatalog.GetById("glass-joker")),
-            new(JokerCatalog.GetById("ace-tag")),
-            new(JokerCatalog.GetById("pair-glove")),
-            new(JokerCatalog.GetById("club-chip")),
-            new(JokerCatalog.GetById("straight-polish")),
-            new(JokerCatalog.GetById("heart-tag")),
-            new(JokerCatalog.GetById("flush-foil"))
-        };
+        JokerState[] ownedJokers = CreateOwnedJokers(
+            "glass-joker",
+            "ace-tag",
+            "pair-glove",
+            "club-chip",
+            "straight-polish",
+            "heart-tag",
+            "flush-foil",
+            "face-card-tag",
+            "two-pair-grip",
+            "spade-token",
+            "cash-tag",
+            "discard-pass",
+            "triple-grip",
+            "straight-engine",
+            "pair-payout",
+            "flush-mirror");
 
         var offers = JokerCatalog.CreateShopOffers(0, ownedJokers, TestRunSeed);
 
@@ -635,6 +643,28 @@ public sealed class RunStateTests {
         foreach (JokerData joker in JokerCatalog.All) {
             Assert.That(System.Enum.IsDefined(typeof(JokerRarity), joker.Rarity), Is.True);
         }
+    }
+
+    [Test]
+    public void JokerCatalog_WhenRead_HasMilestoneFourRarityPool() {
+        int commonCount = 0;
+        int uncommonCount = 0;
+        int rareCount = 0;
+
+        foreach (JokerData joker in JokerCatalog.All) {
+            if (joker.Rarity == JokerRarity.Common) {
+                commonCount++;
+            } else if (joker.Rarity == JokerRarity.Uncommon) {
+                uncommonCount++;
+            } else if (joker.Rarity == JokerRarity.Rare) {
+                rareCount++;
+            }
+        }
+
+        Assert.That(JokerCatalog.All, Has.Count.EqualTo(18));
+        Assert.That(commonCount, Is.EqualTo(8));
+        Assert.That(uncommonCount, Is.EqualTo(6));
+        Assert.That(rareCount, Is.EqualTo(4));
     }
 
     [Test]
@@ -753,6 +783,91 @@ public sealed class RunStateTests {
         Assert.That(nextState.CurrentRound.LastScoreResult.FinalScore, Is.EqualTo(116));
     }
 
+    [Test]
+    public void PlaySelectedCards_WhenMoneyJokerMatches_AddsMoneyOnceAlongsideBlindReward() {
+        CardData[] handCards = {
+            TestCardFactory.Create(Rank.Ace, Suit.Spades),
+            TestCardFactory.Create(Rank.King, Suit.Spades),
+            TestCardFactory.Create(Rank.Queen, Suit.Spades),
+            TestCardFactory.Create(Rank.Jack, Suit.Spades),
+            TestCardFactory.Create(Rank.Ten, Suit.Spades)
+        };
+
+        RunState state = new RunState(
+            currentRound: RoundState.CreateInitial(
+                blind: new BlindState(BlindType.Small, 1),
+                handsLeft: 2,
+                maxHandSize: 5,
+                initialHandCards: handCards
+            ),
+            currentShop: null,
+            ownedJokers: new[] { new JokerState(JokerCatalog.GetById("cash-tag")) },
+            money: 10,
+            phase: RunPhase.Blind
+        );
+
+        for (int i = 0; i < 5; i++) {
+            state = state.ToggleCardSelection(i);
+        }
+
+        RunState nextState = state.PlaySelectedCards();
+
+        Assert.That(nextState.CurrentRound.HasWonRound, Is.True);
+        Assert.That(nextState.Money, Is.EqualTo(22));
+        StringAssert.Contains("Jokers: Cash Tag +$2", nextState.CurrentRound.LastActionText);
+    }
+
+    [Test]
+    public void LeaveShop_WhenOwnsExtraResourceJokers_StartsPendingBlindWithBonuses() {
+        RunState state = CreateShopRunState(
+            money: 25,
+            ownedJokers: CreateOwnedJokers("spare-hand", "discard-pass")
+        );
+
+        RunState nextState = state.LeaveShop();
+
+        Assert.That(nextState.CurrentRound.HandsLeft, Is.EqualTo(5));
+        Assert.That(nextState.CurrentRound.DiscardsLeft, Is.EqualTo(4));
+    }
+
+    [Test]
+    public void LeaveShop_WhenExtraHandJokerWasSold_RemovesFutureHandBonus() {
+        RunState state = CreateShopRunState(
+            money: 25,
+            ownedJokers: CreateOwnedJokers("spare-hand", "discard-pass")
+        );
+
+        RunState nextState = state.SellOwnedJoker(0).LeaveShop();
+
+        Assert.That(nextState.CurrentRound.HandsLeft, Is.EqualTo(4));
+        Assert.That(nextState.CurrentRound.DiscardsLeft, Is.EqualTo(4));
+    }
+
+    [Test]
+    public void BuyShopOffer_WhenInventoryIsFull_BlocksPurchaseUntilJokerIsSold() {
+        RunState state = CreateShopRunState(
+            money: 25,
+            ownedJokers: CreateOwnedJokers(
+                "ace-tag",
+                "pair-glove",
+                "club-chip",
+                "straight-polish",
+                "heart-tag")
+        );
+
+        RunState blockedState = state.BuyShopOffer(0);
+
+        Assert.That(blockedState, Is.SameAs(state));
+        Assert.That(blockedState.OwnedJokers, Has.Count.EqualTo(RunState.MaxOwnedJokers));
+        Assert.That(blockedState.CurrentShop.FirstOffer.IsPurchased, Is.False);
+
+        RunState nextState = blockedState.SellOwnedJoker(0).BuyShopOffer(0);
+
+        Assert.That(nextState.OwnedJokers, Has.Count.EqualTo(RunState.MaxOwnedJokers));
+        Assert.That(nextState.OwnedJokers[4].Id, Is.EqualTo("glass-joker"));
+        Assert.That(nextState.CurrentShop.FirstOffer.IsPurchased, Is.True);
+    }
+
     private static RunState CreateShopRunState(int money, JokerState[] ownedJokers = null) {
         return new RunState(
             currentRound: new RoundState(
@@ -831,5 +946,15 @@ public sealed class RunStateTests {
         }
 
         return false;
+    }
+
+    private static JokerState[] CreateOwnedJokers(params string[] jokerIds) {
+        var ownedJokers = new JokerState[jokerIds.Length];
+
+        for (int i = 0; i < jokerIds.Length; i++) {
+            ownedJokers[i] = new JokerState(JokerCatalog.GetById(jokerIds[i]));
+        }
+
+        return ownedJokers;
     }
 }

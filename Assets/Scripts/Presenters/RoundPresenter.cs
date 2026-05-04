@@ -43,7 +43,7 @@ namespace Presenters {
                 HandNameText = handName,
                 HandLevelText = handName == "Select Cards" ? string.Empty : "lvl.1",
                 ChipsText = activeScore.TotalChips.ToString(),
-                MultText = activeScore.BaseMult.ToString(),
+                MultText = BuildMultText(activeScore),
                 HandsLeftText = roundState.HandsLeft.ToString(),
                 DiscardsLeftText = roundState.DiscardsLeft.ToString(),
                 MoneyText = $"${runState.Money}",
@@ -80,7 +80,8 @@ namespace Presenters {
                     card,
                     index: i,
                     isSelected: roundState.IsSelected(i),
-                    isInteractable: roundState.Phase != RoundPhase.RoundEnd
+                    isInteractable: roundState.Phase != RoundPhase.RoundEnd,
+                    blind: roundState.Blind
                 ));
             }
 
@@ -89,7 +90,8 @@ namespace Presenters {
                     card,
                     index: -1,
                     isSelected: false,
-                    isInteractable: false
+                    isInteractable: false,
+                    blind: roundState.Blind
                 ));
             }
 
@@ -111,14 +113,16 @@ namespace Presenters {
             CardData card,
             int index,
             bool isSelected,
-            bool isInteractable) {
+            bool isInteractable,
+            BlindState blind) {
             return new CardViewModel {
                 Index = index,
                 RankText = FormatRank(card.Rank),
                 SuitText = FormatSuit(card.Suit),
                 AccentColor = GetSuitColor(card.Suit),
                 IsSelected = isSelected,
-                IsInteractable = isInteractable
+                IsInteractable = isInteractable,
+                IsDebuffed = IsDebuffedByBlind(card, blind)
             };
         }
 
@@ -148,25 +152,31 @@ namespace Presenters {
                 ShopOfferState offer = runState.CurrentShop.Offers[i];
                 bool isSelected = i == runState.CurrentShop.SelectedOfferIndex;
 
+                bool canBuy = !runState.HasFullJokerInventory && offer.CanBuy(runState.Money);
+
                 viewModel.ShopOffers.Add(new ShopOfferViewModel {
                     Index = i,
                     TitleText = offer.Title,
                     RarityText = FormatRarity(offer.Rarity),
                     DescriptionText = offer.Description,
                     CostText = $"${offer.Cost}",
-                    StatusText = BuildShopOfferStatusText(offer, runState.Money, isSelected),
+                    StatusText = BuildShopOfferStatusText(offer, runState.Money, isSelected, runState.HasFullJokerInventory),
                     IsSelected = isSelected,
                     IsPurchased = offer.IsPurchased,
-                    CanBuy = offer.CanBuy(runState.Money),
+                    CanBuy = canBuy,
                     AccentColor = GetJokerColor(new JokerState(offer.Joker)),
                     RarityColor = GetRarityColor(offer.Rarity)
                 });
             }
         }
 
-        private static string BuildShopOfferStatusText(ShopOfferState offer, int money, bool isSelected) {
+        private static string BuildShopOfferStatusText(ShopOfferState offer, int money, bool isSelected, bool isInventoryFull) {
             if (offer.IsPurchased) {
                 return "Bought";
+            }
+
+            if (isInventoryFull) {
+                return "Inventory Full";
             }
 
             if (!offer.CanBuy(money)) {
@@ -284,7 +294,7 @@ namespace Presenters {
             BlindState nextBlind = runState.CurrentShop.NextBlind;
             return
                 $"{runState.CurrentShop.Offers.Count} joker offers loaded\n" +
-                $"Inventory: {runState.OwnedJokers.Count} jokers\n" +
+                $"Inventory: {runState.OwnedJokers.Count}/{RunState.MaxOwnedJokers} jokers\n" +
                 $"Next blind: {nextBlind.Name}";
         }
 
@@ -401,8 +411,22 @@ namespace Presenters {
             return joker.BonusType switch {
                 JokerBonusType.Chips => new Color32(244, 158, 27, 255),
                 JokerBonusType.Mult => new Color32(40, 138, 91, 255),
+                JokerBonusType.XMult => new Color32(171, 83, 219, 255),
+                JokerBonusType.Money => new Color32(222, 181, 55, 255),
+                JokerBonusType.ExtraHand => new Color32(74, 154, 224, 255),
+                JokerBonusType.ExtraDiscard => new Color32(83, 173, 163, 255),
                 _ => Color.white
             };
+        }
+
+        private static string BuildMultText(ScoreResult scoreResult) {
+            return scoreResult.MultMultiplier > 1
+                ? $"{scoreResult.BaseMult} x{scoreResult.MultMultiplier}"
+                : scoreResult.BaseMult.ToString();
+        }
+
+        private static bool IsDebuffedByBlind(CardData card, BlindState blind) {
+            return blind?.Type == BlindType.Boss && card.Suit == Suit.Clubs;
         }
 
         private static Color GetRarityColor(JokerRarity rarity) {

@@ -199,7 +199,7 @@ namespace Core {
             );
         }
 
-        public RoundState PlaySelectedCards(ScoreResult? overrideScoreResult = null) {
+        public RoundState PlaySelectedCards(ScoreResult? overrideScoreResult = null, string jokerFeedbackText = null) {
             if (!CanPlaySelectedCards) {
                 return this;
             }
@@ -244,7 +244,7 @@ namespace Core {
                 handCards: newHand,
                 discardPileCards: newDiscardPile,
                 selectedCardsIndexes: Array.Empty<int>(),
-                lastActionText: BuildPlayActionText(handResult.HandType, scoreResult.FinalScore, blindCleared, roundLost),
+                lastActionText: BuildPlayActionText(handResult.HandType, scoreResult.FinalScore, blindCleared, roundLost, jokerFeedbackText),
                 lastPlayedCardsText: FormatPlayedCardsText(playedCards),
                 lastPlayedCards: playedCards,
                 lastPlayedCardsCount: playedCards.Count,
@@ -413,18 +413,28 @@ namespace Core {
             return remainingDeck;
         }
 
-        private static string BuildPlayActionText(PokerHandType handType, int finalScore, bool blindCleared, bool roundLost) {
+        private static string BuildPlayActionText(PokerHandType handType, int finalScore, bool blindCleared, bool roundLost, string jokerFeedbackText) {
             string handName = FormatHandType(handType);
+            string baseText;
 
             if (blindCleared) {
-                return $"Blind cleared with {handName} for {finalScore}";
+                baseText = $"Blind cleared with {handName} for {finalScore}";
+                return AppendJokerFeedback(baseText, jokerFeedbackText);
             }
 
             if (roundLost) {
-                return $"Round lost with {handName} for {finalScore}";
+                baseText = $"Round lost with {handName} for {finalScore}";
+                return AppendJokerFeedback(baseText, jokerFeedbackText);
             }
 
-            return $"Played {handName} for {finalScore}";
+            baseText = $"Played {handName} for {finalScore}";
+            return AppendJokerFeedback(baseText, jokerFeedbackText);
+        }
+
+        private static string AppendJokerFeedback(string baseText, string jokerFeedbackText) {
+            return string.IsNullOrWhiteSpace(jokerFeedbackText)
+                ? baseText
+                : $"{baseText} | Jokers: {jokerFeedbackText}";
         }
 
         private static int GetRankSortValue(Rank rank) {
