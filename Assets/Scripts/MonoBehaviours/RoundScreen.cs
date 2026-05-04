@@ -44,6 +44,7 @@ public class RoundScreen : MonoBehaviour {
     [SerializeField] private Button sortBySuitButton;
 
     [Header("Card Areas")]
+    [SerializeField] private RectTransform upperGlassArea;
     [SerializeField] private RectTransform handArea;
     [SerializeField] private RectTransform playedHandArea;
     [SerializeField] private CardView cardViewPrefab;
@@ -58,15 +59,31 @@ public class RoundScreen : MonoBehaviour {
     [SerializeField] private TextMeshProUGUI newRunButtonLabel;
     [SerializeField] private Button exitButton;
 
+    [Header("Shop Overlay")]
+    [SerializeField] private GameObject shopOverlay;
+    [SerializeField] private TextMeshProUGUI shopBannerText;
+    [SerializeField] private TextMeshProUGUI shopSummaryText;
+    [SerializeField] private TextMeshProUGUI shopDetailsText;
+    [SerializeField] private RectTransform offerSlotsContainer;
+    [SerializeField] private ToggleGroup offerToggleGroup;
+    [SerializeField] private OfferView offerPrefab;
+    [SerializeField] private Button shopRerollButton;
+    [SerializeField] private TextMeshProUGUI shopRerollButtonLabel;
+    [SerializeField] private Button shopContinueButton;
+    [SerializeField] private TextMeshProUGUI shopContinueButtonLabel;
+
     [Header("Debug")]
     [SerializeField] private bool useDebugHandScenario = false;
     [SerializeField] private DebugHandScenario debugHandScenario = DebugHandScenario.None;
 
     private RoundPresenter _roundPresenter;
     private RunState _runState;
+    private int _selectedOwnedJokerIndex = -1;
 
     private void Awake() {
         ResolveRoundEndOverlayReferences();
+        ResolveShopOverlayReferences();
+        ResolveMainAreaReferences();
         RegisterButtonListeners();
     }
 
@@ -108,6 +125,8 @@ public class RoundScreen : MonoBehaviour {
     }
 
     private void Render(RunState runState) {
+        NormalizeSelectedOwnedJoker(runState);
+
         var viewModel = _roundPresenter.Present(runState);
 
         blindTitleText.text = viewModel.BlindTitleText;
@@ -136,9 +155,29 @@ public class RoundScreen : MonoBehaviour {
         sortByRankButton.interactable = viewModel.CanSort;
         sortBySuitButton.interactable = viewModel.CanSort;
 
+        RenderOwnedJokers(viewModel.OwnedJokerCards);
         RenderHand(viewModel.HandCards);
         RenderPlayedCards(viewModel.PlayedCards);
         RenderRoundEndOverlay(viewModel);
+        RenderShopOverlay(viewModel);
+    }
+
+    private void RenderOwnedJokers(IReadOnlyList<CardViewModel> ownedJokers) {
+        if (upperGlassArea == null) {
+            return;
+        }
+
+        ClearCardArea(upperGlassArea);
+
+        for (int i = 0; i < ownedJokers.Count; i++) {
+            ownedJokers[i].IsSellSelected = i == _selectedOwnedJokerIndex;
+            var cardView = Instantiate(cardViewPrefab, upperGlassArea);
+            cardView.Bind(ownedJokers[i]);
+            cardView.OnCardSelected += HandleOwnedJokerSelected;
+            cardView.OnSellRequested += HandleOwnedJokerSell;
+        }
+
+        LayoutRebuilder.ForceRebuildLayoutImmediate(upperGlassArea);
     }
 
     private void RenderHand(IReadOnlyList<CardViewModel> handCards) {
@@ -179,10 +218,69 @@ public class RoundScreen : MonoBehaviour {
     }
 
     private void HandlePrimaryRoundEndAction() {
-        _runState = _runState != null && _runState.CanAdvanceToNextBlind
-            ? _runState.StartNextBlind(initialHandCards: GetDebugHand())
+        _selectedOwnedJokerIndex = -1;
+        _runState = _runState != null && _runState.CanEnterShop
+            ? _runState.EnterShop()
             : CreateInitialState();
 
+        Render(_runState);
+    }
+
+    private void HandleShopContinueAction() {
+        if (_runState == null) {
+            return;
+        }
+
+        _selectedOwnedJokerIndex = -1;
+        _runState = _runState.LeaveShop(initialHandCards: GetDebugHand());
+        Render(_runState);
+    }
+
+    private void HandleShopOfferSelected(int index) {
+        if (_runState == null) {
+            return;
+        }
+
+        _runState = _runState.SelectShopOffer(index);
+        Render(_runState);
+    }
+
+    private void HandleShopOfferBuy(int index) {
+        if (_runState == null) {
+            return;
+        }
+
+        _selectedOwnedJokerIndex = -1;
+        _runState = _runState.BuyShopOffer(index);
+        Render(_runState);
+    }
+
+    private void HandleShopRerollAction() {
+        if (_runState == null) {
+            return;
+        }
+
+        _selectedOwnedJokerIndex = -1;
+        _runState = _runState.RerollShop();
+        Render(_runState);
+    }
+
+    private void HandleOwnedJokerSelected(int index) {
+        if (_runState == null || !_runState.CanSellOwnedJoker(index)) {
+            return;
+        }
+
+        _selectedOwnedJokerIndex = index;
+        Render(_runState);
+    }
+
+    private void HandleOwnedJokerSell(int index) {
+        if (_runState == null) {
+            return;
+        }
+
+        _runState = _runState.SellOwnedJoker(index);
+        _selectedOwnedJokerIndex = -1;
         Render(_runState);
     }
 
@@ -226,6 +324,90 @@ public class RoundScreen : MonoBehaviour {
         }
     }
 
+    private void RenderShopOverlay(RoundViewModel viewModel) {
+        if (shopOverlay == null) {
+            return;
+        }
+
+        shopOverlay.SetActive(viewModel.ShowShopOverlay);
+
+        if (!viewModel.ShowShopOverlay) {
+            return;
+        }
+
+        if (shopBannerText != null) {
+            shopBannerText.text = viewModel.ShopBannerText;
+        }
+
+        if (shopSummaryText != null) {
+            shopSummaryText.text = viewModel.ShopSummaryText;
+        }
+
+        if (shopDetailsText != null) {
+            shopDetailsText.text = viewModel.ShopDetailsText;
+        }
+
+        RenderShopOfferSlots(viewModel.ShopOffers);
+
+        if (shopRerollButton != null) {
+            shopRerollButton.interactable = viewModel.CanRerollShop;
+        }
+
+        if (shopRerollButtonLabel != null) {
+            shopRerollButtonLabel.text = viewModel.ShopRerollButtonText;
+        }
+
+        if (shopContinueButtonLabel != null) {
+            shopContinueButtonLabel.text = viewModel.ShopPrimaryActionText;
+        }
+    }
+
+    private void RenderShopOfferSlots(IReadOnlyList<ShopOfferViewModel> shopOffers) {
+        if (!EnsureOfferSlotReferences()) {
+            return;
+        }
+
+        ClearCardArea(offerSlotsContainer);
+
+        for (int i = 0; i < shopOffers.Count; i++) {
+            OfferView offerView = Instantiate(offerPrefab, offerSlotsContainer);
+            offerView.SetToggleGroup(offerToggleGroup);
+            offerView.Bind(shopOffers[i], HandleShopOfferSelected, HandleShopOfferBuy);
+        }
+
+        LayoutRebuilder.ForceRebuildLayoutImmediate(offerSlotsContainer);
+    }
+
+    private bool EnsureOfferSlotReferences() {
+        if (shopOverlay == null) {
+            return false;
+        }
+
+        if (offerSlotsContainer == null) {
+            Transform container = shopOverlay.transform.Find("Panel/OfferSlots");
+            offerSlotsContainer = container != null ? container.GetComponent<RectTransform>() : null;
+        }
+
+        if (offerSlotsContainer == null) {
+            return false;
+        }
+
+        if (offerToggleGroup == null) {
+            offerToggleGroup = offerSlotsContainer.GetComponent<ToggleGroup>();
+            if (offerToggleGroup == null) {
+                offerToggleGroup = offerSlotsContainer.gameObject.AddComponent<ToggleGroup>();
+            }
+        }
+
+        if (offerPrefab == null) {
+#if UNITY_EDITOR
+            offerPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<OfferView>("Assets/Prefabs/Offer.prefab");
+#endif
+        }
+
+        return offerPrefab != null;
+    }
+
     private void ResolveRoundEndOverlayReferences() {
         if (roundEndOverlay == null) {
             return;
@@ -240,6 +422,35 @@ public class RoundScreen : MonoBehaviour {
         exitButton ??= FindOverlayComponent<Button>("Panel/ExitButton");
     }
 
+    private void ResolveShopOverlayReferences() {
+        if (shopOverlay == null) {
+            return;
+        }
+
+        shopBannerText ??= FindOverlayComponent<TextMeshProUGUI>(shopOverlay, "Panel/Banner/BannerText");
+        shopSummaryText ??= FindOverlayComponent<TextMeshProUGUI>(shopOverlay, "Panel/SummaryText");
+        shopDetailsText ??= FindOverlayComponent<TextMeshProUGUI>(shopOverlay, "Panel/DetailsText");
+        offerSlotsContainer ??= FindOverlayComponent<RectTransform>(shopOverlay, "Panel/OfferSlots");
+        if (offerSlotsContainer != null) {
+            offerToggleGroup ??= offerSlotsContainer.GetComponent<ToggleGroup>();
+        }
+        shopRerollButton ??= FindOverlayComponent<Button>(shopOverlay, "Panel/RerollButton");
+        shopRerollButtonLabel ??= FindOverlayComponent<TextMeshProUGUI>(shopOverlay, "Panel/RerollButton/Label");
+        shopContinueButton ??= FindOverlayComponent<Button>(shopOverlay, "Panel/ContinueButton");
+        shopContinueButtonLabel ??= FindOverlayComponent<TextMeshProUGUI>(shopOverlay, "Panel/ContinueButton/Label");
+    }
+
+    private void ResolveMainAreaReferences() {
+        if (upperGlassArea != null) {
+            return;
+        }
+
+        GameObject upperGlassObject = GameObject.Find("Canvas/HudRoot/MainArea/UpperGlass");
+        if (upperGlassObject != null) {
+            upperGlassArea = upperGlassObject.GetComponent<RectTransform>();
+        }
+    }
+
     private void RegisterButtonListeners() {
         if (newRunButton != null) {
             newRunButton.onClick.AddListener(HandlePrimaryRoundEndAction);
@@ -247,6 +458,14 @@ public class RoundScreen : MonoBehaviour {
 
         if (exitButton != null) {
             exitButton.onClick.AddListener(ExitRun);
+        }
+
+        if (shopContinueButton != null) {
+            shopContinueButton.onClick.AddListener(HandleShopContinueAction);
+        }
+
+        if (shopRerollButton != null) {
+            shopRerollButton.onClick.AddListener(HandleShopRerollAction);
         }
 
         if (sortByRankButton != null) {
@@ -267,6 +486,14 @@ public class RoundScreen : MonoBehaviour {
             exitButton.onClick.RemoveListener(ExitRun);
         }
 
+        if (shopContinueButton != null) {
+            shopContinueButton.onClick.RemoveListener(HandleShopContinueAction);
+        }
+
+        if (shopRerollButton != null) {
+            shopRerollButton.onClick.RemoveListener(HandleShopRerollAction);
+        }
+
         if (sortByRankButton != null) {
             sortByRankButton.onClick.RemoveListener(OnSortByRankButtonClicked);
         }
@@ -285,10 +512,25 @@ public class RoundScreen : MonoBehaviour {
         return target != null ? target.GetComponent<T>() : null;
     }
 
+    private static T FindOverlayComponent<T>(GameObject overlayRoot, string relativePath) where T : Component {
+        if (overlayRoot == null) {
+            return null;
+        }
+
+        Transform target = overlayRoot.transform.Find(relativePath);
+        return target != null ? target.GetComponent<T>() : null;
+    }
+
     private IReadOnlyList<CardData> GetDebugHand() {
         return useDebugHandScenario && debugHandScenario != DebugHandScenario.None
             ? DebugHandFactory.Create(debugHandScenario)
             : null;
+    }
+
+    private void NormalizeSelectedOwnedJoker(RunState runState) {
+        if (runState == null || !runState.IsInShop || _selectedOwnedJokerIndex >= runState.OwnedJokers.Count) {
+            _selectedOwnedJokerIndex = -1;
+        }
     }
 
     private static void ClearCardArea(RectTransform cardArea) {
@@ -300,4 +542,5 @@ public class RoundScreen : MonoBehaviour {
             }
         }
     }
+
 }

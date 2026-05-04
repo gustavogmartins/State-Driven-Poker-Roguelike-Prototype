@@ -199,7 +199,7 @@ namespace Core {
             );
         }
 
-        public RoundState PlaySelectedCards() {
+        public RoundState PlaySelectedCards(ScoreResult? overrideScoreResult = null) {
             if (!CanPlaySelectedCards) {
                 return this;
             }
@@ -217,7 +217,7 @@ namespace Core {
             }
 
             var handResult = PokerHandEvaluator.Evaluate(playedCards);
-            var scoreResult = ScoreCalculator.Calculate(playedCards, handResult);
+            var scoreResult = overrideScoreResult ?? ScoreCalculator.Calculate(playedCards, handResult, Blind);
             int cardsNeeded = Mathf.Max(0, MaxHandSize - remainingHandCards.Count);
             var drawResult = DeckUtility.DrawCards(DeckCards, cardsNeeded);
 

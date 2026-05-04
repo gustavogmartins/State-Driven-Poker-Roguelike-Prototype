@@ -1,9 +1,17 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
+using Core;
 
 public static class ScoreCalculator {
     public static ScoreResult Calculate(
         IReadOnlyList<CardData> playedCards,
         PokerHandResult handResult) {
+        return Calculate(playedCards, handResult, blind: null);
+    }
+
+    public static ScoreResult Calculate(
+        IReadOnlyList<CardData> playedCards,
+        PokerHandResult handResult,
+        BlindState blind) {
         if (playedCards == null || playedCards.Count == 0)
             return ScoreResult.Zero;
 
@@ -12,6 +20,10 @@ public static class ScoreCalculator {
 
         int cardChips = 0;
         foreach (CardData card in scoringCards) {
+            if (IsDebuffedByBlind(card, blind)) {
+                continue;
+            }
+
             cardChips += CardChipValueUtility.GetChipValue(card);
         }
 
@@ -25,5 +37,9 @@ public static class ScoreCalculator {
             totalChips: totalChips,
             finalScore: finalScore
         );
+    }
+
+    private static bool IsDebuffedByBlind(CardData card, BlindState blind) {
+        return blind?.Type == BlindType.Boss && card.Suit == Suit.Clubs;
     }
 }

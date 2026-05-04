@@ -17,7 +17,7 @@ namespace Presenters {
                 : new PokerHandResult(roundState.LastPlayedHandResult);
 
             ScoreResult activeScore = hasPreviewSelection
-                ? ScoreCalculator.Calculate(selectedCards, activeHandResult)
+                ? ScoreCalculator.Calculate(selectedCards, activeHandResult, roundState.Blind)
                 : roundState.LastScoreResult;
 
             string handName = hasPreviewSelection
@@ -28,6 +28,10 @@ namespace Presenters {
 
             if (!hasPreviewSelection && !hasPlayedCards) {
                 activeScore = ScoreResult.Zero;
+            }
+
+            if (hasPreviewSelection) {
+                activeScore = RunModifierService.ApplyScoreModifiers(activeScore, runState.OwnedJokers, selectedCards, activeHandResult);
             }
 
             var viewModel = new RoundViewModel {
@@ -51,15 +55,22 @@ namespace Presenters {
                 DeckCountText = $"{roundState.DeckCards.Count}/{TotalDeckSize}",
                 HandSizeText = $"{roundState.HandCards.Count}/{roundState.MaxHandSize}",
                 TopDiscardText = FormatTopDiscard(roundState),
-                ShowRoundEndOverlay = roundState.IsRoundOver,
+                ShowRoundEndOverlay = roundState.IsRoundOver && !runState.IsInShop,
                 IsWinningRoundEnd = roundState.HasWonRound,
                 RoundEndBannerText = BuildRoundEndBannerText(roundState),
                 RoundEndSummaryText = BuildRoundEndSummaryText(roundState),
                 RoundEndDetailsText = BuildRoundEndDetailsText(runState),
                 RoundEndPrimaryActionText = BuildRoundEndPrimaryActionText(runState),
-                CanPlayHand = roundState.CanPlaySelectedCards,
-                CanDiscard = roundState.CanDiscardSelectedCards,
-                CanSort = roundState.CanSortHand
+                ShowShopOverlay = runState.IsInShop,
+                ShopBannerText = BuildShopBannerText(runState),
+                ShopSummaryText = BuildShopSummaryText(runState),
+                ShopDetailsText = BuildShopDetailsText(runState),
+                ShopPrimaryActionText = BuildShopPrimaryActionText(runState),
+                ShopRerollButtonText = BuildShopRerollButtonText(runState),
+                CanRerollShop = runState.CanRerollShop,
+                CanPlayHand = !runState.IsInShop && roundState.CanPlaySelectedCards,
+                CanDiscard = !runState.IsInShop && roundState.CanDiscardSelectedCards,
+                CanSort = !runState.IsInShop && roundState.CanSortHand
             };
 
             for (int i = 0; i < roundState.HandCards.Count; i++) {
@@ -82,6 +93,17 @@ namespace Presenters {
                 ));
             }
 
+            for (int i = 0; i < runState.OwnedJokers.Count; i++) {
+                viewModel.OwnedJokerCards.Add(CreateJokerCardViewModel(
+                    runState.OwnedJokers[i],
+                    index: i,
+                    canSell: runState.CanSellOwnedJoker(i),
+                    sellValue: runState.GetOwnedJokerSellValue(i)
+                ));
+            }
+
+            AddShopOfferViewModels(viewModel, runState);
+
             return viewModel;
         }
 
@@ -98,6 +120,60 @@ namespace Presenters {
                 IsSelected = isSelected,
                 IsInteractable = isInteractable
             };
+        }
+
+        private static CardViewModel CreateJokerCardViewModel(
+            JokerState joker,
+            int index,
+            bool canSell,
+            int sellValue) {
+            return new CardViewModel {
+                Index = index,
+                RankText = joker.ShortCode,
+                SuitText = "J",
+                AccentColor = GetJokerColor(joker),
+                IsSelected = false,
+                IsInteractable = canSell,
+                CanSell = canSell,
+                SellButtonText = sellValue > 0 ? $"Sell ${sellValue}" : "Sell"
+            };
+        }
+
+        private static void AddShopOfferViewModels(RoundViewModel viewModel, RunState runState) {
+            if (!runState.IsInShop || runState.CurrentShop == null) {
+                return;
+            }
+
+            for (int i = 0; i < runState.CurrentShop.Offers.Count; i++) {
+                ShopOfferState offer = runState.CurrentShop.Offers[i];
+                bool isSelected = i == runState.CurrentShop.SelectedOfferIndex;
+
+                viewModel.ShopOffers.Add(new ShopOfferViewModel {
+                    Index = i,
+                    TitleText = offer.Title,
+                    RarityText = FormatRarity(offer.Rarity),
+                    DescriptionText = offer.Description,
+                    CostText = $"${offer.Cost}",
+                    StatusText = BuildShopOfferStatusText(offer, runState.Money, isSelected),
+                    IsSelected = isSelected,
+                    IsPurchased = offer.IsPurchased,
+                    CanBuy = offer.CanBuy(runState.Money),
+                    AccentColor = GetJokerColor(new JokerState(offer.Joker)),
+                    RarityColor = GetRarityColor(offer.Rarity)
+                });
+            }
+        }
+
+        private static string BuildShopOfferStatusText(ShopOfferState offer, int money, bool isSelected) {
+            if (offer.IsPurchased) {
+                return "Bought";
+            }
+
+            if (!offer.CanBuy(money)) {
+                return $"Need ${offer.Cost}";
+            }
+
+            return isSelected ? "Selected" : "Available";
         }
 
         private static string BuildBlindDescription(string blindName) {
@@ -160,6 +236,7 @@ namespace Presenters {
                 return
                     $"Blind reward        ${roundState.BlindReward}\n" +
                     $"Next blind          {nextBlindLabel}\n" +
+                    "Next stop           Shop\n" +
                     $"Money total         ${runState.Money}";
             }
 
@@ -181,11 +258,7 @@ namespace Presenters {
             RoundState roundState = runState.CurrentRound;
 
             if (roundState.HasWonRound) {
-                BlindState nextBlind = roundState.Blind.Advance();
-
-                return nextBlind.Type == BlindType.Small
-                    ? $"Start Ante {nextBlind.Ante}"
-                    : $"Play {nextBlind.Name}";
+                return "Go To Shop";
             }
 
             if (roundState.HasLostRound) {
@@ -193,6 +266,61 @@ namespace Presenters {
             }
 
             return string.Empty;
+        }
+
+        private static string BuildShopBannerText(RunState runState) {
+            if (!runState.IsInShop || runState.CurrentShop == null) {
+                return string.Empty;
+            }
+
+            return "Shop Open";
+        }
+
+        private static string BuildShopSummaryText(RunState runState) {
+            if (!runState.IsInShop || runState.CurrentShop == null) {
+                return string.Empty;
+            }
+
+            BlindState nextBlind = runState.CurrentShop.NextBlind;
+            return
+                $"{runState.CurrentShop.Offers.Count} joker offers loaded\n" +
+                $"Inventory: {runState.OwnedJokers.Count} jokers\n" +
+                $"Next blind: {nextBlind.Name}";
+        }
+
+        private static string BuildShopDetailsText(RunState runState) {
+            if (!runState.IsInShop || runState.CurrentShop == null) {
+                return string.Empty;
+            }
+
+            BlindState nextBlind = runState.CurrentShop.NextBlind;
+            return
+                $"Money available     ${runState.Money}\n" +
+                $"Pending blind        Ante {nextBlind.Ante} | {nextBlind.Name}\n" +
+                $"Reroll cost          ${runState.CurrentShop.RerollCost}";
+        }
+
+        private static string BuildShopPrimaryActionText(RunState runState) {
+            if (!runState.IsInShop || runState.CurrentShop == null) {
+                return string.Empty;
+            }
+
+            BlindState nextBlind = runState.CurrentShop.NextBlind;
+            return nextBlind.Type == BlindType.Small
+                ? $"Start Ante {nextBlind.Ante}"
+                : $"Play {nextBlind.Name}";
+        }
+
+        private static string BuildShopRerollButtonText(RunState runState) {
+            if (!runState.IsInShop || runState.CurrentShop == null) {
+                return string.Empty;
+            }
+
+            if (!runState.CurrentShop.CanReroll(runState.Money)) {
+                return $"Need ${runState.CurrentShop.RerollCost}";
+            }
+
+            return $"Reroll (${runState.CurrentShop.RerollCost})";
         }
 
         private static string FormatTopDiscard(RoundState roundState) {
@@ -229,6 +357,15 @@ namespace Presenters {
             };
         }
 
+        private static string FormatRarity(JokerRarity rarity) {
+            return rarity switch {
+                JokerRarity.Common => "Common",
+                JokerRarity.Uncommon => "Uncommon",
+                JokerRarity.Rare => "Rare",
+                _ => rarity.ToString()
+            };
+        }
+
         private static string FormatRank(Rank rank) {
             return rank switch {
                 Rank.Jack => "J",
@@ -256,6 +393,23 @@ namespace Presenters {
                 Suit.Diamonds => new Color32(230, 153, 25, 255),
                 Suit.Clubs => new Color32(9, 116, 203, 255),
                 Suit.Spades => new Color32(52, 66, 72, 255),
+                _ => Color.white
+            };
+        }
+
+        private static Color GetJokerColor(JokerState joker) {
+            return joker.BonusType switch {
+                JokerBonusType.Chips => new Color32(244, 158, 27, 255),
+                JokerBonusType.Mult => new Color32(40, 138, 91, 255),
+                _ => Color.white
+            };
+        }
+
+        private static Color GetRarityColor(JokerRarity rarity) {
+            return rarity switch {
+                JokerRarity.Common => new Color32(166, 181, 184, 255),
+                JokerRarity.Uncommon => new Color32(74, 154, 224, 255),
+                JokerRarity.Rare => new Color32(210, 125, 233, 255),
                 _ => Color.white
             };
         }

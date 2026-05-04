@@ -41,4 +41,11 @@ public sealed class BlindStateTests {
         Assert.That(nextBlind.Reward, Is.EqualTo(40));
         Assert.That(nextBlind.TargetScore, Is.EqualTo(900));
     }
+
+    [Test]
+    public void Name_WhenBlindIsBoss_UsesTheClubBossName() {
+        var blind = new BlindState(BlindType.Boss, 1);
+
+        Assert.That(blind.Name, Is.EqualTo("The Club"));
+    }
 }

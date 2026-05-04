@@ -28,9 +28,18 @@ namespace View {
         public string RoundEndSummaryText;
         public string RoundEndDetailsText;
         public string RoundEndPrimaryActionText;
+        public bool ShowShopOverlay;
+        public string ShopBannerText;
+        public string ShopSummaryText;
+        public string ShopDetailsText;
+        public string ShopPrimaryActionText;
+        public string ShopRerollButtonText;
+        public bool CanRerollShop;
         public bool CanPlayHand;
         public bool CanDiscard;
         public bool CanSort;
+        public readonly List<ShopOfferViewModel> ShopOffers = new();
+        public readonly List<CardViewModel> OwnedJokerCards = new();
         public readonly List<CardViewModel> HandCards = new();
         public readonly List<CardViewModel> PlayedCards = new();
     }
