@@ -7,5 +7,8 @@ public enum JokerConditionType {
     HandContainsHearts,
     HandTypeFlush,
     HandContainsFaceCard,
-    HandTypeTwoPair
+    HandTypeTwoPair,
+    HandContainsSpades,
+    HandTypeThreeOfAKind,
+    HandTypeFullHouse
 }
