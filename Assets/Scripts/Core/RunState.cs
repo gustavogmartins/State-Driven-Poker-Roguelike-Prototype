@@ -14,7 +14,6 @@ namespace Core {
         public bool CanAdvanceToNextBlind => !IsRunOver && CurrentRound.HasWonRound;
         public bool CanEnterShop => Phase == RunPhase.Blind && CurrentRound.HasWonRound;
         public bool IsInShop => Phase == RunPhase.Shop;
-        public bool CanBuySelectedShopOffer => IsInShop && CurrentShop?.SelectedOffer?.CanBuy(Money) == true;
         public bool CanRerollShop => IsInShop && CurrentShop?.CanReroll(Money) == true;
 
         public RunState(
@@ -148,6 +147,13 @@ namespace Core {
             return new RunState(CurrentRound, updatedShop, updatedOwnedJokers, updatedMoney, Phase);
         }
 
+        public RunState BuyShopOffer(int index) {
+            RunState selectedState = SelectShopOffer(index);
+            return ReferenceEquals(selectedState, this) && (CurrentShop == null || CurrentShop.SelectedOfferIndex != index)
+                ? this
+                : selectedState.BuySelectedShopOffer();
+        }
+
         public RunState RerollShop() {
             if (!IsInShop || CurrentShop == null || !CurrentShop.CanReroll(Money)) {
                 return this;
@@ -172,6 +178,17 @@ namespace Core {
             }
 
             return new RunState(CurrentRound, CurrentShop.SelectPreviousOffer(), OwnedJokers, Money, Phase);
+        }
+
+        public RunState SelectShopOffer(int index) {
+            if (!IsInShop || CurrentShop == null) {
+                return this;
+            }
+
+            ShopState selectedShop = CurrentShop.SelectOffer(index);
+            return ReferenceEquals(selectedShop, CurrentShop)
+                ? this
+                : new RunState(CurrentRound, selectedShop, OwnedJokers, Money, Phase);
         }
 
         private RunState CopyWith(

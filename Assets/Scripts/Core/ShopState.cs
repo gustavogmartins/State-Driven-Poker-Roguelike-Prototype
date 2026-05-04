@@ -92,6 +92,19 @@ namespace Core {
                 rerollCount: RerollCount);
         }
 
+        public ShopState SelectOffer(int index) {
+            if (Offers.Count == 0 || index < 0 || index >= Offers.Count || index == SelectedOfferIndex) {
+                return this;
+            }
+
+            return new ShopState(
+                Money,
+                NextBlind,
+                offers: Offers,
+                selectedOfferIndex: index,
+                rerollCount: RerollCount);
+        }
+
         public bool CanReroll(int money) {
             return money >= RerollCost;
         }

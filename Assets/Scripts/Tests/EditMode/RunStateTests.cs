@@ -283,7 +283,6 @@ public sealed class RunStateTests {
         Assert.That(nextState.CurrentShop.FirstOffer.IsPurchased, Is.True);
         Assert.That(nextState.OwnedJokers.Count, Is.EqualTo(1));
         Assert.That(nextState.OwnedJokers[0].Id, Is.EqualTo("glass-joker"));
-        Assert.That(nextState.CanBuySelectedShopOffer, Is.False);
     }
 
     [Test]
@@ -356,6 +355,62 @@ public sealed class RunStateTests {
 
         Assert.That(nextState.CurrentShop.SelectedOfferIndex, Is.EqualTo(1));
         Assert.That(nextState.CurrentShop.SelectedOffer.Id, Is.EqualTo("ace-tag"));
+    }
+
+    [Test]
+    public void SelectShopOffer_WhenIndexIsValid_ChangesSelectedOfferWithoutSpendingMoney() {
+        RunState state = CreateShopRunState(money: 25);
+
+        RunState nextState = state.SelectShopOffer(2);
+
+        Assert.That(nextState.CurrentShop.SelectedOfferIndex, Is.EqualTo(2));
+        Assert.That(nextState.CurrentShop.SelectedOffer.Id, Is.EqualTo("pair-polisher"));
+        Assert.That(nextState.Money, Is.EqualTo(25));
+    }
+
+    [Test]
+    public void SelectShopOffer_WhenIndexIsInvalid_KeepsStateUnchanged() {
+        RunState state = CreateShopRunState(money: 25);
+
+        RunState nextState = state.SelectShopOffer(99);
+
+        Assert.That(nextState, Is.SameAs(state));
+    }
+
+    [Test]
+    public void BuyShopOffer_WhenIndexIsAffordable_BuysClickedOffer() {
+        RunState state = CreateShopRunState(money: 25);
+
+        RunState nextState = state.BuyShopOffer(1);
+
+        Assert.That(nextState.Money, Is.EqualTo(17));
+        Assert.That(nextState.CurrentShop.SelectedOfferIndex, Is.EqualTo(1));
+        Assert.That(nextState.CurrentShop.SelectedOffer.IsPurchased, Is.True);
+        Assert.That(nextState.OwnedJokers.Count, Is.EqualTo(1));
+        Assert.That(nextState.OwnedJokers[0].Id, Is.EqualTo("ace-tag"));
+    }
+
+    [Test]
+    public void BuyShopOffer_WhenIndexIsNotAffordable_KeepsStateUnchanged() {
+        RunState state = CreateShopRunState(money: 4);
+
+        RunState nextState = state.BuyShopOffer(0);
+
+        Assert.That(nextState, Is.SameAs(state));
+    }
+
+    [Test]
+    public void BuyShopOffer_WhenJokerIsAlreadyOwned_DoesNotDuplicateInventory() {
+        RunState state = CreateShopRunState(
+            money: 25,
+            ownedJokers: new[] { new JokerState(JokerCatalog.GetById("glass-joker")) }
+        );
+
+        RunState nextState = state.BuyShopOffer(0);
+
+        Assert.That(nextState.OwnedJokers.Count, Is.EqualTo(1));
+        Assert.That(nextState.OwnedJokers[0].Id, Is.EqualTo("glass-joker"));
+        Assert.That(nextState.CurrentShop.FirstOffer.IsPurchased, Is.True);
     }
 
     [Test]
@@ -501,5 +556,33 @@ public sealed class RunStateTests {
 
         Assert.That(nextState.CurrentRound.LastScoreResult.TotalChips, Is.EqualTo(58));
         Assert.That(nextState.CurrentRound.LastScoreResult.FinalScore, Is.EqualTo(116));
+    }
+
+    private static RunState CreateShopRunState(int money, JokerState[] ownedJokers = null) {
+        return new RunState(
+            currentRound: new RoundState(
+                blind: new BlindState(BlindType.Small, 1),
+                targetScore: 300,
+                currentScore: 300,
+                handsLeft: 0,
+                discardsLeft: 3,
+                phase: RoundPhase.RoundEnd,
+                maxHandSize: 5,
+                deckCards: System.Array.Empty<CardData>(),
+                handCards: System.Array.Empty<CardData>(),
+                discardPileCards: System.Array.Empty<CardData>(),
+                selectedCardsIndexes: System.Array.Empty<int>(),
+                lastActionText: "Blind cleared",
+                lastPlayedCardsText: "None",
+                lastPlayedCards: System.Array.Empty<CardData>(),
+                lastPlayedCardsCount: 0,
+                lastPlayedHandResult: PokerHandType.None,
+                lastScoreResult: ScoreResult.Zero
+            ),
+            currentShop: new ShopState(money, new BlindState(BlindType.Big, 1), ownedJokers: ownedJokers),
+            ownedJokers: ownedJokers ?? System.Array.Empty<JokerState>(),
+            money: money,
+            phase: RunPhase.Shop
+        );
     }
 }

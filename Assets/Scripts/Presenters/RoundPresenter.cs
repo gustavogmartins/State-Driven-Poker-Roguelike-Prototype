@@ -1,5 +1,4 @@
 using Core;
-using System.Text;
 using UnityEngine;
 using View;
 
@@ -66,11 +65,8 @@ namespace Presenters {
                 ShopBannerText = BuildShopBannerText(runState),
                 ShopSummaryText = BuildShopSummaryText(runState),
                 ShopDetailsText = BuildShopDetailsText(runState),
-                ShopOffersText = BuildShopOffersText(runState),
                 ShopPrimaryActionText = BuildShopPrimaryActionText(runState),
-                ShopBuyButtonText = BuildShopBuyButtonText(runState),
                 ShopRerollButtonText = BuildShopRerollButtonText(runState),
-                CanBuySelectedShopOffer = runState.CanBuySelectedShopOffer,
                 CanRerollShop = runState.CanRerollShop,
                 CanPlayHand = !runState.IsInShop && roundState.CanPlaySelectedCards,
                 CanDiscard = !runState.IsInShop && roundState.CanDiscardSelectedCards,
@@ -291,36 +287,6 @@ namespace Presenters {
                 $"Reroll cost          ${runState.CurrentShop.RerollCost}";
         }
 
-        private static string BuildShopOffersText(RunState runState) {
-            if (!runState.IsInShop || runState.CurrentShop == null) {
-                return string.Empty;
-            }
-
-            var builder = new StringBuilder();
-
-            for (int i = 0; i < runState.CurrentShop.Offers.Count; i++) {
-                ShopOfferState offer = runState.CurrentShop.Offers[i];
-                bool isSelected = i == runState.CurrentShop.SelectedOfferIndex;
-                string purchasedTag = offer.IsPurchased ? " [BOUGHT]" : string.Empty;
-
-                builder.Append(isSelected ? "> " : "  ");
-                builder.Append(i + 1);
-                builder.Append(". ");
-                builder.Append(offer.Title);
-                builder.Append("  $");
-                builder.Append(offer.Cost);
-                builder.Append(purchasedTag);
-                builder.Append('\n');
-                builder.Append(offer.Description);
-
-                if (i < runState.CurrentShop.Offers.Count - 1) {
-                    builder.Append("\n\n");
-                }
-            }
-
-            return builder.ToString();
-        }
-
         private static string BuildShopPrimaryActionText(RunState runState) {
             if (!runState.IsInShop || runState.CurrentShop == null) {
                 return string.Empty;
@@ -330,24 +296,6 @@ namespace Presenters {
             return nextBlind.Type == BlindType.Small
                 ? $"Start Ante {nextBlind.Ante}"
                 : $"Play {nextBlind.Name}";
-        }
-
-        private static string BuildShopBuyButtonText(RunState runState) {
-            if (!runState.IsInShop || runState.CurrentShop?.SelectedOffer == null) {
-                return string.Empty;
-            }
-
-            ShopOfferState selectedOffer = runState.CurrentShop.SelectedOffer;
-
-            if (selectedOffer.IsPurchased) {
-                return "Bought";
-            }
-
-            if (!selectedOffer.CanBuy(runState.Money)) {
-                return $"Need ${selectedOffer.Cost}";
-            }
-
-            return $"Buy {selectedOffer.Title} (${selectedOffer.Cost})";
         }
 
         private static string BuildShopRerollButtonText(RunState runState) {
