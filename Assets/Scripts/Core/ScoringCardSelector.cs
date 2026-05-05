@@ -16,7 +16,26 @@ public static class ScoringCardSelector {
             return new List<CardData> { highestCard };
         }
 
-        return new List<CardData>(playedCards);
+        return handResult.HandType switch {
+            PokerHandType.Pair => SelectCardsInRankGroups(playedCards, groupSize: 2),
+            PokerHandType.TwoPair => SelectCardsInRankGroups(playedCards, groupSize: 2),
+            PokerHandType.ThreeOfAKind => SelectCardsInRankGroups(playedCards, groupSize: 3),
+            PokerHandType.FourOfAKind => SelectCardsInRankGroups(playedCards, groupSize: 4),
+            PokerHandType.FullHouse => new List<CardData>(playedCards),
+            PokerHandType.Straight => new List<CardData>(playedCards),
+            PokerHandType.Flush => new List<CardData>(playedCards),
+            PokerHandType.StraightFlush => new List<CardData>(playedCards),
+            _ => new List<CardData>()
+        };
+    }
+
+    private static List<CardData> SelectCardsInRankGroups(IReadOnlyList<CardData> playedCards, int groupSize) {
+        return playedCards
+            .GroupBy(card => card.Rank)
+            .Where(group => group.Count() == groupSize)
+            .OrderByDescending(group => GetHighCardSortValue(group.First()))
+            .SelectMany(group => group)
+            .ToList();
     }
 
     private static int GetHighCardSortValue(CardData card) {

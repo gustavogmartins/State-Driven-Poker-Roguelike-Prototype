@@ -21,7 +21,7 @@ public sealed class ScoreCalculatorTests {
     }
 
     [Test]
-    public void Calculate_UsesAllPlayedCards_ForPairHands() {
+    public void Calculate_UsesOnlyPairCards_ForPairHands() {
         CardData[] cards = {
             TestCardFactory.Create(Rank.Ace, Suit.Spades),
             TestCardFactory.Create(Rank.Ace, Suit.Hearts),
@@ -36,8 +36,158 @@ public sealed class ScoreCalculatorTests {
         Assert.That(handResult.HandType, Is.EqualTo(PokerHandType.Pair));
         Assert.That(result.BaseChips, Is.EqualTo(10));
         Assert.That(result.BaseMult, Is.EqualTo(2));
-        Assert.That(result.CardChips, Is.EqualTo(38));
-        Assert.That(result.TotalChips, Is.EqualTo(48));
-        Assert.That(result.FinalScore, Is.EqualTo(96));
+        Assert.That(result.CardChips, Is.EqualTo(22));
+        Assert.That(result.TotalChips, Is.EqualTo(32));
+        Assert.That(result.FinalScore, Is.EqualTo(64));
+    }
+
+    [Test]
+    public void Calculate_WhenPairOfTwos_IgnoresKickerCard() {
+        CardData[] cards = {
+            TestCardFactory.Create(Rank.Two, Suit.Spades),
+            TestCardFactory.Create(Rank.Two, Suit.Hearts),
+            TestCardFactory.Create(Rank.Five, Suit.Clubs)
+        };
+
+        PokerHandResult handResult = PokerHandEvaluator.Evaluate(cards);
+        ScoreResult result = ScoreCalculator.Calculate(cards, handResult);
+
+        Assert.That(handResult.HandType, Is.EqualTo(PokerHandType.Pair));
+        Assert.That(result.CardChips, Is.EqualTo(4));
+        Assert.That(result.TotalChips, Is.EqualTo(14));
+        Assert.That(result.FinalScore, Is.EqualTo(28));
+    }
+
+    [Test]
+    public void Calculate_WhenTwoPair_IgnoresKickerCard() {
+        CardData[] cards = {
+            TestCardFactory.Create(Rank.Ace, Suit.Spades),
+            TestCardFactory.Create(Rank.Ace, Suit.Hearts),
+            TestCardFactory.Create(Rank.Five, Suit.Clubs),
+            TestCardFactory.Create(Rank.Five, Suit.Diamonds),
+            TestCardFactory.Create(Rank.King, Suit.Spades)
+        };
+
+        PokerHandResult handResult = PokerHandEvaluator.Evaluate(cards);
+        ScoreResult result = ScoreCalculator.Calculate(cards, handResult);
+
+        Assert.That(handResult.HandType, Is.EqualTo(PokerHandType.TwoPair));
+        Assert.That(result.CardChips, Is.EqualTo(32));
+        Assert.That(result.TotalChips, Is.EqualTo(52));
+        Assert.That(result.FinalScore, Is.EqualTo(104));
+    }
+
+    [Test]
+    public void Calculate_WhenThreeOfAKind_IgnoresKickerCards() {
+        CardData[] cards = {
+            TestCardFactory.Create(Rank.Queen, Suit.Spades),
+            TestCardFactory.Create(Rank.Queen, Suit.Hearts),
+            TestCardFactory.Create(Rank.Queen, Suit.Clubs),
+            TestCardFactory.Create(Rank.Four, Suit.Diamonds),
+            TestCardFactory.Create(Rank.Nine, Suit.Spades)
+        };
+
+        PokerHandResult handResult = PokerHandEvaluator.Evaluate(cards);
+        ScoreResult result = ScoreCalculator.Calculate(cards, handResult);
+
+        Assert.That(handResult.HandType, Is.EqualTo(PokerHandType.ThreeOfAKind));
+        Assert.That(result.CardChips, Is.EqualTo(30));
+        Assert.That(result.TotalChips, Is.EqualTo(60));
+        Assert.That(result.FinalScore, Is.EqualTo(180));
+    }
+
+    [Test]
+    public void Calculate_WhenFourOfAKind_IgnoresKickerCard() {
+        CardData[] cards = {
+            TestCardFactory.Create(Rank.King, Suit.Spades),
+            TestCardFactory.Create(Rank.King, Suit.Hearts),
+            TestCardFactory.Create(Rank.King, Suit.Clubs),
+            TestCardFactory.Create(Rank.King, Suit.Diamonds),
+            TestCardFactory.Create(Rank.Two, Suit.Spades)
+        };
+
+        PokerHandResult handResult = PokerHandEvaluator.Evaluate(cards);
+        ScoreResult result = ScoreCalculator.Calculate(cards, handResult);
+
+        Assert.That(handResult.HandType, Is.EqualTo(PokerHandType.FourOfAKind));
+        Assert.That(result.CardChips, Is.EqualTo(40));
+        Assert.That(result.TotalChips, Is.EqualTo(100));
+        Assert.That(result.FinalScore, Is.EqualTo(700));
+    }
+
+    [Test]
+    public void Calculate_WhenFullHouse_UsesAllCards() {
+        CardData[] cards = {
+            TestCardFactory.Create(Rank.King, Suit.Spades),
+            TestCardFactory.Create(Rank.King, Suit.Hearts),
+            TestCardFactory.Create(Rank.King, Suit.Clubs),
+            TestCardFactory.Create(Rank.Five, Suit.Diamonds),
+            TestCardFactory.Create(Rank.Five, Suit.Spades)
+        };
+
+        PokerHandResult handResult = PokerHandEvaluator.Evaluate(cards);
+        ScoreResult result = ScoreCalculator.Calculate(cards, handResult);
+
+        Assert.That(handResult.HandType, Is.EqualTo(PokerHandType.FullHouse));
+        Assert.That(result.CardChips, Is.EqualTo(40));
+        Assert.That(result.TotalChips, Is.EqualTo(80));
+        Assert.That(result.FinalScore, Is.EqualTo(320));
+    }
+
+    [Test]
+    public void Calculate_WhenStraight_UsesAllCards() {
+        CardData[] cards = {
+            TestCardFactory.Create(Rank.Five, Suit.Spades),
+            TestCardFactory.Create(Rank.Six, Suit.Hearts),
+            TestCardFactory.Create(Rank.Seven, Suit.Clubs),
+            TestCardFactory.Create(Rank.Eight, Suit.Diamonds),
+            TestCardFactory.Create(Rank.Nine, Suit.Spades)
+        };
+
+        PokerHandResult handResult = PokerHandEvaluator.Evaluate(cards);
+        ScoreResult result = ScoreCalculator.Calculate(cards, handResult);
+
+        Assert.That(handResult.HandType, Is.EqualTo(PokerHandType.Straight));
+        Assert.That(result.CardChips, Is.EqualTo(35));
+        Assert.That(result.TotalChips, Is.EqualTo(65));
+        Assert.That(result.FinalScore, Is.EqualTo(260));
+    }
+
+    [Test]
+    public void Calculate_WhenFlush_UsesAllCards() {
+        CardData[] cards = {
+            TestCardFactory.Create(Rank.Two, Suit.Hearts),
+            TestCardFactory.Create(Rank.Five, Suit.Hearts),
+            TestCardFactory.Create(Rank.Eight, Suit.Hearts),
+            TestCardFactory.Create(Rank.Jack, Suit.Hearts),
+            TestCardFactory.Create(Rank.King, Suit.Hearts)
+        };
+
+        PokerHandResult handResult = PokerHandEvaluator.Evaluate(cards);
+        ScoreResult result = ScoreCalculator.Calculate(cards, handResult);
+
+        Assert.That(handResult.HandType, Is.EqualTo(PokerHandType.Flush));
+        Assert.That(result.CardChips, Is.EqualTo(35));
+        Assert.That(result.TotalChips, Is.EqualTo(70));
+        Assert.That(result.FinalScore, Is.EqualTo(280));
+    }
+
+    [Test]
+    public void Calculate_WhenStraightFlush_UsesAllCards() {
+        CardData[] cards = {
+            TestCardFactory.Create(Rank.Five, Suit.Clubs),
+            TestCardFactory.Create(Rank.Six, Suit.Clubs),
+            TestCardFactory.Create(Rank.Seven, Suit.Clubs),
+            TestCardFactory.Create(Rank.Eight, Suit.Clubs),
+            TestCardFactory.Create(Rank.Nine, Suit.Clubs)
+        };
+
+        PokerHandResult handResult = PokerHandEvaluator.Evaluate(cards);
+        ScoreResult result = ScoreCalculator.Calculate(cards, handResult);
+
+        Assert.That(handResult.HandType, Is.EqualTo(PokerHandType.StraightFlush));
+        Assert.That(result.CardChips, Is.EqualTo(35));
+        Assert.That(result.TotalChips, Is.EqualTo(135));
+        Assert.That(result.FinalScore, Is.EqualTo(1080));
     }
 }
