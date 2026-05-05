@@ -98,6 +98,25 @@ public sealed class RoundPresenterShopTests {
         Assert.That(viewModel.OwnedJokerCards[0].CanSell, Is.False);
     }
 
+    [Test]
+    public void Present_WhenInventoryIsFull_DisablesUnownedOffers() {
+        RunState state = CreateShopRunState(
+            money: 25,
+            ownedJokers: CreateOwnedJokers(
+                "ace-tag",
+                "pair-glove",
+                "club-chip",
+                "straight-polish",
+                "heart-tag")
+        );
+
+        RoundViewModel viewModel = new RoundPresenter().Present(state);
+
+        Assert.That(viewModel.ShopOffers[0].CanBuy, Is.False);
+        Assert.That(viewModel.ShopOffers[0].StatusText, Is.EqualTo("Inventory Full"));
+        StringAssert.Contains("Inventory: 5/5 jokers", viewModel.ShopSummaryText);
+    }
+
     private static RunState CreateShopRunState(int money, JokerState[] ownedJokers = null) {
         RoundState wonRound = new RoundState(
             blind: new BlindState(BlindType.Small, 1),
@@ -157,5 +176,15 @@ public sealed class RoundPresenterShopTests {
         }
 
         return false;
+    }
+
+    private static JokerState[] CreateOwnedJokers(params string[] jokerIds) {
+        var ownedJokers = new JokerState[jokerIds.Length];
+
+        for (int i = 0; i < jokerIds.Length; i++) {
+            ownedJokers[i] = new JokerState(JokerCatalog.GetById(jokerIds[i]));
+        }
+
+        return ownedJokers;
     }
 }

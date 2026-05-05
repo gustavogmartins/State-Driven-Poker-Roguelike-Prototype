@@ -1,18 +1,41 @@
 using System.Collections.Generic;
 
 namespace Core {
+    public readonly struct JokerModifierResult {
+        public ScoreResult ScoreResult { get; }
+        public int MoneyBonus { get; }
+        public string TriggeredText { get; }
+
+        public JokerModifierResult(ScoreResult scoreResult, int moneyBonus, string triggeredText) {
+            ScoreResult = scoreResult;
+            MoneyBonus = moneyBonus;
+            TriggeredText = triggeredText;
+        }
+    }
+
     public static class RunModifierService {
         public static ScoreResult ApplyScoreModifiers(
             ScoreResult baseScore,
             IReadOnlyList<JokerState> ownedJokers,
             IReadOnlyList<CardData> playedCards,
             PokerHandResult handResult) {
+            return ApplyModifiers(baseScore, ownedJokers, playedCards, handResult).ScoreResult;
+        }
+
+        public static JokerModifierResult ApplyModifiers(
+            ScoreResult baseScore,
+            IReadOnlyList<JokerState> ownedJokers,
+            IReadOnlyList<CardData> playedCards,
+            PokerHandResult handResult) {
             if (ownedJokers == null || ownedJokers.Count == 0) {
-                return baseScore;
+                return new JokerModifierResult(baseScore, 0, string.Empty);
             }
 
             int totalChips = baseScore.TotalChips;
             int totalMult = baseScore.BaseMult;
+            int multMultiplier = baseScore.MultMultiplier;
+            int moneyBonus = 0;
+            var triggeredEffects = new List<string>();
 
             for (int i = 0; i < ownedJokers.Count; i++) {
                 JokerState joker = ownedJokers[i];
@@ -20,23 +43,40 @@ namespace Core {
                     continue;
                 }
 
-                if (joker.BonusType == JokerBonusType.Chips) {
-                    totalChips += joker.BonusValue;
-                    continue;
-                }
-
-                if (joker.BonusType == JokerBonusType.Mult) {
-                    totalMult += joker.BonusValue;
+                switch (joker.BonusType) {
+                    case JokerBonusType.Chips:
+                        totalChips += joker.BonusValue;
+                        triggeredEffects.Add($"{joker.Name} +{joker.BonusValue} Chips");
+                        break;
+                    case JokerBonusType.Mult:
+                        totalMult += joker.BonusValue;
+                        triggeredEffects.Add($"{joker.Name} +{joker.BonusValue} Mult");
+                        break;
+                    case JokerBonusType.XMult:
+                        multMultiplier *= joker.BonusValue;
+                        triggeredEffects.Add($"{joker.Name} x{joker.BonusValue}");
+                        break;
+                    case JokerBonusType.Money:
+                        moneyBonus += joker.BonusValue;
+                        triggeredEffects.Add($"{joker.Name} +${joker.BonusValue}");
+                        break;
                 }
             }
 
-            return new ScoreResult(
+            ScoreResult modifiedScore = new ScoreResult(
                 baseChips: baseScore.BaseChips,
                 baseMult: totalMult,
                 cardChips: baseScore.CardChips,
                 totalChips: totalChips,
-                finalScore: totalChips * totalMult
+                finalScore: totalChips * totalMult * multMultiplier,
+                multMultiplier: multMultiplier
             );
+
+            string triggeredText = triggeredEffects.Count > 0
+                ? string.Join(", ", triggeredEffects)
+                : string.Empty;
+
+            return new JokerModifierResult(modifiedScore, moneyBonus, triggeredText);
         }
 
         private static bool MatchesCondition(
@@ -53,6 +93,9 @@ namespace Core {
                 JokerConditionType.HandTypeFlush => handResult.HandType == PokerHandType.Flush,
                 JokerConditionType.HandContainsFaceCard => HandContainsFaceCard(playedCards),
                 JokerConditionType.HandTypeTwoPair => handResult.HandType == PokerHandType.TwoPair,
+                JokerConditionType.HandContainsSpades => HandContainsSuit(playedCards, Suit.Spades),
+                JokerConditionType.HandTypeThreeOfAKind => handResult.HandType == PokerHandType.ThreeOfAKind,
+                JokerConditionType.HandTypeFullHouse => handResult.HandType == PokerHandType.FullHouse,
                 _ => false
             };
         }

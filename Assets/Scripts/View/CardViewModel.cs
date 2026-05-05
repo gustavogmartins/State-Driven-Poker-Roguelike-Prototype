@@ -7,6 +7,7 @@ public sealed class CardViewModel {
     public Color AccentColor;
     public bool IsSelected;
     public bool IsInteractable = true;
+    public bool IsDebuffed;
     public bool CanSell;
     public bool IsSellSelected;
     public string SellButtonText;

@@ -52,15 +52,18 @@ Actually implemented today:
 - structured offer selection, buy, reroll, sell, and continue actions
 - Common / Uncommon / Rare joker rarity labels
 - persistent owned jokers
-- additive Chips/Mult joker modifiers applied to preview and played score
+- additive Chips/Mult and xMult joker modifiers applied to preview and played score
+- money, extra hand, and extra discard joker effects
+- 5-slot joker inventory cap
+- triggered joker feedback in played-hand status text
+- card-level Club debuff feedback during The Club
 - structured shop overlay in `GameScene`
 - Edit Mode tests for core gameplay, run flow, shop flow, and modifier behavior
 
 Not implemented yet:
 
 - full action/store/reducer layer
-- xMult, economy, extra hand, or extra discard joker effects
-- boss debuff feedback polish
+- boss debuff animation/audio polish
 - final slot-based hand/play-area layout
 - final portfolio media and release polish
 
@@ -68,8 +71,8 @@ Conclusion:
 
 - Milestone 1 and Milestone 2 are complete in code.
 - Milestone 3 is complete for the current v1 target and now includes structured offers, buy, sell, progressive reroll, random generation, and rarity labels.
-- Milestone 4 has a v1 implementation through additive jokers.
-- The next best feature slice is joker pool/balance expansion or boss feedback polish, not a store/reducer refactor.
+- Milestone 4 is complete for the current code target with additive, xMult, economy, and extra-resource jokers.
+- The next best feature slice is balance/playtest polish or portfolio polish, not a store/reducer refactor.
 
 ## Current Codebase Stage
 
@@ -80,14 +83,13 @@ The project has reached:
 - a custom HUD and card presentation integrated into `GameScene`
 - a structured shop overlay with clickable offers, buy/reroll/sell/continue actions
 - deterministic random shop generation with rarity weights
-- persistent owned jokers that affect scoring
-- 61 Edit Mode test methods covering the main domain behavior
+- persistent owned jokers that affect scoring, money, hands, and discards
+- 75 Edit Mode test methods covering the main domain behavior
 
 The project has not yet reached:
 
-- deep rarity balancing or a large joker pool
-- boss-specific feedback polish
-- non-additive modifier effects
+- deep rarity/cost/power balance after playtesting
+- boss-specific animation/audio polish
 - full manual Unity Test Runner verification after the newest tests
 - production-ready content pipeline
 
@@ -160,12 +162,13 @@ UI state today:
 - sort buttons are registered in code at runtime
 - round-end overlay primary action sends won blinds to shop
 - shop overlay exists in `GameScene`
-- shop overlay shows 3 structured offer slots, rarity labels, selected/bought/affordable states, money, next blind, buy, reroll, and continue copy
+- shop overlay shows 3 structured offer slots, rarity labels, selected/bought/affordable/full-inventory states, money, next blind, buy, reroll, and continue copy
 - `Offer.prefab` is instantiated into the fixed `ShopOverlay/Panel/OfferSlots` container
 - `OfferView` owns the clickable offer slot, `Toggle`, accent, status text, and child `BuyJokerButton`
 - shop buttons are resolved and registered in `RoundScreen`
 - owned jokers are rendered as card-like views under `UpperGlass`
 - during shop phase, clicking an owned joker selects it and reveals its `Sell` button
+- Club cards are visually muted during The Club boss blind
 - bottom hand container uses `HorizontalLayoutGroup`
 - middle played-cards container uses `HorizontalLayoutGroup`
 - `CardViewPrefab` is reused for hand cards, played cards, and owned joker cards
@@ -231,6 +234,7 @@ Implemented:
 - base hand score table
 - scoring card selection
 - final score from `Chips x Mult`
+- xMult applies after additive Chips and additive Mult
 - round score accumulation
 - preview score while cards are selected
 - owned joker modifier application in preview and final scoring
@@ -239,7 +243,6 @@ Current scoring simplification:
 
 - for `High Card`, only the highest card scores
 - for all other hand types, the current implementation scores all played cards
-- jokers currently add flat Chips or flat Mult only
 
 Main files:
 
@@ -255,7 +258,7 @@ Main files:
 Implemented:
 
 - `JokerData` model
-- `JokerCatalog` with 9 jokers
+- `JokerCatalog` with 18 jokers
 - `JokerRarity` with Common / Uncommon / Rare
 - deterministic random shop generation by run seed and offer page index
 - weighted rarity selection with v1 weights: Common 70, Uncommon 25, Rare 5
@@ -265,23 +268,25 @@ Implemented:
 - rarity labels and colors in shop offers
 - clickable offer selection with a `ToggleGroup`
 - buy through the selected offer slot's `BuyJokerButton`
-- prevent buying unaffordable or already bought offers
+- prevent buying unaffordable, already bought, or full-inventory offers
 - exclude owned jokers from offers while enough unowned jokers remain
 - mark fallback owned offers as purchased when the pool is exhausted
 - shop refreshes to a new random offer set every time the run enters a shop
 - reroll refreshes offers, starts at `$5`, and increases after each refresh in the current shop
 - sell owned jokers during shop for half cost rounded down, minimum `$1`
+- cap owned jokers at 5 slots
 - sold jokers are removed from owned modifiers immediately
 - sold visible offers become buyable again
 - persistent owned jokers through `RunState.OwnedJokers`
 - owned joker rendering in the upper playfield area
-- additive Chips/Mult modifiers
-- conditions for Always, Ace, Pair, Clubs, Straight, Hearts, Flush, face cards, and Two Pair
+- additive Chips/Mult and xMult modifiers
+- money, extra hand, and extra discard effects
+- conditions for Always, Ace, Pair, Clubs, Spades, Straight, Hearts, Flush, face cards, Two Pair, Three of a Kind, and Full House
 
 Still missing:
 
-- deeper rarity balancing and a larger joker pool
-- xMult, economy, extra hand, and extra discard effects
+- deeper rarity/cost/power balance after playtesting
+- richer inventory and sell presentation polish
 
 ### Round and run flow
 
@@ -303,9 +308,9 @@ Implemented:
 - blind reward and money carry-over between blinds
 - run loss state when the player loses a blind
 
-Partially implemented:
+Implemented with polish still possible:
 
-- The Club boss identity and Clubs debuff exist; card-level debuff feedback still needs polish.
+- The Club boss identity, Clubs debuff, and card-level debuff feedback exist; animation/audio polish can still improve it later.
 
 ## Milestone Mapping
 
@@ -358,7 +363,6 @@ Completed:
 
 Still missing for polish:
 
-- boss-specific visual feedback polish
 - manual play-mode pass through multiple antes
 
 ### Milestone 3 - Shop
@@ -396,14 +400,14 @@ Completed:
 
 Still missing:
 
-- deeper balancing and more jokers per rarity
+- deeper balancing after manual playtesting
 - final visual polish
 
 ### Milestone 4 - Modifiers/Jokers
 
 Status:
 
-- v1 implemented
+- Complete in code for the current Milestone 4 target
 
 Completed:
 
@@ -419,17 +423,21 @@ Completed:
 - basic condition matching
 - preview score modifier application
 - final play score modifier application
+- xMult score modifier application
+- money joker effects
+- extra hand/discard joker effects on future blinds
+- triggered joker feedback in status text
+- 5-slot joker inventory cap
+- card-level Club debuff feedback during The Club
+- 18-joker rarity pool
 - owned joker rendering
 - sold joker removal from future preview/final score
 - Edit Mode coverage for modifier behavior
 
-Still missing:
+Still missing for later polish:
 
-- xMult
-- economy effects
-- extra hand/discard effects
-- triggered effect feedback in UI
-- deeper balancing and larger rarity pool
+- deeper balance tuning after manual playtesting
+- richer inventory/sell visual presentation
 
 ### Milestone 5 - Portfolio polish
 
@@ -493,6 +501,7 @@ Current shop constraints:
 - rarity weights are v1 values: Common 70, Uncommon 25, Rare 5
 - reroll cost starts at `$5` and increases by `$1` after each refresh in the current shop
 - bought offers cannot be bought again
+- inventory is capped at 5 owned jokers; full inventory blocks new purchases until a joker is sold
 - sold jokers are removed from `OwnedJokers`; if the sold joker is visible in the current shop, its offer becomes buyable again
 
 ### Button wiring
@@ -522,9 +531,8 @@ This is intentionally a temporary base before a future slot-based layout system.
 - Manual Unity Test Runner verification is still needed.
 - Current architecture is state-driven but not full reducer/store based.
 - Card layout is still an intermediate UI solution.
-- The Club debuffs Clubs in scoring, but visual card-level feedback is not implemented yet.
-- Random shop generation and basic rarity exist; balancing is still shallow because the current catalog has only 9 jokers.
-- xMult/economy/extra hand/extra discard effects are not implemented.
+- The Club debuffs Clubs in scoring and shows card-level feedback; animation/audio polish is still open.
+- Random shop generation, rarity, and the 18-joker pool exist; balance still needs manual playtesting.
 - Worktree contained local changes when this spec was updated, including UI/prefab work, `JokerData.cs` under `Data`, TextMesh Pro fallback asset changes, and removal of the Unity AI Assistant package. Do not revert unrelated changes without explicit confirmation.
 
 ## Recommended Next Steps
@@ -532,12 +540,10 @@ This is intentionally a temporary base before a future slot-based layout system.
 Recommended order from here:
 
 1. Run the Edit Mode suite manually in Unity Test Runner and do a short playthrough through multiple shops.
-2. Expand joker content per rarity and tune rarity/cost/power balance.
-3. Add inventory slot limits and clearer shop economy rules.
-4. Keep additive Chips/Mult for now; defer xMult and economy effects.
-5. Polish Boss Blind v1 feedback for `The Club`.
-6. Add portfolio polish: screenshots, gameplay GIF, architecture diagram, changelog, release tags.
-7. Consider full action/store/reducer refactor only after the playable loop is stronger.
+2. Tune rarity weights, costs, and power after playtesting the 18-joker pool.
+3. Polish Boss Blind animation/audio feedback for `The Club`.
+4. Add portfolio polish: screenshots, gameplay GIF, architecture diagram, changelog, release tags.
+5. Consider full action/store/reducer refactor only after the playable loop is stronger.
 
 ## Manual Test Checklist
 
@@ -554,6 +560,11 @@ Run in `Assets/Scenes/GameScene.unity`:
 - If the sold joker is visible in the current shop offers, confirm it becomes buyable again.
 - Try to buy without enough money, confirm buy action is blocked.
 - Try to buy an already bought offer, confirm no duplicate joker is added.
+- Fill all 5 joker slots, confirm new purchases show blocked/full inventory state, then sell one joker and confirm buying works again.
+- Buy or force an xMult joker, confirm preview and final score show/apply the xMult multiplier.
+- Buy or force a money joker, confirm money increases once when its hand condition matches.
+- Buy or force `Spare Hand` / `Discard Pass`, confirm the next blind starts with the extra hand/discard.
+- During The Club, confirm Club cards are visually debuffed and do not add card chips.
 - Continue through The Club to next ante, confirm next shop still preserves owned jokers.
 
 ## Resume Checklist For Another Machine
@@ -587,6 +598,6 @@ Future work should assume:
 - the active UI loop is `RoundScreen -> RoundPresenter -> RoundViewModel`
 - Milestone 1 and Milestone 2 are complete in code
 - Milestone 3 has v1 shop transaction, structured offer UI, sell flow, progressive reroll, random shop generation, and rarity labels
-- Milestone 4 has additive joker v1 functionality but needs richer effects later
+- Milestone 4 is complete in code for additive, xMult, economy, extra-resource, feedback, inventory cap, and 18-joker pool behavior
 - docs in `Docs/` are current only after checking this continuity spec
-- the next implementation slice should be joker pool/balance expansion or boss feedback polish, not store/reducer refactor
+- the next implementation slice should be balance/playtest polish or portfolio polish, not store/reducer refactor

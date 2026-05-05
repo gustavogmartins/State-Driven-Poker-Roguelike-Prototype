@@ -1,4 +1,8 @@
 public enum JokerBonusType {
     Chips,
-    Mult
+    Mult,
+    XMult,
+    Money,
+    ExtraHand,
+    ExtraDiscard
 }

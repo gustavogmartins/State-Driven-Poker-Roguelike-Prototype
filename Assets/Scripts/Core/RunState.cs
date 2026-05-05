@@ -3,6 +3,11 @@ using System.Collections.Generic;
 
 namespace Core {
     public sealed class RunState {
+        private const int BaseHandsPerBlind = 4;
+        private const int BaseDiscardsPerBlind = 3;
+
+        public const int MaxOwnedJokers = 5;
+
         public RoundState CurrentRound { get; }
         public ShopState CurrentShop { get; }
         public IReadOnlyList<JokerState> OwnedJokers { get; }
@@ -17,6 +22,7 @@ namespace Core {
         public bool CanEnterShop => Phase == RunPhase.Blind && CurrentRound.HasWonRound;
         public bool IsInShop => Phase == RunPhase.Shop;
         public bool CanRerollShop => IsInShop && CurrentShop?.CanReroll(Money) == true;
+        public bool HasFullJokerInventory => OwnedJokers.Count >= MaxOwnedJokers;
 
         public RunState(
             RoundState currentRound,
@@ -73,9 +79,9 @@ namespace Core {
             IReadOnlyList<CardData> selectedCards = CurrentRound.GetSelectedCards();
             PokerHandResult handResult = PokerHandEvaluator.Evaluate(selectedCards);
             ScoreResult baseScore = ScoreCalculator.Calculate(selectedCards, handResult, CurrentRound.Blind);
-            ScoreResult modifiedScore = RunModifierService.ApplyScoreModifiers(baseScore, OwnedJokers, selectedCards, handResult);
-            RoundState nextRound = CurrentRound.PlaySelectedCards(modifiedScore);
-            int nextMoney = Money;
+            JokerModifierResult modifierResult = RunModifierService.ApplyModifiers(baseScore, OwnedJokers, selectedCards, handResult);
+            RoundState nextRound = CurrentRound.PlaySelectedCards(modifierResult.ScoreResult, modifierResult.TriggeredText);
+            int nextMoney = Money + modifierResult.MoneyBonus;
             RunPhase nextPhase = nextRound.HasLostRound ? RunPhase.RunEnd : Phase;
 
             if (!CurrentRound.HasWonRound && nextRound.HasWonRound) {
@@ -103,9 +109,8 @@ namespace Core {
             }
 
             BlindState nextBlind = CurrentBlind.Advance();
-            RoundState nextRound = RoundState.CreateInitial(
+            RoundState nextRound = CreateRoundForBlind(
                 blind: nextBlind,
-                maxHandSize: CurrentRound.MaxHandSize,
                 initialHandCards: initialHandCards
             );
 
@@ -133,9 +138,8 @@ namespace Core {
                 return this;
             }
 
-            RoundState nextRound = RoundState.CreateInitial(
+            RoundState nextRound = CreateRoundForBlind(
                 blind: CurrentShop.NextBlind,
-                maxHandSize: CurrentRound.MaxHandSize,
                 initialHandCards: initialHandCards
             );
 
@@ -148,7 +152,7 @@ namespace Core {
             }
 
             ShopOfferState selectedOffer = CurrentShop.SelectedOffer;
-            if (selectedOffer == null || !selectedOffer.CanBuy(Money)) {
+            if (selectedOffer == null || HasFullJokerInventory || !selectedOffer.CanBuy(Money)) {
                 return this;
             }
 
@@ -252,6 +256,29 @@ namespace Core {
             }
 
             return false;
+        }
+
+        private RoundState CreateRoundForBlind(BlindState blind, IReadOnlyList<CardData> initialHandCards = null) {
+            return RoundState.CreateInitial(
+                blind: blind,
+                handsLeft: BaseHandsPerBlind + GetPassiveBonus(JokerBonusType.ExtraHand),
+                discardsLeft: BaseDiscardsPerBlind + GetPassiveBonus(JokerBonusType.ExtraDiscard),
+                maxHandSize: CurrentRound.MaxHandSize,
+                initialHandCards: initialHandCards
+            );
+        }
+
+        private int GetPassiveBonus(JokerBonusType bonusType) {
+            int total = 0;
+
+            for (int i = 0; i < OwnedJokers.Count; i++) {
+                JokerState joker = OwnedJokers[i];
+                if (joker.BonusType == bonusType && joker.ConditionType == JokerConditionType.Always) {
+                    total += joker.BonusValue;
+                }
+            }
+
+            return total;
         }
     }
 }
