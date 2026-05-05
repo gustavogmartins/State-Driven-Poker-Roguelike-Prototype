@@ -746,8 +746,8 @@ public sealed class RunStateTests {
 
         RunState nextState = state.PlaySelectedCards();
 
-        Assert.That(nextState.CurrentRound.LastScoreResult.TotalChips, Is.EqualTo(48));
-        Assert.That(nextState.CurrentRound.LastScoreResult.FinalScore, Is.EqualTo(96));
+        Assert.That(nextState.CurrentRound.LastScoreResult.TotalChips, Is.EqualTo(32));
+        Assert.That(nextState.CurrentRound.LastScoreResult.FinalScore, Is.EqualTo(64));
     }
 
     [Test]
@@ -779,8 +779,8 @@ public sealed class RunStateTests {
 
         RunState nextState = state.PlaySelectedCards();
 
-        Assert.That(nextState.CurrentRound.LastScoreResult.TotalChips, Is.EqualTo(58));
-        Assert.That(nextState.CurrentRound.LastScoreResult.FinalScore, Is.EqualTo(116));
+        Assert.That(nextState.CurrentRound.LastScoreResult.TotalChips, Is.EqualTo(42));
+        Assert.That(nextState.CurrentRound.LastScoreResult.FinalScore, Is.EqualTo(84));
     }
 
     [Test]
