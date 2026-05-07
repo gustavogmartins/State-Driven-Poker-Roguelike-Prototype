@@ -48,6 +48,8 @@ public class RoundScreen : MonoBehaviour {
     [SerializeField] private RectTransform handArea;
     [SerializeField] private RectTransform playedHandArea;
     [SerializeField] private CardView cardViewPrefab;
+    [SerializeField] private int handSlotCount = 8;
+    [SerializeField] private int playedCardSlotCount = 5;
 
     [Header("Round End Overlay")]
     [SerializeField] private GameObject roundEndOverlay;
@@ -79,11 +81,15 @@ public class RoundScreen : MonoBehaviour {
     private RoundPresenter _roundPresenter;
     private RunState _runState;
     private int _selectedOwnedJokerIndex = -1;
+    private readonly List<RectTransform> _handSlots = new();
+    private readonly List<RectTransform> _playedCardSlots = new();
+    private readonly Dictionary<CardData, CardView> _handCardViewsByCard = new();
 
     private void Awake() {
         ResolveRoundEndOverlayReferences();
         ResolveShopOverlayReferences();
         ResolveMainAreaReferences();
+        EnsureCardSlots();
         RegisterButtonListeners();
     }
 
@@ -148,7 +154,7 @@ public class RoundScreen : MonoBehaviour {
         selectedCountText.text = viewModel.SelectedCountText;
         handSizeText.text = viewModel.HandSizeText;
         deckCountText.text = viewModel.DeckCountText;
-        topDiscardText.text = viewModel.TopDiscardText;
+        //topDiscardText.text = viewModel.TopDiscardText;
 
         playHandButton.interactable = viewModel.CanPlayHand;
         discardButton.interactable = viewModel.CanDiscard;
@@ -181,23 +187,36 @@ public class RoundScreen : MonoBehaviour {
     }
 
     private void RenderHand(IReadOnlyList<CardViewModel> handCards) {
-        ClearCardArea(handArea);
+        EnsureCardSlots();
+        var activeCards = new HashSet<CardData>();
 
         if (handCards.Count == 0) {
+            ClearInactiveHandCards(activeCards);
             return;
         }
 
         for (int i = 0; i < handCards.Count; i++) {
-            var cardView = Instantiate(cardViewPrefab, handArea);
+            CardData cardData = _runState.CurrentRound.HandCards[i];
+            activeCards.Add(cardData);
+
+            if (!_handCardViewsByCard.TryGetValue(cardData, out CardView cardView) || cardView == null) {
+                cardView = Instantiate(cardViewPrefab, _handSlots[i]);
+                _handCardViewsByCard[cardData] = cardView;
+            }
+
+            ParentCardToSlot(cardView, _handSlots[i]);
             cardView.Bind(handCards[i]);
+            cardView.OnCardSelected -= OnCardSelected;
             cardView.OnCardSelected += OnCardSelected;
         }
 
+        ClearInactiveHandCards(activeCards);
         LayoutRebuilder.ForceRebuildLayoutImmediate(handArea);
     }
 
     private void RenderPlayedCards(IReadOnlyList<CardViewModel> playedCards) {
-        ClearCardArea(playedHandArea);
+        EnsureCardSlots();
+        ClearCardsInSlots(_playedCardSlots);
         playedHandArea.gameObject.SetActive(playedCards.Count > 0);
 
         if (playedCards.Count == 0) {
@@ -205,7 +224,9 @@ public class RoundScreen : MonoBehaviour {
         }
 
         for (int i = 0; i < playedCards.Count; i++) {
-            var cardView = Instantiate(cardViewPrefab, playedHandArea);
+            CardView cardView = Instantiate(cardViewPrefab, _playedCardSlots[i]);
+            ParentCardToSlot(cardView, _playedCardSlots[i]);
+            cardView.OnCardSelected -= OnCardSelected;
             cardView.Bind(playedCards[i]);
         }
 
@@ -449,6 +470,108 @@ public class RoundScreen : MonoBehaviour {
         if (upperGlassObject != null) {
             upperGlassArea = upperGlassObject.GetComponent<RectTransform>();
         }
+    }
+
+    private void EnsureCardSlots() {
+        int resolvedHandSlotCount = Mathf.Max(handSlotCount, _runState?.CurrentRound.MaxHandSize ?? handSlotCount);
+        EnsureSlots(handArea, _handSlots, resolvedHandSlotCount, "HandSlot");
+        EnsureSlots(playedHandArea, _playedCardSlots, playedCardSlotCount, "PlayedCardSlot");
+    }
+
+    private void EnsureSlots(RectTransform area, List<RectTransform> slots, int slotCount, string slotNamePrefix) {
+        if (area == null || cardViewPrefab == null) {
+            return;
+        }
+
+        for (int i = slots.Count - 1; i >= 0; i--) {
+            if (slots[i] == null || slots[i].parent != area) {
+                slots.RemoveAt(i);
+            }
+        }
+
+        RectTransform prefabTransform = cardViewPrefab.transform as RectTransform;
+        Vector2 slotSize = prefabTransform != null ? prefabTransform.sizeDelta : new Vector2(165f, 230f);
+
+        while (slots.Count < slotCount) {
+            var slotObject = new GameObject($"{slotNamePrefix}{slots.Count + 1}", typeof(RectTransform), typeof(LayoutElement));
+            RectTransform slot = (RectTransform)slotObject.transform;
+            slot.SetParent(area, false);
+            slot.anchorMin = new Vector2(0.5f, 0.5f);
+            slot.anchorMax = new Vector2(0.5f, 0.5f);
+            slot.pivot = new Vector2(0.5f, 0.5f);
+            slot.sizeDelta = slotSize;
+
+            LayoutElement layoutElement = slotObject.GetComponent<LayoutElement>();
+            layoutElement.minWidth = slotSize.x;
+            layoutElement.minHeight = slotSize.y;
+            layoutElement.preferredWidth = slotSize.x;
+            layoutElement.preferredHeight = slotSize.y;
+            layoutElement.flexibleWidth = 0f;
+            layoutElement.flexibleHeight = 0f;
+
+            slots.Add(slot);
+        }
+
+        for (int i = 0; i < slots.Count; i++) {
+            slots[i].gameObject.SetActive(i < slotCount);
+            slots[i].SetSiblingIndex(i);
+        }
+    }
+
+    private void ParentCardToSlot(CardView cardView, RectTransform slot) {
+        if (cardView == null || slot == null) {
+            return;
+        }
+
+        RectTransform cardTransform = cardView.transform as RectTransform;
+        cardTransform.SetParent(slot, false);
+        cardTransform.anchorMin = new Vector2(0.5f, 0.5f);
+        cardTransform.anchorMax = new Vector2(0.5f, 0.5f);
+        cardTransform.pivot = new Vector2(0.5f, 0.5f);
+        cardTransform.anchoredPosition = Vector2.zero;
+        cardTransform.localRotation = Quaternion.identity;
+        cardTransform.localScale = Vector3.one;
+
+        if (cardViewPrefab.transform is RectTransform prefabTransform) {
+            cardTransform.sizeDelta = prefabTransform.sizeDelta;
+        }
+    }
+
+    private void ClearInactiveHandCards(HashSet<CardData> activeCards) {
+        var staleCards = new List<CardData>();
+
+        foreach (var pair in _handCardViewsByCard) {
+            if (!activeCards.Contains(pair.Key)) {
+                if (pair.Value != null) {
+                    Destroy(pair.Value.gameObject);
+                }
+
+                staleCards.Add(pair.Key);
+            }
+        }
+
+        for (int i = 0; i < staleCards.Count; i++) {
+            _handCardViewsByCard.Remove(staleCards[i]);
+        }
+    }
+
+    private static void ClearCardsInSlots(IReadOnlyList<RectTransform> slots) {
+        for (int i = 0; i < slots.Count; i++) {
+            RectTransform slot = slots[i];
+            if (slot == null) {
+                continue;
+            }
+
+            ClearCardArea(slot);
+        }
+    }
+
+    private static CardView GetCardInSlot(RectTransform slot) {
+        if (slot == null || slot.childCount == 0) {
+            return null;
+        }
+
+        return slot.GetChild(0).GetComponent<CardView>();
     }
 
     private void RegisterButtonListeners() {
