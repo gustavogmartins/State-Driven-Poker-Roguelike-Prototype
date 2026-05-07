@@ -46,7 +46,7 @@ public sealed class RoundPresenterBossTests {
         );
 
         for (int i = 0; i < 5; i++) {
-            state = state.ToggleCardSelection(i);
+            state = RunReducer.Reduce(state, new ToggleCardSelectionAction(i));
         }
 
         RoundViewModel viewModel = new RoundPresenter().Present(state);

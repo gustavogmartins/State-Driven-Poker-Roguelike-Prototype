@@ -79,8 +79,7 @@ public class RoundScreen : MonoBehaviour {
     [SerializeField] private DebugHandScenario debugHandScenario = DebugHandScenario.None;
 
     private RoundPresenter _roundPresenter;
-    private RunState _runState;
-    private int _selectedOwnedJokerIndex = -1;
+    private GameStore _store;
     private readonly List<RectTransform> _handSlots = new();
     private readonly List<RectTransform> _playedCardSlots = new();
     private readonly Dictionary<CardData, CardView> _handCardViewsByCard = new();
@@ -95,12 +94,17 @@ public class RoundScreen : MonoBehaviour {
 
     private void Start() {
         _roundPresenter = new RoundPresenter();
-        _runState = CreateInitialState();
+        _store = new GameStore(CreateInitialState());
+        _store.StateChanged += Render;
 
-        Render(_runState);
+        Render(_store.State);
     }
 
     private void OnDestroy() {
+        if (_store != null) {
+            _store.StateChanged -= Render;
+        }
+
         UnregisterButtonListeners();
     }
 
@@ -111,28 +115,22 @@ public class RoundScreen : MonoBehaviour {
     }
 
     public void OnPlayHandButtonClicked() {
-        _runState = _runState.PlaySelectedCards();
-        Render(_runState);
+        _store?.Dispatch(new PlaySelectedCardsAction());
     }
 
     public void OnDiscardButtonClicked() {
-        _runState = _runState.DiscardCards();
-        Render(_runState);
+        _store?.Dispatch(new DiscardSelectedCardsAction());
     }
 
     public void OnSortByRankButtonClicked() {
-        _runState = _runState.SortHandByRank();
-        Render(_runState);
+        _store?.Dispatch(new SortHandByRankAction());
     }
 
     public void OnSortBySuitButtonClicked() {
-        _runState = _runState.SortHandBySuit();
-        Render(_runState);
+        _store?.Dispatch(new SortHandBySuitAction());
     }
 
     private void Render(RunState runState) {
-        NormalizeSelectedOwnedJoker(runState);
-
         var viewModel = _roundPresenter.Present(runState);
 
         blindTitleText.text = viewModel.BlindTitleText;
@@ -176,7 +174,6 @@ public class RoundScreen : MonoBehaviour {
         ClearCardArea(upperGlassArea);
 
         for (int i = 0; i < ownedJokers.Count; i++) {
-            ownedJokers[i].IsSellSelected = i == _selectedOwnedJokerIndex;
             var cardView = Instantiate(cardViewPrefab, upperGlassArea);
             cardView.Bind(ownedJokers[i]);
             cardView.OnCardSelected += HandleOwnedJokerSelected;
@@ -196,7 +193,7 @@ public class RoundScreen : MonoBehaviour {
         }
 
         for (int i = 0; i < handCards.Count; i++) {
-            CardData cardData = _runState.CurrentRound.HandCards[i];
+            CardData cardData = _store.State.CurrentRound.HandCards[i];
             activeCards.Add(cardData);
 
             if (!_handCardViewsByCard.TryGetValue(cardData, out CardView cardView) || cardView == null) {
@@ -234,75 +231,59 @@ public class RoundScreen : MonoBehaviour {
     }
 
     private void OnCardSelected(int index) {
-        _runState = _runState.ToggleCardSelection(index);
-        Render(_runState);
+        _store?.Dispatch(new ToggleCardSelectionAction(index));
     }
 
     private void HandlePrimaryRoundEndAction() {
-        _selectedOwnedJokerIndex = -1;
-        _runState = _runState != null && _runState.CanEnterShop
-            ? _runState.EnterShop()
-            : CreateInitialState();
-
-        Render(_runState);
+        _store?.Dispatch(new ContinueRoundEndAction(GetDebugHand()));
     }
 
     private void HandleShopContinueAction() {
-        if (_runState == null) {
+        if (_store == null) {
             return;
         }
 
-        _selectedOwnedJokerIndex = -1;
-        _runState = _runState.LeaveShop(initialHandCards: GetDebugHand());
-        Render(_runState);
+        _store.Dispatch(new ContinueShopAction(GetDebugHand()));
     }
 
     private void HandleShopOfferSelected(int index) {
-        if (_runState == null) {
+        if (_store == null) {
             return;
         }
 
-        _runState = _runState.SelectShopOffer(index);
-        Render(_runState);
+        _store.Dispatch(new SelectShopOfferAction(index));
     }
 
     private void HandleShopOfferBuy(int index) {
-        if (_runState == null) {
+        if (_store == null) {
             return;
         }
 
-        _selectedOwnedJokerIndex = -1;
-        _runState = _runState.BuyShopOffer(index);
-        Render(_runState);
+        _store.Dispatch(new BuyShopOfferAction(index));
     }
 
     private void HandleShopRerollAction() {
-        if (_runState == null) {
+        if (_store == null) {
             return;
         }
 
-        _selectedOwnedJokerIndex = -1;
-        _runState = _runState.RerollShop();
-        Render(_runState);
+        _store.Dispatch(new RerollShopAction());
     }
 
     private void HandleOwnedJokerSelected(int index) {
-        if (_runState == null || !_runState.CanSellOwnedJoker(index)) {
+        if (_store == null || !_store.State.CanSellOwnedJoker(index)) {
             return;
         }
 
-        _selectedOwnedJokerIndex = index;
-        Render(_runState);
+        _store.Dispatch(new SelectOwnedJokerAction(index));
     }
 
     private void HandleOwnedJokerSell(int index) {
-        if (_runState == null) {
+        if (_store == null) {
             return;
         }
 
-        _runState = _runState.SellOwnedJoker(index);
-        _selectedOwnedJokerIndex = -1;
-        Render(_runState);
+        _store.Dispatch(new SellOwnedJokerAction(index));
     }
 
     private void ExitRun() {
@@ -473,7 +454,7 @@ public class RoundScreen : MonoBehaviour {
     }
 
     private void EnsureCardSlots() {
-        int resolvedHandSlotCount = Mathf.Max(handSlotCount, _runState?.CurrentRound.MaxHandSize ?? handSlotCount);
+        int resolvedHandSlotCount = Mathf.Max(handSlotCount, _store?.State.CurrentRound.MaxHandSize ?? handSlotCount);
         EnsureSlots(handArea, _handSlots, resolvedHandSlotCount, "HandSlot");
         EnsureSlots(playedHandArea, _playedCardSlots, playedCardSlotCount, "PlayedCardSlot");
     }
@@ -648,12 +629,6 @@ public class RoundScreen : MonoBehaviour {
         return useDebugHandScenario && debugHandScenario != DebugHandScenario.None
             ? DebugHandFactory.Create(debugHandScenario)
             : null;
-    }
-
-    private void NormalizeSelectedOwnedJoker(RunState runState) {
-        if (runState == null || !runState.IsInShop || _selectedOwnedJokerIndex >= runState.OwnedJokers.Count) {
-            _selectedOwnedJokerIndex = -1;
-        }
     }
 
     private static void ClearCardArea(RectTransform cardArea) {

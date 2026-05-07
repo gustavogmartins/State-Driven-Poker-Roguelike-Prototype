@@ -80,7 +80,7 @@ namespace Presenters {
                     card,
                     index: i,
                     isSelected: roundState.IsSelected(i),
-                    isInteractable: roundState.Phase != RoundPhase.RoundEnd,
+                    isInteractable: !runState.IsInShop && roundState.Phase != RoundPhase.RoundEnd,
                     blind: roundState.Blind
                 ));
             }
@@ -100,7 +100,8 @@ namespace Presenters {
                     runState.OwnedJokers[i],
                     index: i,
                     canSell: runState.CanSellOwnedJoker(i),
-                    sellValue: runState.GetOwnedJokerSellValue(i)
+                    sellValue: runState.GetOwnedJokerSellValue(i),
+                    isSellSelected: runState.CurrentShop?.SelectedOwnedJokerIndex == i
                 ));
             }
 
@@ -130,7 +131,8 @@ namespace Presenters {
             JokerState joker,
             int index,
             bool canSell,
-            int sellValue) {
+            int sellValue,
+            bool isSellSelected) {
             return new CardViewModel {
                 Index = index,
                 RankText = joker.ShortCode,
@@ -139,6 +141,7 @@ namespace Presenters {
                 IsSelected = false,
                 IsInteractable = canSell,
                 CanSell = canSell,
+                IsSellSelected = isSellSelected,
                 SellButtonText = sellValue > 0 ? $"Sell ${sellValue}" : "Sell"
             };
         }

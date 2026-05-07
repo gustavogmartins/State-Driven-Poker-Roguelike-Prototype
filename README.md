@@ -17,7 +17,7 @@ This is not a commercial clone. It is an original portfolio study inspired by po
 
 ## Current Status
 
-Status as of 2026-05-04: active development, playable ante flow, randomized shop, and Milestone 4 joker modifiers implemented.
+Status as of 2026-05-07: active development, playable ante flow, randomized shop, Milestone 4 joker modifiers, and formal action/store/reducer flow implemented.
 
 Current playable slice:
 
@@ -44,7 +44,7 @@ Still missing:
 - deeper shop balancing beyond the initial 18-joker pool
 - boss debuff animation/audio polish
 - slot-based hand/play-area layout
-- final screenshots, gameplay GIF, architecture diagram, changelog, and release/tag polish
+- final screenshots, gameplay GIF, changelog, and release/tag polish
 - manual Unity Test Runner verification with the project closed in other Unity instances
 
 ## Core Gameplay Concept
@@ -72,17 +72,24 @@ The project follows a state-driven architecture:
 ```text
 Player Input
 -> RoundScreen
--> RunState
--> RoundState / ShopState
+-> GameStore.Dispatch(GameAction)
+-> RunReducer
+-> RoundReducer / ShopReducer
+-> RunState snapshot
 -> RoundPresenter
 -> RoundViewModel
 -> UI Refresh
 ```
 
-The current implementation is intentionally simpler than a full action/store/reducer architecture. Domain state owns gameplay decisions, while `RoundScreen` acts as the scene bridge and `RoundPresenter` converts domain state into UI text, button states, and card view models.
+Actions are the only gameplay command API. `RunState`, `RoundState`, and `ShopState` are immutable snapshots with constructors, factories, derived properties, and queries. Reducers own state transitions, while `RoundScreen` acts as the Unity scene bridge and `RoundPresenter` converts state into UI text, button states, and card view models.
 
 Important current files:
 
+- `Assets/Scripts/Core/GameAction.cs`
+- `Assets/Scripts/Core/GameStore.cs`
+- `Assets/Scripts/Core/RunReducer.cs`
+- `Assets/Scripts/Core/RoundReducer.cs`
+- `Assets/Scripts/Core/ShopReducer.cs`
 - `Assets/Scripts/Core/RunState.cs`
 - `Assets/Scripts/Core/RoundState.cs`
 - `Assets/Scripts/Core/BlindState.cs`
@@ -107,14 +114,19 @@ Assets/
       BlindState.cs
       DeckBuilder.cs
       DeckShuffler.cs
+      GameAction.cs
+      GameStore.cs
       HandBaseScore.cs
       JokerCatalog.cs
       JokerState.cs
       PokerHandEvaluator.cs
+      RoundReducer.cs
       RoundState.cs
+      RunReducer.cs
       RunModifierService.cs
       RunState.cs
       ScoreCalculator.cs
+      ShopReducer.cs
       ShopOfferState.cs
       ShopState.cs
     Data/
@@ -144,7 +156,7 @@ Assets/
     View/
 ```
 
-Future architecture may still introduce a formal action/store/reducer layer, but that refactor is intentionally deferred until the playable loop is stronger.
+The architecture document in `Docs/STATE_DRIVEN_ARCHITECTURE.md` summarizes the current reducer/store pipeline.
 
 ## Systems Roadmap
 
@@ -212,7 +224,7 @@ Future architecture may still introduce a formal action/store/reducer layer, but
 - [x] screenshot references
 - [ ] clean final screenshots
 - [ ] gameplay GIF
-- [ ] architecture diagram
+- [x] architecture diagram
 - [ ] changelog and release tags
 - [x] current README/spec pass after random shop and rarity
 - [ ] final portfolio README pass
@@ -300,6 +312,9 @@ The project keeps core rules testable without relying on scene setup or UI.
 
 Current Edit Mode test areas:
 
+- `GameStore`
+- `RunReducer`
+- `RoundReducer`
 - `PokerHandEvaluator`
 - `ScoreCalculator`
 - `BlindState`
@@ -338,8 +353,8 @@ Priority order:
 1. Run Unity Test Runner Edit Mode manually and do a multi-shop playthrough.
 2. Tune rarity weights, costs, and power after playtesting the 18-joker pool.
 3. Polish Boss Blind animation/audio feedback for `The Club`, whose current rule debuffs Clubs.
-4. Add portfolio polish: screenshots, gameplay GIF, architecture diagram, changelog, and release tags.
-5. Consider full action/store/reducer refactor only after the playable loop is stronger.
+4. Add portfolio polish: screenshots, gameplay GIF, changelog, and release tags.
+5. Continue portfolio polish: screenshots, gameplay GIF, changelog, release tags, and final repository hygiene.
 
 ## Worktree Note
 
@@ -347,7 +362,6 @@ As of this documentation update, the worktree already included unrelated local c
 
 - `JokerData.cs` moved from `Assets/Scripts/Core` to `Assets/Scripts/Data`
 - TextMesh Pro fallback asset modified
-- Unity AI Assistant package removed from `Packages/manifest.json` / `Packages/packages-lock.json`
 
 Do not revert those changes without explicit confirmation.
 

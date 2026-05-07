@@ -23,10 +23,10 @@ public sealed class RunStateTests {
         );
 
         for (int i = 0; i < 5; i++) {
-            state = state.ToggleCardSelection(i);
+            state = RunReducer.Reduce(state, new ToggleCardSelectionAction(i));
         }
 
-        RunState nextState = state.PlaySelectedCards();
+        RunState nextState = RunReducer.Reduce(state, new PlaySelectedCardsAction());
 
         Assert.That(nextState.CurrentRound.HasWonRound, Is.True);
         Assert.That(nextState.Money, Is.EqualTo(30));
@@ -46,9 +46,9 @@ public sealed class RunStateTests {
             initialHandCards: handCards
         );
 
-        state = state.ToggleCardSelection(0);
+        state = RunReducer.Reduce(state, new ToggleCardSelectionAction(0));
 
-        RunState nextState = state.PlaySelectedCards();
+        RunState nextState = RunReducer.Reduce(state, new PlaySelectedCardsAction());
 
         Assert.That(nextState.CurrentRound.HasLostRound, Is.True);
         Assert.That(nextState.IsRunOver, Is.True);
@@ -56,7 +56,7 @@ public sealed class RunStateTests {
     }
 
     [Test]
-    public void StartNextBlind_WhenRoundWasWon_AdvancesBlindAndKeepsMoney() {
+    public void ContinueRoundEndAndShop_WhenRoundWasWon_AdvancesBlindAndKeepsMoney() {
         RunState state = new RunState(
             currentRound: new RoundState(
                 blind: new BlindState(BlindType.Small, 1),
@@ -83,7 +83,8 @@ public sealed class RunStateTests {
             phase: RunPhase.Blind
         );
 
-        RunState nextState = state.StartNextBlind();
+        RunState shopState = RunReducer.Reduce(state, new ContinueRoundEndAction());
+        RunState nextState = RunReducer.Reduce(shopState, new ContinueShopAction());
 
         Assert.That(nextState.CurrentBlind.Type, Is.EqualTo(BlindType.Big));
         Assert.That(nextState.CurrentRound.Ante, Is.EqualTo(1));
@@ -94,7 +95,7 @@ public sealed class RunStateTests {
     }
 
     [Test]
-    public void StartNextBlind_WhenBossBlindWasWon_StartsNextAnte() {
+    public void ContinueRoundEndAndShop_WhenBossBlindWasWon_StartsNextAnte() {
         RunState state = new RunState(
             currentRound: new RoundState(
                 blind: new BlindState(BlindType.Boss, 1),
@@ -121,7 +122,8 @@ public sealed class RunStateTests {
             phase: RunPhase.Blind
         );
 
-        RunState nextState = state.StartNextBlind();
+        RunState shopState = RunReducer.Reduce(state, new ContinueRoundEndAction());
+        RunState nextState = RunReducer.Reduce(shopState, new ContinueShopAction());
 
         Assert.That(nextState.CurrentBlind.Type, Is.EqualTo(BlindType.Small));
         Assert.That(nextState.CurrentRound.Ante, Is.EqualTo(2));
@@ -131,10 +133,10 @@ public sealed class RunStateTests {
     }
 
     [Test]
-    public void StartNextBlind_WhenRoundWasNotWon_ReturnsSameState() {
+    public void ContinueRoundEnd_WhenRoundWasNotWon_ReturnsSameState() {
         RunState state = RunState.CreateInitial();
 
-        RunState nextState = state.StartNextBlind();
+        RunState nextState = RunReducer.Reduce(state, new ContinueRoundEndAction());
 
         Assert.That(nextState, Is.SameAs(state));
     }
@@ -168,7 +170,7 @@ public sealed class RunStateTests {
             runSeed: TestRunSeed
         );
 
-        RunState nextState = state.EnterShop();
+        RunState nextState = RunReducer.Reduce(state, new ContinueRoundEndAction());
 
         Assert.That(nextState.Phase, Is.EqualTo(RunPhase.Shop));
         Assert.That(nextState.IsInShop, Is.True);
@@ -210,7 +212,7 @@ public sealed class RunStateTests {
             runSeed: TestRunSeed
         );
 
-        RunState nextState = state.EnterShop();
+        RunState nextState = RunReducer.Reduce(state, new ContinueRoundEndAction());
         var expectedOffers = JokerCatalog.CreateShopOffers(1, runSeed: TestRunSeed);
 
         Assert.That(nextState.CurrentShop.OfferPageIndex, Is.EqualTo(1));
@@ -246,7 +248,7 @@ public sealed class RunStateTests {
             phase: RunPhase.Shop
         );
 
-        RunState nextState = state.LeaveShop();
+        RunState nextState = RunReducer.Reduce(state, new ContinueShopAction());
 
         Assert.That(nextState.Phase, Is.EqualTo(RunPhase.Blind));
         Assert.That(nextState.CurrentShop, Is.Null);
@@ -284,7 +286,7 @@ public sealed class RunStateTests {
             runSeed: TestRunSeed
         );
 
-        RunState nextState = state.EnterShop();
+        RunState nextState = RunReducer.Reduce(state, new ContinueRoundEndAction());
 
         Assert.That(nextState.CurrentShop, Is.Not.Null);
         for (int i = 0; i < nextState.CurrentShop.Offers.Count; i++) {
@@ -324,7 +326,7 @@ public sealed class RunStateTests {
             phase: RunPhase.Shop
         );
 
-        RunState nextState = state.BuySelectedShopOffer();
+        RunState nextState = RunReducer.Reduce(state, new BuyShopOfferAction(state.CurrentShop.SelectedOfferIndex));
 
         Assert.That(nextState.Money, Is.EqualTo(19));
         Assert.That(nextState.CurrentShop, Is.Not.Null);
@@ -367,7 +369,7 @@ public sealed class RunStateTests {
             phase: RunPhase.Shop
         );
 
-        RunState nextState = state.BuySelectedShopOffer();
+        RunState nextState = RunReducer.Reduce(state, new BuyShopOfferAction(state.CurrentShop.SelectedOfferIndex));
 
         Assert.That(nextState, Is.SameAs(state));
     }
@@ -403,7 +405,7 @@ public sealed class RunStateTests {
             phase: RunPhase.Shop
         );
 
-        RunState nextState = state.SelectNextShopOffer();
+        RunState nextState = RunReducer.Reduce(state, new SelectShopOfferAction(1));
 
         Assert.That(nextState.CurrentShop.SelectedOfferIndex, Is.EqualTo(1));
         Assert.That(nextState.CurrentShop.SelectedOffer.Id, Is.EqualTo("ace-tag"));
@@ -413,7 +415,7 @@ public sealed class RunStateTests {
     public void SelectShopOffer_WhenIndexIsValid_ChangesSelectedOfferWithoutSpendingMoney() {
         RunState state = CreateShopRunState(money: 25);
 
-        RunState nextState = state.SelectShopOffer(2);
+        RunState nextState = RunReducer.Reduce(state, new SelectShopOfferAction(2));
 
         Assert.That(nextState.CurrentShop.SelectedOfferIndex, Is.EqualTo(2));
         Assert.That(nextState.CurrentShop.SelectedOffer.Id, Is.EqualTo("pair-glove"));
@@ -424,7 +426,7 @@ public sealed class RunStateTests {
     public void SelectShopOffer_WhenIndexIsInvalid_KeepsStateUnchanged() {
         RunState state = CreateShopRunState(money: 25);
 
-        RunState nextState = state.SelectShopOffer(99);
+        RunState nextState = RunReducer.Reduce(state, new SelectShopOfferAction(99));
 
         Assert.That(nextState, Is.SameAs(state));
     }
@@ -433,7 +435,7 @@ public sealed class RunStateTests {
     public void BuyShopOffer_WhenIndexIsAffordable_BuysClickedOffer() {
         RunState state = CreateShopRunState(money: 25);
 
-        RunState nextState = state.BuyShopOffer(1);
+        RunState nextState = RunReducer.Reduce(state, new BuyShopOfferAction(1));
 
         Assert.That(nextState.Money, Is.EqualTo(17));
         Assert.That(nextState.CurrentShop.SelectedOfferIndex, Is.EqualTo(1));
@@ -446,7 +448,7 @@ public sealed class RunStateTests {
     public void BuyShopOffer_WhenIndexIsNotAffordable_KeepsStateUnchanged() {
         RunState state = CreateShopRunState(money: 4);
 
-        RunState nextState = state.BuyShopOffer(0);
+        RunState nextState = RunReducer.Reduce(state, new BuyShopOfferAction(0));
 
         Assert.That(nextState, Is.SameAs(state));
     }
@@ -458,7 +460,7 @@ public sealed class RunStateTests {
             ownedJokers: new[] { new JokerState(JokerCatalog.GetById("glass-joker")) }
         );
 
-        RunState nextState = state.BuyShopOffer(0);
+        RunState nextState = RunReducer.Reduce(state, new BuyShopOfferAction(0));
 
         Assert.That(nextState.OwnedJokers.Count, Is.EqualTo(1));
         Assert.That(nextState.OwnedJokers[0].Id, Is.EqualTo("glass-joker"));
@@ -497,7 +499,7 @@ public sealed class RunStateTests {
             phase: RunPhase.Shop
         );
 
-        RunState nextState = state.BuySelectedShopOffer();
+        RunState nextState = RunReducer.Reduce(state, new BuyShopOfferAction(state.CurrentShop.SelectedOfferIndex));
 
         Assert.That(nextState.Money, Is.EqualTo(17));
         Assert.That(nextState.OwnedJokers.Count, Is.EqualTo(1));
@@ -538,7 +540,7 @@ public sealed class RunStateTests {
             phase: RunPhase.Shop
         );
 
-        RunState nextState = state.BuySelectedShopOffer();
+        RunState nextState = RunReducer.Reduce(state, new BuyShopOfferAction(state.CurrentShop.SelectedOfferIndex));
 
         Assert.That(nextState.OwnedJokers.Count, Is.EqualTo(1));
         Assert.That(nextState.OwnedJokers[0].Id, Is.EqualTo("glass-joker"));
@@ -577,7 +579,7 @@ public sealed class RunStateTests {
             phase: RunPhase.Shop
         );
 
-        RunState nextState = state.RerollShop();
+        RunState nextState = RunReducer.Reduce(state, new RerollShopAction());
 
         Assert.That(nextState.Money, Is.EqualTo(20));
         Assert.That(nextState.CurrentShop.RerollCount, Is.EqualTo(1));
@@ -677,7 +679,7 @@ public sealed class RunStateTests {
             phase: RunPhase.Blind
         );
 
-        RunState nextState = state.SellOwnedJoker(0);
+        RunState nextState = RunReducer.Reduce(state, new SellOwnedJokerAction(0));
 
         Assert.That(nextState, Is.SameAs(state));
     }
@@ -689,7 +691,7 @@ public sealed class RunStateTests {
             ownedJokers: new[] { new JokerState(JokerCatalog.GetById("glass-joker")) }
         );
 
-        RunState nextState = state.SellOwnedJoker(3);
+        RunState nextState = RunReducer.Reduce(state, new SellOwnedJokerAction(3));
 
         Assert.That(nextState, Is.SameAs(state));
     }
@@ -701,7 +703,7 @@ public sealed class RunStateTests {
             ownedJokers: new[] { new JokerState(JokerCatalog.GetById("glass-joker")) }
         );
 
-        RunState nextState = state.SellOwnedJoker(0);
+        RunState nextState = RunReducer.Reduce(state, new SellOwnedJokerAction(0));
 
         Assert.That(nextState.Money, Is.EqualTo(28));
         Assert.That(nextState.OwnedJokers, Has.Count.EqualTo(0));
@@ -716,7 +718,7 @@ public sealed class RunStateTests {
 
         Assert.That(state.CurrentShop.FirstOffer.IsPurchased, Is.True);
 
-        RunState nextState = state.SellOwnedJoker(0);
+        RunState nextState = RunReducer.Reduce(state, new SellOwnedJokerAction(0));
 
         Assert.That(nextState.CurrentShop.FirstOffer.Id, Is.EqualTo("glass-joker"));
         Assert.That(nextState.CurrentShop.FirstOffer.IsPurchased, Is.False);
@@ -738,13 +740,14 @@ public sealed class RunStateTests {
             ownedJokers: new[] { new JokerState(JokerCatalog.GetById("glass-joker")) }
         );
 
-        state = state.SellOwnedJoker(0).LeaveShop(initialHandCards: handCards);
+        state = RunReducer.Reduce(state, new SellOwnedJokerAction(0));
+        state = RunReducer.Reduce(state, new ContinueShopAction(handCards));
 
         for (int i = 0; i < 5; i++) {
-            state = state.ToggleCardSelection(i);
+            state = RunReducer.Reduce(state, new ToggleCardSelectionAction(i));
         }
 
-        RunState nextState = state.PlaySelectedCards();
+        RunState nextState = RunReducer.Reduce(state, new PlaySelectedCardsAction());
 
         Assert.That(nextState.CurrentRound.LastScoreResult.TotalChips, Is.EqualTo(32));
         Assert.That(nextState.CurrentRound.LastScoreResult.FinalScore, Is.EqualTo(64));
@@ -774,10 +777,10 @@ public sealed class RunStateTests {
         );
 
         for (int i = 0; i < 5; i++) {
-            state = state.ToggleCardSelection(i);
+            state = RunReducer.Reduce(state, new ToggleCardSelectionAction(i));
         }
 
-        RunState nextState = state.PlaySelectedCards();
+        RunState nextState = RunReducer.Reduce(state, new PlaySelectedCardsAction());
 
         Assert.That(nextState.CurrentRound.LastScoreResult.TotalChips, Is.EqualTo(42));
         Assert.That(nextState.CurrentRound.LastScoreResult.FinalScore, Is.EqualTo(84));
@@ -807,10 +810,10 @@ public sealed class RunStateTests {
         );
 
         for (int i = 0; i < 5; i++) {
-            state = state.ToggleCardSelection(i);
+            state = RunReducer.Reduce(state, new ToggleCardSelectionAction(i));
         }
 
-        RunState nextState = state.PlaySelectedCards();
+        RunState nextState = RunReducer.Reduce(state, new PlaySelectedCardsAction());
 
         Assert.That(nextState.CurrentRound.HasWonRound, Is.True);
         Assert.That(nextState.Money, Is.EqualTo(22));
@@ -824,7 +827,7 @@ public sealed class RunStateTests {
             ownedJokers: CreateOwnedJokers("spare-hand", "discard-pass")
         );
 
-        RunState nextState = state.LeaveShop();
+        RunState nextState = RunReducer.Reduce(state, new ContinueShopAction());
 
         Assert.That(nextState.CurrentRound.HandsLeft, Is.EqualTo(5));
         Assert.That(nextState.CurrentRound.DiscardsLeft, Is.EqualTo(4));
@@ -837,7 +840,8 @@ public sealed class RunStateTests {
             ownedJokers: CreateOwnedJokers("spare-hand", "discard-pass")
         );
 
-        RunState nextState = state.SellOwnedJoker(0).LeaveShop();
+        RunState soldState = RunReducer.Reduce(state, new SellOwnedJokerAction(0));
+        RunState nextState = RunReducer.Reduce(soldState, new ContinueShopAction());
 
         Assert.That(nextState.CurrentRound.HandsLeft, Is.EqualTo(4));
         Assert.That(nextState.CurrentRound.DiscardsLeft, Is.EqualTo(4));
@@ -855,13 +859,14 @@ public sealed class RunStateTests {
                 "heart-tag")
         );
 
-        RunState blockedState = state.BuyShopOffer(0);
+        RunState blockedState = RunReducer.Reduce(state, new BuyShopOfferAction(0));
 
         Assert.That(blockedState, Is.SameAs(state));
         Assert.That(blockedState.OwnedJokers, Has.Count.EqualTo(RunState.MaxOwnedJokers));
         Assert.That(blockedState.CurrentShop.FirstOffer.IsPurchased, Is.False);
 
-        RunState nextState = blockedState.SellOwnedJoker(0).BuyShopOffer(0);
+        RunState soldState = RunReducer.Reduce(blockedState, new SellOwnedJokerAction(0));
+        RunState nextState = RunReducer.Reduce(soldState, new BuyShopOfferAction(0));
 
         Assert.That(nextState.OwnedJokers, Has.Count.EqualTo(RunState.MaxOwnedJokers));
         Assert.That(nextState.OwnedJokers[4].Id, Is.EqualTo("glass-joker"));

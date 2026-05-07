@@ -38,7 +38,7 @@ public sealed class RoundStateTests {
             maxHandSize: 5
         );
 
-        RoundState nextState = state.PlaySelectedCards();
+        RoundState nextState = RoundReducer.Reduce(state, new PlaySelectedCardsAction());
 
         Assert.That(nextState.IsRoundOver, Is.True);
         Assert.That(nextState.HasWonRound, Is.True);
@@ -62,7 +62,7 @@ public sealed class RoundStateTests {
             maxHandSize: 1
         );
 
-        RoundState nextState = state.PlaySelectedCards();
+        RoundState nextState = RoundReducer.Reduce(state, new PlaySelectedCardsAction());
 
         Assert.That(nextState.IsRoundOver, Is.True);
         Assert.That(nextState.HasLostRound, Is.True);
@@ -91,7 +91,7 @@ public sealed class RoundStateTests {
             maxHandSize: 3
         );
 
-        RoundState nextState = state.DiscardCards();
+        RoundState nextState = RoundReducer.Reduce(state, new DiscardSelectedCardsAction());
 
         Assert.That(nextState.DiscardsLeft, Is.EqualTo(0));
         Assert.That(nextState.HandCards, Has.Count.EqualTo(3));
