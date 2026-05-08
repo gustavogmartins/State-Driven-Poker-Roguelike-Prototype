@@ -15,6 +15,7 @@ public class RoundScreen : MonoBehaviour {
 
     [Header("Left Panel")]
     [SerializeField] private TextMeshProUGUI blindTitleText;
+
     [SerializeField] private TextMeshProUGUI blindDescriptionText;
     [SerializeField] private TextMeshProUGUI blindRequirementText;
     [SerializeField] private TextMeshProUGUI blindRewardText;
@@ -30,29 +31,34 @@ public class RoundScreen : MonoBehaviour {
     [SerializeField] private TextMeshProUGUI roundText;
 
     [Header("Top and Bottom Bars")]
-    //[SerializeField] private TextMeshProUGUI phaseText;
-    //[SerializeField] private TextMeshProUGUI statusText;
     [SerializeField] private TextMeshProUGUI selectedCountText;
+
     [SerializeField] private TextMeshProUGUI handSizeText;
     [SerializeField] private TextMeshProUGUI deckCountText;
     [SerializeField] private TextMeshProUGUI topDiscardText;
 
     [Header("Buttons")]
     [SerializeField] private Button playHandButton;
+
     [SerializeField] private Button discardButton;
     [SerializeField] private Button sortByRankButton;
     [SerializeField] private Button sortBySuitButton;
 
     [Header("Card Areas")]
     [SerializeField] private RectTransform upperGlassArea;
+
     [SerializeField] private RectTransform handArea;
     [SerializeField] private RectTransform playedHandArea;
+    [SerializeField] private RoundBoardRenderer boardRenderer;
+    [SerializeField] private RoundAnimationController animationController;
+    [SerializeField] private CardViewPool cardViewPool;
     [SerializeField] private CardView cardViewPrefab;
     [SerializeField] private int handSlotCount = 8;
     [SerializeField] private int playedCardSlotCount = 5;
 
     [Header("Round End Overlay")]
     [SerializeField] private GameObject roundEndOverlay;
+
     [SerializeField] private Image roundEndBannerImage;
     [SerializeField] private TextMeshProUGUI roundEndBannerText;
     [SerializeField] private TextMeshProUGUI roundEndSummaryText;
@@ -63,6 +69,7 @@ public class RoundScreen : MonoBehaviour {
 
     [Header("Shop Overlay")]
     [SerializeField] private GameObject shopOverlay;
+
     [SerializeField] private TextMeshProUGUI shopBannerText;
     [SerializeField] private TextMeshProUGUI shopSummaryText;
     [SerializeField] private TextMeshProUGUI shopDetailsText;
@@ -76,19 +83,17 @@ public class RoundScreen : MonoBehaviour {
 
     [Header("Debug")]
     [SerializeField] private bool useDebugHandScenario = false;
+
     [SerializeField] private DebugHandScenario debugHandScenario = DebugHandScenario.None;
 
     private RoundPresenter _roundPresenter;
     private GameStore _store;
-    private readonly List<RectTransform> _handSlots = new();
-    private readonly List<RectTransform> _playedCardSlots = new();
-    private readonly Dictionary<CardData, CardView> _handCardViewsByCard = new();
 
     private void Awake() {
         ResolveRoundEndOverlayReferences();
         ResolveShopOverlayReferences();
         ResolveMainAreaReferences();
-        EnsureCardSlots();
+        EnsureBoardRenderer();
         RegisterButtonListeners();
     }
 
@@ -103,6 +108,10 @@ public class RoundScreen : MonoBehaviour {
     private void OnDestroy() {
         if (_store != null) {
             _store.StateChanged -= Render;
+        }
+
+        if (boardRenderer != null) {
+            boardRenderer.CardSelected -= OnCardSelected;
         }
 
         UnregisterButtonListeners();
@@ -147,12 +156,9 @@ public class RoundScreen : MonoBehaviour {
         moneyText.text = viewModel.MoneyText;
         anteText.text = viewModel.AnteText;
         roundText.text = viewModel.RoundText;
-        //phaseText.text = viewModel.PhaseText;
-        //statusText.text = viewModel.StatusText;
         selectedCountText.text = viewModel.SelectedCountText;
         handSizeText.text = viewModel.HandSizeText;
         deckCountText.text = viewModel.DeckCountText;
-        //topDiscardText.text = viewModel.TopDiscardText;
 
         playHandButton.interactable = viewModel.CanPlayHand;
         discardButton.interactable = viewModel.CanDiscard;
@@ -160,8 +166,7 @@ public class RoundScreen : MonoBehaviour {
         sortBySuitButton.interactable = viewModel.CanSort;
 
         RenderOwnedJokers(viewModel.OwnedJokerCards);
-        RenderHand(viewModel.HandCards);
-        RenderPlayedCards(viewModel.PlayedCards);
+        boardRenderer?.Render(viewModel);
         RenderRoundEndOverlay(viewModel);
         RenderShopOverlay(viewModel);
     }
@@ -181,53 +186,6 @@ public class RoundScreen : MonoBehaviour {
         }
 
         LayoutRebuilder.ForceRebuildLayoutImmediate(upperGlassArea);
-    }
-
-    private void RenderHand(IReadOnlyList<CardViewModel> handCards) {
-        EnsureCardSlots();
-        var activeCards = new HashSet<CardData>();
-
-        if (handCards.Count == 0) {
-            ClearInactiveHandCards(activeCards);
-            return;
-        }
-
-        for (int i = 0; i < handCards.Count; i++) {
-            CardData cardData = _store.State.CurrentRound.HandCards[i];
-            activeCards.Add(cardData);
-
-            if (!_handCardViewsByCard.TryGetValue(cardData, out CardView cardView) || cardView == null) {
-                cardView = Instantiate(cardViewPrefab, _handSlots[i]);
-                _handCardViewsByCard[cardData] = cardView;
-            }
-
-            ParentCardToSlot(cardView, _handSlots[i]);
-            cardView.Bind(handCards[i]);
-            cardView.OnCardSelected -= OnCardSelected;
-            cardView.OnCardSelected += OnCardSelected;
-        }
-
-        ClearInactiveHandCards(activeCards);
-        LayoutRebuilder.ForceRebuildLayoutImmediate(handArea);
-    }
-
-    private void RenderPlayedCards(IReadOnlyList<CardViewModel> playedCards) {
-        EnsureCardSlots();
-        ClearCardsInSlots(_playedCardSlots);
-        playedHandArea.gameObject.SetActive(playedCards.Count > 0);
-
-        if (playedCards.Count == 0) {
-            return;
-        }
-
-        for (int i = 0; i < playedCards.Count; i++) {
-            CardView cardView = Instantiate(cardViewPrefab, _playedCardSlots[i]);
-            ParentCardToSlot(cardView, _playedCardSlots[i]);
-            cardView.OnCardSelected -= OnCardSelected;
-            cardView.Bind(playedCards[i]);
-        }
-
-        LayoutRebuilder.ForceRebuildLayoutImmediate(playedHandArea);
     }
 
     private void OnCardSelected(int index) {
@@ -436,6 +394,7 @@ public class RoundScreen : MonoBehaviour {
         if (offerSlotsContainer != null) {
             offerToggleGroup ??= offerSlotsContainer.GetComponent<ToggleGroup>();
         }
+
         shopRerollButton ??= FindOverlayComponent<Button>(shopOverlay, "Panel/RerollButton");
         shopRerollButtonLabel ??= FindOverlayComponent<TextMeshProUGUI>(shopOverlay, "Panel/RerollButton/Label");
         shopContinueButton ??= FindOverlayComponent<Button>(shopOverlay, "Panel/ContinueButton");
@@ -453,106 +412,40 @@ public class RoundScreen : MonoBehaviour {
         }
     }
 
-    private void EnsureCardSlots() {
-        int resolvedHandSlotCount = Mathf.Max(handSlotCount, _store?.State.CurrentRound.MaxHandSize ?? handSlotCount);
-        EnsureSlots(handArea, _handSlots, resolvedHandSlotCount, "HandSlot");
-        EnsureSlots(playedHandArea, _playedCardSlots, playedCardSlotCount, "PlayedCardSlot");
-    }
-
-    private void EnsureSlots(RectTransform area, List<RectTransform> slots, int slotCount, string slotNamePrefix) {
-        if (area == null || cardViewPrefab == null) {
-            return;
-        }
-
-        for (int i = slots.Count - 1; i >= 0; i--) {
-            if (slots[i] == null || slots[i].parent != area) {
-                slots.RemoveAt(i);
+    private void EnsureBoardRenderer() {
+        if (animationController == null) {
+            animationController = GetComponent<RoundAnimationController>();
+            if (animationController == null) {
+                animationController = gameObject.AddComponent<RoundAnimationController>();
             }
         }
 
-        RectTransform prefabTransform = cardViewPrefab.transform as RectTransform;
-        Vector2 slotSize = prefabTransform != null ? prefabTransform.sizeDelta : new Vector2(165f, 230f);
-
-        while (slots.Count < slotCount) {
-            var slotObject = new GameObject($"{slotNamePrefix}{slots.Count + 1}", typeof(RectTransform), typeof(LayoutElement));
-            RectTransform slot = (RectTransform)slotObject.transform;
-            slot.SetParent(area, false);
-            slot.anchorMin = new Vector2(0.5f, 0.5f);
-            slot.anchorMax = new Vector2(0.5f, 0.5f);
-            slot.pivot = new Vector2(0.5f, 0.5f);
-            slot.sizeDelta = slotSize;
-
-            LayoutElement layoutElement = slotObject.GetComponent<LayoutElement>();
-            layoutElement.minWidth = slotSize.x;
-            layoutElement.minHeight = slotSize.y;
-            layoutElement.preferredWidth = slotSize.x;
-            layoutElement.preferredHeight = slotSize.y;
-            layoutElement.flexibleWidth = 0f;
-            layoutElement.flexibleHeight = 0f;
-
-            slots.Add(slot);
-        }
-
-        for (int i = 0; i < slots.Count; i++) {
-            slots[i].gameObject.SetActive(i < slotCount);
-            slots[i].SetSiblingIndex(i);
-        }
-    }
-
-    private void ParentCardToSlot(CardView cardView, RectTransform slot) {
-        if (cardView == null || slot == null) {
-            return;
-        }
-
-        RectTransform cardTransform = cardView.transform as RectTransform;
-        cardTransform.SetParent(slot, false);
-        cardTransform.anchorMin = new Vector2(0.5f, 0.5f);
-        cardTransform.anchorMax = new Vector2(0.5f, 0.5f);
-        cardTransform.pivot = new Vector2(0.5f, 0.5f);
-        cardTransform.anchoredPosition = Vector2.zero;
-        cardTransform.localRotation = Quaternion.identity;
-        cardTransform.localScale = Vector3.one;
-
-        if (cardViewPrefab.transform is RectTransform prefabTransform) {
-            cardTransform.sizeDelta = prefabTransform.sizeDelta;
-        }
-    }
-
-    private void ClearInactiveHandCards(HashSet<CardData> activeCards) {
-        var staleCards = new List<CardData>();
-
-        foreach (var pair in _handCardViewsByCard) {
-            if (!activeCards.Contains(pair.Key)) {
-                if (pair.Value != null) {
-                    Destroy(pair.Value.gameObject);
-                }
-
-                staleCards.Add(pair.Key);
+        if (cardViewPool == null) {
+            cardViewPool = GetComponent<CardViewPool>();
+            if (cardViewPool == null) {
+                cardViewPool = gameObject.AddComponent<CardViewPool>();
             }
         }
 
-        for (int i = 0; i < staleCards.Count; i++) {
-            _handCardViewsByCard.Remove(staleCards[i]);
-        }
-    }
-
-    private static void ClearCardsInSlots(IReadOnlyList<RectTransform> slots) {
-        for (int i = 0; i < slots.Count; i++) {
-            RectTransform slot = slots[i];
-            if (slot == null) {
-                continue;
+        if (boardRenderer == null) {
+            boardRenderer = GetComponent<RoundBoardRenderer>();
+            if (boardRenderer == null) {
+                boardRenderer = gameObject.AddComponent<RoundBoardRenderer>();
             }
-
-            ClearCardArea(slot);
-        }
-    }
-
-    private static CardView GetCardInSlot(RectTransform slot) {
-        if (slot == null || slot.childCount == 0) {
-            return null;
         }
 
-        return slot.GetChild(0).GetComponent<CardView>();
+        cardViewPool.Configure(cardViewPrefab);
+        boardRenderer.Configure(
+            cardViewPrefab,
+            handArea,
+            playedHandArea,
+            animationController,
+            cardViewPool,
+            handSlotCount,
+            playedCardSlotCount);
+
+        boardRenderer.CardSelected -= OnCardSelected;
+        boardRenderer.CardSelected += OnCardSelected;
     }
 
     private void RegisterButtonListeners() {
@@ -640,5 +533,4 @@ public class RoundScreen : MonoBehaviour {
             }
         }
     }
-
 }

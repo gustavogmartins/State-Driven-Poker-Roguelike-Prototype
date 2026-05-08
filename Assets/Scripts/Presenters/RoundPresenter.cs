@@ -79,6 +79,7 @@ namespace Presenters {
                 viewModel.HandCards.Add(CreateCardViewModel(
                     card,
                     index: i,
+                    zone: CardZone.Hand,
                     isSelected: roundState.IsSelected(i),
                     isInteractable: !runState.IsInShop && roundState.Phase != RoundPhase.RoundEnd,
                     blind: roundState.Blind
@@ -89,6 +90,7 @@ namespace Presenters {
                 viewModel.PlayedCards.Add(CreateCardViewModel(
                     card,
                     index: -1,
+                    zone: CardZone.Played,
                     isSelected: false,
                     isInteractable: false,
                     blind: roundState.Blind
@@ -113,10 +115,13 @@ namespace Presenters {
         private static CardViewModel CreateCardViewModel(
             CardData card,
             int index,
+            CardZone zone,
             bool isSelected,
             bool isInteractable,
             BlindState blind) {
             return new CardViewModel {
+                CardId = card.InstanceId,
+                Zone = zone,
                 Index = index,
                 RankText = FormatRank(card.Rank),
                 SuitText = FormatSuit(card.Suit),

@@ -12544,7 +12544,7 @@ MonoBehaviour:
   discardButton: {fileID: 1191324632}
   sortByRankButton: {fileID: 1825541526}
   sortBySuitButton: {fileID: 1429595525}
-  upperGlassArea: {fileID: 0}
+  upperGlassArea: {fileID: 1488319135}
   handArea: {fileID: 816169848}
   playedHandArea: {fileID: 1383247374}
   cardViewPrefab: {fileID: 6586708954188405360, guid: f1e44abb4a35ca347a132f58609bd185, type: 3}

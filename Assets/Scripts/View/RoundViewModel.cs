@@ -42,5 +42,17 @@ namespace View {
         public readonly List<CardViewModel> OwnedJokerCards = new();
         public readonly List<CardViewModel> HandCards = new();
         public readonly List<CardViewModel> PlayedCards = new();
+
+        public IEnumerable<CardViewModel> GameplayCards {
+            get {
+                foreach (CardViewModel card in HandCards) {
+                    yield return card;
+                }
+
+                foreach (CardViewModel card in PlayedCards) {
+                    yield return card;
+                }
+            }
+        }
     }
 }

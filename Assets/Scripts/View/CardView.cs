@@ -5,6 +5,7 @@ using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 public class CardView : MonoBehaviour, IPointerUpHandler {
+    [SerializeField] private RectTransform visualRoot;
     [SerializeField] private Image cardImage;
     [SerializeField] private Image selectionGlow;
     [SerializeField] private TextMeshProUGUI rankTopLeftText;
@@ -21,9 +22,12 @@ public class CardView : MonoBehaviour, IPointerUpHandler {
 
     public event Action<int> OnCardSelected;
     public event Action<int> OnSellRequested;
+    public RectTransform RectTransform => ResolveRectTransform();
+    public RectTransform VisualRoot => ResolveVisualRoot();
 
     private void Awake() {
-        _rectTransform = (RectTransform)transform;
+        ResolveRectTransform();
+        ResolveVisualRoot();
         ResolveSellButtonReferences();
         RegisterSellButtonListener();
     }
@@ -37,9 +41,7 @@ public class CardView : MonoBehaviour, IPointerUpHandler {
         ResolveSellButtonReferences();
         RegisterSellButtonListener();
 
-        if (_rectTransform == null) {
-            _rectTransform = (RectTransform)transform;
-        }
+        ResolveRectTransform();
 
         rankTopLeftText.text = viewModel.RankText;
         suitTopLeftText.text = viewModel.SuitText;
@@ -67,7 +69,6 @@ public class CardView : MonoBehaviour, IPointerUpHandler {
 
         selectionGlow.enabled = isVisuallySelected;
         cardImage.raycastTarget = viewModel.IsInteractable;
-        _rectTransform.localScale = isVisuallySelected ? new Vector3(1.04f, 1.04f, 1f) : Vector3.one;
 
         if (sellJokerButtonLabel != null) {
             sellJokerButtonLabel.text = string.IsNullOrWhiteSpace(viewModel.SellButtonText)
@@ -77,6 +78,34 @@ public class CardView : MonoBehaviour, IPointerUpHandler {
 
         if (sellJokerButton != null) {
             sellJokerButton.gameObject.SetActive(viewModel.CanSell && viewModel.IsSellSelected);
+        }
+    }
+
+    public void ResetView() {
+        _viewModel = null;
+        OnCardSelected = null;
+        OnSellRequested = null;
+
+        RectTransform rectTransform = RectTransform;
+        rectTransform.anchoredPosition = Vector2.zero;
+        rectTransform.localRotation = Quaternion.identity;
+        rectTransform.localScale = Vector3.one;
+
+        RectTransform resolvedVisualRoot = VisualRoot;
+        resolvedVisualRoot.anchoredPosition = Vector2.zero;
+        resolvedVisualRoot.localRotation = Quaternion.identity;
+        resolvedVisualRoot.localScale = Vector3.one;
+
+        if (selectionGlow != null) {
+            selectionGlow.enabled = false;
+        }
+
+        if (sellJokerButton != null) {
+            sellJokerButton.gameObject.SetActive(false);
+        }
+
+        if (cardImage != null) {
+            cardImage.raycastTarget = true;
         }
     }
 
@@ -126,5 +155,24 @@ public class CardView : MonoBehaviour, IPointerUpHandler {
         }
 
         OnSellRequested?.Invoke(_viewModel.Index);
+    }
+
+    private RectTransform ResolveRectTransform() {
+        if (_rectTransform == null) {
+            _rectTransform = (RectTransform)transform;
+        }
+
+        return _rectTransform;
+    }
+
+    private RectTransform ResolveVisualRoot() {
+        if (visualRoot == null) {
+            Transform visualRootTransform = transform.Find("VisualRoot");
+            visualRoot = visualRootTransform != null
+                ? visualRootTransform.GetComponent<RectTransform>()
+                : RectTransform;
+        }
+
+        return visualRoot;
     }
 }
