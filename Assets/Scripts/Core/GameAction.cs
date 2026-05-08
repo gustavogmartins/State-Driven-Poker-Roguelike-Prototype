@@ -33,6 +33,9 @@ namespace Core {
     public sealed class PlaySelectedCardsAction : GameAction {
     }
 
+    public sealed class ScorePresentationFinishedAction : GameAction {
+    }
+
     public sealed class DiscardSelectedCardsAction : GameAction {
     }
 

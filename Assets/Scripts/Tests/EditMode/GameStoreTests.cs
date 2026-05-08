@@ -34,6 +34,7 @@ public sealed class GameStoreTests {
 
         store.Dispatch(new ToggleCardSelectionAction(0));
         store.Dispatch(new PlaySelectedCardsAction());
+        store.Dispatch(new ScorePresentationFinishedAction());
         RunState lostState = store.State;
 
         store.Dispatch(new ContinueRoundEndAction(handCards));

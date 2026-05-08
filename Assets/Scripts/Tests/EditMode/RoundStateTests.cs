@@ -38,14 +38,25 @@ public sealed class RoundStateTests {
             maxHandSize: 5
         );
 
-        RoundState nextState = RoundReducer.Reduce(state, new PlaySelectedCardsAction());
+        RoundState scoringState = RoundReducer.Reduce(state, new PlaySelectedCardsAction());
+
+        Assert.That(scoringState.IsRoundOver, Is.False);
+        Assert.That(scoringState.HasWonRound, Is.False);
+        Assert.That(scoringState.Phase, Is.EqualTo(RoundPhase.Scoring));
+        Assert.That(scoringState.HandsLeft, Is.EqualTo(1));
+        Assert.That(scoringState.PlayedCards, Has.Count.EqualTo(5));
+        Assert.That(scoringState.HandCards, Has.Count.EqualTo(0));
+        Assert.That(scoringState.DiscardPileCards, Has.Count.EqualTo(0));
+        Assert.That(scoringState.LastPlayedHandResult, Is.EqualTo(PokerHandType.StraightFlush));
+        StringAssert.Contains("Blind cleared", scoringState.LastActionText);
+
+        RoundState nextState = RoundReducer.Reduce(scoringState, new ScorePresentationFinishedAction());
 
         Assert.That(nextState.IsRoundOver, Is.True);
         Assert.That(nextState.HasWonRound, Is.True);
         Assert.That(nextState.Phase, Is.EqualTo(RoundPhase.RoundEnd));
-        Assert.That(nextState.HandsLeft, Is.EqualTo(1));
-        Assert.That(nextState.LastPlayedHandResult, Is.EqualTo(PokerHandType.StraightFlush));
-        StringAssert.Contains("Blind cleared", nextState.LastActionText);
+        Assert.That(nextState.PlayedCards, Is.Empty);
+        Assert.That(nextState.DiscardPileCards, Has.Count.EqualTo(5));
     }
 
     [Test]
@@ -62,12 +73,81 @@ public sealed class RoundStateTests {
             maxHandSize: 1
         );
 
-        RoundState nextState = RoundReducer.Reduce(state, new PlaySelectedCardsAction());
+        RoundState scoringState = RoundReducer.Reduce(state, new PlaySelectedCardsAction());
+
+        Assert.That(scoringState.IsRoundOver, Is.False);
+        Assert.That(scoringState.HasLostRound, Is.False);
+        Assert.That(scoringState.Phase, Is.EqualTo(RoundPhase.Scoring));
+        StringAssert.Contains("Round lost", scoringState.LastActionText);
+
+        RoundState nextState = RoundReducer.Reduce(scoringState, new ScorePresentationFinishedAction());
 
         Assert.That(nextState.IsRoundOver, Is.True);
         Assert.That(nextState.HasLostRound, Is.True);
         Assert.That(nextState.Phase, Is.EqualTo(RoundPhase.RoundEnd));
-        StringAssert.Contains("Round lost", nextState.LastActionText);
+    }
+
+    [Test]
+    public void ScorePresentationFinished_WhenRoundContinues_RefillsHandAndReturnsToPlayerTurn() {
+        CardData[] handCards = {
+            TestCardFactory.Create(Rank.Ace, Suit.Spades),
+            TestCardFactory.Create(Rank.King, Suit.Hearts),
+            TestCardFactory.Create(Rank.Queen, Suit.Clubs)
+        };
+
+        CardData[] deckCards = {
+            TestCardFactory.Create(Rank.Two, Suit.Diamonds),
+            TestCardFactory.Create(Rank.Three, Suit.Spades)
+        };
+
+        var state = CreateState(
+            handCards: handCards,
+            deckCards: deckCards,
+            selectedIndexes: new[] { 0, 1 },
+            targetScore: 1000,
+            handsLeft: 2,
+            maxHandSize: 3
+        );
+
+        RoundState scoringState = RoundReducer.Reduce(state, new PlaySelectedCardsAction());
+
+        Assert.That(scoringState.Phase, Is.EqualTo(RoundPhase.Scoring));
+        Assert.That(scoringState.HandCards, Has.Count.EqualTo(1));
+        Assert.That(scoringState.PlayedCards, Has.Count.EqualTo(2));
+        Assert.That(scoringState.DeckCards, Has.Count.EqualTo(2));
+        Assert.That(scoringState.DiscardPileCards, Is.Empty);
+
+        RoundState nextState = RoundReducer.Reduce(scoringState, new ScorePresentationFinishedAction());
+
+        Assert.That(nextState.Phase, Is.EqualTo(RoundPhase.PlayerTurn));
+        Assert.That(nextState.HandCards, Has.Count.EqualTo(3));
+        Assert.That(nextState.PlayedCards, Is.Empty);
+        Assert.That(nextState.DeckCards, Is.Empty);
+        Assert.That(nextState.DiscardPileCards, Has.Count.EqualTo(2));
+        Assert.That(nextState.SelectedCardsCount, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void ScoringPhase_DisablesPlayerActions() {
+        CardData[] handCards = {
+            TestCardFactory.Create(Rank.Ace, Suit.Spades),
+            TestCardFactory.Create(Rank.King, Suit.Hearts)
+        };
+
+        var state = CreateState(
+            handCards: handCards,
+            selectedIndexes: new[] { 0 },
+            targetScore: 1000,
+            handsLeft: 2,
+            maxHandSize: 2
+        );
+
+        RoundState scoringState = RoundReducer.Reduce(state, new PlaySelectedCardsAction());
+
+        Assert.That(scoringState.CanPlaySelectedCards, Is.False);
+        Assert.That(scoringState.CanDiscardSelectedCards, Is.False);
+        Assert.That(scoringState.CanSortHand, Is.False);
+        Assert.That(RoundReducer.Reduce(scoringState, new ToggleCardSelectionAction(0)), Is.SameAs(scoringState));
     }
 
     [Test]

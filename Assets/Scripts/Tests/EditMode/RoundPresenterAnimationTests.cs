@@ -45,7 +45,8 @@ public sealed class RoundPresenterAnimationTests {
             lastPlayedCards: new[] { playedCard },
             lastPlayedCardsCount: 1,
             lastPlayedHandResult: PokerHandType.HighCard,
-            lastScoreResult: new ScoreResult(5, 1, 15, 20, 20)
+            lastScoreResult: new ScoreResult(5, 1, 15, 20, 20),
+            playedCards: new[] { playedCard }
         );
 
         var state = new RunState(
@@ -59,6 +60,32 @@ public sealed class RoundPresenterAnimationTests {
         RoundViewModel viewModel = new RoundPresenter().Present(state);
 
         Assert.That(viewModel.PlayedCards[0].CardId, Is.EqualTo(201));
+        Assert.That(viewModel.PlayedCards[0].Zone, Is.EqualTo(CardZone.Played));
+    }
+
+    [Test]
+    public void Present_WhenScoring_DisablesInputAndExposesPlayedCards() {
+        CardData[] handCards = {
+            new CardData(301, Rank.Ace, Suit.Spades),
+            new CardData(302, Rank.King, Suit.Hearts)
+        };
+
+        RunState state = RunState.CreateInitial(
+            maxHandSize: 2,
+            initialHandCards: handCards
+        );
+
+        state = RunReducer.Reduce(state, new ToggleCardSelectionAction(0));
+        state = RunReducer.Reduce(state, new PlaySelectedCardsAction());
+
+        RoundViewModel viewModel = new RoundPresenter().Present(state);
+
+        Assert.That(viewModel.Phase, Is.EqualTo(RoundPhase.Scoring));
+        Assert.That(viewModel.CanPlayHand, Is.False);
+        Assert.That(viewModel.CanDiscard, Is.False);
+        Assert.That(viewModel.CanSort, Is.False);
+        Assert.That(viewModel.HandCards[0].IsInteractable, Is.False);
+        Assert.That(viewModel.PlayedCards[0].CardId, Is.EqualTo(301));
         Assert.That(viewModel.PlayedCards[0].Zone, Is.EqualTo(CardZone.Played));
     }
 }

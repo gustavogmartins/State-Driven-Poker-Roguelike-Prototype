@@ -25,6 +25,7 @@ namespace Core {
                 ContinueRoundEndAction continueRoundEnd => ContinueRoundEnd(state, continueRoundEnd.InitialHandCards),
                 ToggleCardSelectionAction or
                     PlaySelectedCardsAction or
+                    ScorePresentationFinishedAction or
                     DiscardSelectedCardsAction or
                     SortHandByRankAction or
                     SortHandBySuitAction => ReduceRoundAction(state, action),
@@ -47,6 +48,10 @@ namespace Core {
                 return PlaySelectedCards(state);
             }
 
+            if (action is ScorePresentationFinishedAction) {
+                return FinishScorePresentation(state);
+            }
+
             RoundState nextRound = RoundReducer.Reduce(state.CurrentRound, action);
             return ReferenceEquals(nextRound, state.CurrentRound)
                 ? state
@@ -67,7 +72,23 @@ namespace Core {
                 return state;
             }
 
-            int nextMoney = state.Money + modifierResult.MoneyBonus;
+            return new RunState(
+                nextRound,
+                null,
+                state.OwnedJokers,
+                state.Money + modifierResult.MoneyBonus,
+                state.Phase,
+                state.ShopRefreshCount,
+                state.RunSeed);
+        }
+
+        private static RunState FinishScorePresentation(RunState state) {
+            RoundState nextRound = RoundReducer.Reduce(state.CurrentRound, new ScorePresentationFinishedAction());
+            if (ReferenceEquals(nextRound, state.CurrentRound)) {
+                return state;
+            }
+
+            int nextMoney = state.Money;
             RunPhase nextPhase = nextRound.HasLostRound ? RunPhase.RunEnd : state.Phase;
 
             if (!state.CurrentRound.HasWonRound && nextRound.HasWonRound) {

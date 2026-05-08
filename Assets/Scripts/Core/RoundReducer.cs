@@ -18,6 +18,7 @@ namespace Core {
             return action switch {
                 ToggleCardSelectionAction toggle => ToggleCardSelection(state, toggle.Index),
                 PlaySelectedCardsAction => PlaySelectedCards(state),
+                ScorePresentationFinishedAction => FinishScorePresentation(state),
                 DiscardSelectedCardsAction => DiscardCards(state),
                 SortHandByRankAction => SortHandByRank(state),
                 SortHandBySuitAction => SortHandBySuit(state),
@@ -47,15 +48,6 @@ namespace Core {
 
             var handResult = PokerHandEvaluator.Evaluate(playedCards);
             var scoreResult = overrideScoreResult ?? ScoreCalculator.Calculate(playedCards, handResult, state.Blind);
-            int cardsNeeded = Math.Max(0, state.MaxHandSize - remainingHandCards.Count);
-            var drawResult = DeckUtility.DrawCards(state.DeckCards, cardsNeeded);
-
-            var newHand = new List<CardData>(remainingHandCards);
-            newHand.AddRange(drawResult.DrawnCards);
-
-            var newDiscardPile = new List<CardData>(state.DiscardPileCards);
-            newDiscardPile.AddRange(playedCards);
-
             int newHandsLeft = Math.Max(0, state.HandsLeft - 1);
             int newCurrentScore = state.CurrentScore + scoreResult.FinalScore;
             bool blindCleared = newCurrentScore >= state.TargetScore;
@@ -67,23 +59,24 @@ namespace Core {
                 currentScore: newCurrentScore,
                 handsLeft: newHandsLeft,
                 discardsLeft: state.DiscardsLeft,
-                phase: blindCleared || roundLost ? RoundPhase.RoundEnd : RoundPhase.PlayerTurn,
+                phase: RoundPhase.Scoring,
                 maxHandSize: state.MaxHandSize,
-                deckCards: drawResult.RemainingDeck,
-                handCards: newHand,
-                discardPileCards: newDiscardPile,
+                deckCards: state.DeckCards,
+                handCards: remainingHandCards,
+                discardPileCards: state.DiscardPileCards,
                 selectedCardsIndexes: Array.Empty<int>(),
                 lastActionText: BuildPlayActionText(handResult.HandType, scoreResult.FinalScore, blindCleared, roundLost, jokerFeedbackText),
                 lastPlayedCardsText: FormatPlayedCardsText(playedCards),
                 lastPlayedCards: playedCards,
                 lastPlayedCardsCount: playedCards.Count,
                 lastPlayedHandResult: handResult.HandType,
-                lastScoreResult: scoreResult
+                lastScoreResult: scoreResult,
+                playedCards: playedCards
             );
         }
 
         private static RoundState ToggleCardSelection(RoundState state, int index) {
-            if (state.IsRoundOver || index < 0 || index >= state.HandCards.Count) {
+            if (state.Phase != RoundPhase.PlayerTurn || index < 0 || index >= state.HandCards.Count) {
                 return state;
             }
 
@@ -161,6 +154,45 @@ namespace Core {
             );
         }
 
+        private static RoundState FinishScorePresentation(RoundState state) {
+            if (state.Phase != RoundPhase.Scoring) {
+                return state;
+            }
+
+            int cardsNeeded = Math.Max(0, state.MaxHandSize - state.HandCards.Count);
+            var drawResult = DeckUtility.DrawCards(state.DeckCards, cardsNeeded);
+
+            var newHand = new List<CardData>(state.HandCards);
+            newHand.AddRange(drawResult.DrawnCards);
+
+            var newDiscardPile = new List<CardData>(state.DiscardPileCards);
+            newDiscardPile.AddRange(state.PlayedCards);
+
+            bool blindCleared = state.CurrentScore >= state.TargetScore;
+            bool roundLost = !blindCleared && state.HandsLeft == 0;
+
+            return new RoundState(
+                blind: state.Blind,
+                targetScore: state.TargetScore,
+                currentScore: state.CurrentScore,
+                handsLeft: state.HandsLeft,
+                discardsLeft: state.DiscardsLeft,
+                phase: blindCleared || roundLost ? RoundPhase.RoundEnd : RoundPhase.PlayerTurn,
+                maxHandSize: state.MaxHandSize,
+                deckCards: drawResult.RemainingDeck,
+                handCards: newHand,
+                discardPileCards: newDiscardPile,
+                selectedCardsIndexes: Array.Empty<int>(),
+                lastActionText: state.LastActionText,
+                lastPlayedCardsText: state.LastPlayedCardsText,
+                lastPlayedCards: state.LastPlayedCards,
+                lastPlayedCardsCount: state.LastPlayedCardsCount,
+                lastPlayedHandResult: state.LastPlayedHandResult,
+                lastScoreResult: state.LastScoreResult,
+                playedCards: Array.Empty<CardData>()
+            );
+        }
+
         private static RoundState SortHandByRank(RoundState state) {
             if (!state.CanSortHand) {
                 return state;
@@ -215,6 +247,7 @@ namespace Core {
         private static RoundState CopyWith(
             RoundState state,
             IReadOnlyList<CardData> handCards = null,
+            IReadOnlyList<CardData> playedCards = null,
             IReadOnlyList<int> selectedCardsIndexes = null,
             string lastActionText = null) {
             return new RoundState(
@@ -234,7 +267,8 @@ namespace Core {
                 lastPlayedCards: state.LastPlayedCards,
                 lastPlayedCardsCount: state.LastPlayedCardsCount,
                 lastPlayedHandResult: state.LastPlayedHandResult,
-                lastScoreResult: state.LastScoreResult
+                lastScoreResult: state.LastScoreResult,
+                playedCards: playedCards ?? state.PlayedCards
             );
         }
 

@@ -17,6 +17,7 @@ namespace View {
         public string AnteText;
         public string RoundText;
         public string PhaseText;
+        public RoundPhase Phase;
         public string StatusText;
         public string SelectedCountText;
         public string DeckCountText;

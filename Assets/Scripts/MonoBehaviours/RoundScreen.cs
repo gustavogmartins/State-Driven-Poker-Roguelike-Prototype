@@ -112,6 +112,7 @@ public class RoundScreen : MonoBehaviour {
 
         if (boardRenderer != null) {
             boardRenderer.CardSelected -= OnCardSelected;
+            boardRenderer.ScoringPresentationFinished -= OnScoringPresentationFinished;
         }
 
         UnregisterButtonListeners();
@@ -124,18 +125,34 @@ public class RoundScreen : MonoBehaviour {
     }
 
     public void OnPlayHandButtonClicked() {
+        if (IsInputBlocked()) {
+            return;
+        }
+
         _store?.Dispatch(new PlaySelectedCardsAction());
     }
 
     public void OnDiscardButtonClicked() {
+        if (IsInputBlocked()) {
+            return;
+        }
+
         _store?.Dispatch(new DiscardSelectedCardsAction());
     }
 
     public void OnSortByRankButtonClicked() {
+        if (IsInputBlocked()) {
+            return;
+        }
+
         _store?.Dispatch(new SortHandByRankAction());
     }
 
     public void OnSortBySuitButtonClicked() {
+        if (IsInputBlocked()) {
+            return;
+        }
+
         _store?.Dispatch(new SortHandBySuitAction());
     }
 
@@ -189,7 +206,19 @@ public class RoundScreen : MonoBehaviour {
     }
 
     private void OnCardSelected(int index) {
+        if (IsInputBlocked()) {
+            return;
+        }
+
         _store?.Dispatch(new ToggleCardSelectionAction(index));
+    }
+
+    private void OnScoringPresentationFinished() {
+        if (_store?.State?.CurrentRound.Phase != RoundPhase.Scoring) {
+            return;
+        }
+
+        _store.Dispatch(new ScorePresentationFinishedAction());
     }
 
     private void HandlePrimaryRoundEndAction() {
@@ -446,6 +475,12 @@ public class RoundScreen : MonoBehaviour {
 
         boardRenderer.CardSelected -= OnCardSelected;
         boardRenderer.CardSelected += OnCardSelected;
+        boardRenderer.ScoringPresentationFinished -= OnScoringPresentationFinished;
+        boardRenderer.ScoringPresentationFinished += OnScoringPresentationFinished;
+    }
+
+    private bool IsInputBlocked() {
+        return animationController != null && animationController.IsAnimating;
     }
 
     private void RegisterButtonListeners() {

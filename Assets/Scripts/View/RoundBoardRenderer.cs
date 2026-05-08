@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -12,13 +13,17 @@ public sealed class RoundBoardRenderer : MonoBehaviour {
     [SerializeField] private CardViewPool cardViewPool;
     [SerializeField] private int handSlotCount = 8;
     [SerializeField] private int playedCardSlotCount = 5;
+    [SerializeField] private float scoringPresentationDelay = 0.12f;
 
     private readonly Dictionary<int, CardView> _cardViewsById = new();
     private readonly List<RectTransform> _handSlots = new();
     private readonly List<RectTransform> _playedCardSlots = new();
     private RoundViewModel _previousViewModel;
+    private bool _scoringPresentationPending;
+    private Coroutine _scoringPresentationCoroutine;
 
     public event Action<int> CardSelected;
+    public event Action ScoringPresentationFinished;
 
     public void Configure(
         CardView prefab,
@@ -45,17 +50,38 @@ public sealed class RoundBoardRenderer : MonoBehaviour {
 
         EnsureSlots(handArea, _handSlots, Math.Max(handSlotCount, viewModel.HandCards.Count), "HandSlot");
         EnsureSlots(playedHandArea, _playedCardSlots, Math.Max(playedCardSlotCount, viewModel.PlayedCards.Count), "PlayedCardSlot");
-        ApplyCards(viewModel);
+        bool enteredScoring = _previousViewModel != null &&
+            _previousViewModel.Phase != RoundPhase.Scoring &&
+            viewModel.Phase == RoundPhase.Scoring;
+
+        if (enteredScoring) {
+            BeginScoringPresentationTracking();
+        }
+
+        var zoneChangeAnimations = new List<CardZoneChangeAnimation>();
+        ApplyCards(viewModel, zoneChangeAnimations);
 
         if (_previousViewModel != null) {
             DetectSelectionChanges(_previousViewModel, viewModel);
         }
 
+        PlayZoneChangeAnimations(zoneChangeAnimations, enteredScoring);
+
+        if (enteredScoring && zoneChangeAnimations.Count == 0) {
+            ScheduleScoringPresentationFinished();
+        }
+
         _previousViewModel = viewModel;
     }
 
-    private void ApplyCards(RoundViewModel viewModel) {
+    private void ApplyCards(RoundViewModel viewModel, List<CardZoneChangeAnimation> zoneChangeAnimations) {
         var visibleCardIds = new HashSet<int>();
+
+        if (playedHandArea != null) {
+            playedHandArea.gameObject.SetActive(viewModel.PlayedCards.Count > 0);
+        }
+
+        RebuildCardAreaLayouts();
 
         for (int i = 0; i < viewModel.HandCards.Count; i++) {
             CardViewModel cardViewModel = viewModel.HandCards[i];
@@ -64,11 +90,7 @@ public sealed class RoundBoardRenderer : MonoBehaviour {
             }
 
             visibleCardIds.Add(cardViewModel.CardId);
-            BindCardToSlot(cardViewModel, _handSlots[i]);
-        }
-
-        if (playedHandArea != null) {
-            playedHandArea.gameObject.SetActive(viewModel.PlayedCards.Count > 0);
+            BindCardToSlot(cardViewModel, _handSlots[i], zoneChangeAnimations);
         }
 
         for (int i = 0; i < viewModel.PlayedCards.Count; i++) {
@@ -78,29 +100,37 @@ public sealed class RoundBoardRenderer : MonoBehaviour {
             }
 
             visibleCardIds.Add(cardViewModel.CardId);
-            BindCardToSlot(cardViewModel, _playedCardSlots[i]);
+            BindCardToSlot(cardViewModel, _playedCardSlots[i], zoneChangeAnimations);
         }
 
         ReleaseCardsNotIn(visibleCardIds);
-        if (handArea != null) {
-            LayoutRebuilder.ForceRebuildLayoutImmediate(handArea);
-        }
-
-        if (playedHandArea != null) {
-            LayoutRebuilder.ForceRebuildLayoutImmediate(playedHandArea);
-        }
+        RebuildCardAreaLayouts();
     }
 
-    private void BindCardToSlot(CardViewModel cardViewModel, RectTransform slot) {
+    private void BindCardToSlot(CardViewModel cardViewModel, RectTransform slot, List<CardZoneChangeAnimation> zoneChangeAnimations) {
         CardView cardView = GetOrCreateCardView(cardViewModel.CardId, slot);
         if (cardView == null) {
             return;
         }
 
+        CardViewModel previousCard = _previousViewModel != null
+            ? FindCard(_previousViewModel, cardViewModel.CardId)
+            : null;
+        bool shouldAnimateZoneChange = previousCard != null && previousCard.Zone != cardViewModel.Zone;
+        Vector3 previousWorldPosition = cardView.RectTransform.position;
+
         ParentCardToSlot(cardView, slot);
         cardView.OnCardSelected -= HandleCardSelected;
         cardView.OnCardSelected += HandleCardSelected;
         cardView.Bind(cardViewModel);
+
+        if (!shouldAnimateZoneChange) {
+            return;
+        }
+
+        cardView.RectTransform.position = previousWorldPosition;
+        int order = previousCard.Index >= 0 ? previousCard.Index : zoneChangeAnimations.Count;
+        zoneChangeAnimations.Add(new CardZoneChangeAnimation(cardView, previousCard.Zone, cardViewModel.Zone, order));
     }
 
     private CardView GetOrCreateCardView(int cardId, RectTransform parent) {
@@ -132,6 +162,10 @@ public sealed class RoundBoardRenderer : MonoBehaviour {
         foreach (CardViewModel currentCard in current.GameplayCards) {
             CardViewModel previousCard = FindCard(previous, currentCard.CardId);
             if (previousCard == null || previousCard.IsSelected == currentCard.IsSelected) {
+                continue;
+            }
+
+            if (previousCard.Zone != currentCard.Zone) {
                 continue;
             }
 
@@ -179,6 +213,83 @@ public sealed class RoundBoardRenderer : MonoBehaviour {
 
     private void HandleCardSelected(int index) {
         CardSelected?.Invoke(index);
+    }
+
+    private void BeginScoringPresentationTracking() {
+        _scoringPresentationPending = true;
+
+        if (_scoringPresentationCoroutine != null) {
+            StopCoroutine(_scoringPresentationCoroutine);
+            _scoringPresentationCoroutine = null;
+        }
+    }
+
+    private void ScheduleScoringPresentationFinished() {
+        if (!_scoringPresentationPending || _scoringPresentationCoroutine != null) {
+            return;
+        }
+
+        _scoringPresentationCoroutine = StartCoroutine(NotifyScoringPresentationFinished());
+    }
+
+    private IEnumerator NotifyScoringPresentationFinished() {
+        if (scoringPresentationDelay > 0f) {
+            yield return new WaitForSeconds(scoringPresentationDelay);
+        } else {
+            yield return null;
+        }
+
+        _scoringPresentationCoroutine = null;
+        _scoringPresentationPending = false;
+        ScoringPresentationFinished?.Invoke();
+    }
+
+    private void RebuildCardAreaLayouts() {
+        if (handArea != null) {
+            LayoutRebuilder.ForceRebuildLayoutImmediate(handArea);
+        }
+
+        if (playedHandArea != null) {
+            LayoutRebuilder.ForceRebuildLayoutImmediate(playedHandArea);
+        }
+    }
+
+    private void PlayZoneChangeAnimations(List<CardZoneChangeAnimation> zoneChangeAnimations, bool finishScoringWhenDone) {
+        if (zoneChangeAnimations == null || zoneChangeAnimations.Count == 0) {
+            return;
+        }
+
+        zoneChangeAnimations.Sort((left, right) => left.Order.CompareTo(right.Order));
+
+        Action onComplete = finishScoringWhenDone
+            ? ScheduleScoringPresentationFinished
+            : null;
+
+        if (animationController != null) {
+            animationController.AnimateCardZoneChangeSequence(zoneChangeAnimations, onComplete);
+            return;
+        }
+
+        CompleteZoneChangeAnimationsWithoutController(zoneChangeAnimations);
+        onComplete?.Invoke();
+    }
+
+    private static void CompleteZoneChangeAnimationsWithoutController(IReadOnlyList<CardZoneChangeAnimation> zoneChangeAnimations) {
+        for (int i = 0; i < zoneChangeAnimations.Count; i++) {
+            CardView cardView = zoneChangeAnimations[i].CardView;
+            if (cardView == null) {
+                continue;
+            }
+
+            RectTransform cardTransform = cardView.RectTransform;
+            if (cardTransform == null) {
+                continue;
+            }
+
+            cardTransform.anchoredPosition = Vector2.zero;
+            cardTransform.localRotation = Quaternion.identity;
+            cardTransform.localScale = Vector3.one;
+        }
     }
 
     private void EnsureSlots(RectTransform area, List<RectTransform> slots, int slotCount, string slotNamePrefix) {

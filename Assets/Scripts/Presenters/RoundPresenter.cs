@@ -50,6 +50,7 @@ namespace Presenters {
                 AnteText = roundState.Ante.ToString(),
                 RoundText = roundState.RoundNumber.ToString(),
                 PhaseText = FormatPhase(roundState.Phase),
+                Phase = roundState.Phase,
                 StatusText = BuildStatusText(roundState),
                 SelectedCountText = $"{roundState.SelectedCardsCount}/5",
                 DeckCountText = $"{roundState.DeckCards.Count}/{TotalDeckSize}",
@@ -81,12 +82,12 @@ namespace Presenters {
                     index: i,
                     zone: CardZone.Hand,
                     isSelected: roundState.IsSelected(i),
-                    isInteractable: !runState.IsInShop && roundState.Phase != RoundPhase.RoundEnd,
+                    isInteractable: !runState.IsInShop && roundState.Phase == RoundPhase.PlayerTurn,
                     blind: roundState.Blind
                 ));
             }
 
-            foreach (var card in roundState.LastPlayedCards) {
+            foreach (var card in roundState.PlayedCards) {
                 viewModel.PlayedCards.Add(CreateCardViewModel(
                     card,
                     index: -1,

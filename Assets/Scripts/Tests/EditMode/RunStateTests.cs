@@ -26,7 +26,14 @@ public sealed class RunStateTests {
             state = RunReducer.Reduce(state, new ToggleCardSelectionAction(i));
         }
 
-        RunState nextState = RunReducer.Reduce(state, new PlaySelectedCardsAction());
+        RunState scoringState = RunReducer.Reduce(state, new PlaySelectedCardsAction());
+
+        Assert.That(scoringState.CurrentRound.Phase, Is.EqualTo(RoundPhase.Scoring));
+        Assert.That(scoringState.CurrentRound.HasWonRound, Is.False);
+        Assert.That(scoringState.Money, Is.EqualTo(10));
+        Assert.That(scoringState.Phase, Is.EqualTo(RunPhase.Blind));
+
+        RunState nextState = RunReducer.Reduce(scoringState, new ScorePresentationFinishedAction());
 
         Assert.That(nextState.CurrentRound.HasWonRound, Is.True);
         Assert.That(nextState.Money, Is.EqualTo(30));
@@ -48,7 +55,13 @@ public sealed class RunStateTests {
 
         state = RunReducer.Reduce(state, new ToggleCardSelectionAction(0));
 
-        RunState nextState = RunReducer.Reduce(state, new PlaySelectedCardsAction());
+        RunState scoringState = RunReducer.Reduce(state, new PlaySelectedCardsAction());
+
+        Assert.That(scoringState.CurrentRound.Phase, Is.EqualTo(RoundPhase.Scoring));
+        Assert.That(scoringState.CurrentRound.HasLostRound, Is.False);
+        Assert.That(scoringState.IsRunOver, Is.False);
+
+        RunState nextState = RunReducer.Reduce(scoringState, new ScorePresentationFinishedAction());
 
         Assert.That(nextState.CurrentRound.HasLostRound, Is.True);
         Assert.That(nextState.IsRunOver, Is.True);
@@ -813,11 +826,17 @@ public sealed class RunStateTests {
             state = RunReducer.Reduce(state, new ToggleCardSelectionAction(i));
         }
 
-        RunState nextState = RunReducer.Reduce(state, new PlaySelectedCardsAction());
+        RunState scoringState = RunReducer.Reduce(state, new PlaySelectedCardsAction());
+
+        Assert.That(scoringState.CurrentRound.Phase, Is.EqualTo(RoundPhase.Scoring));
+        Assert.That(scoringState.CurrentRound.HasWonRound, Is.False);
+        Assert.That(scoringState.Money, Is.EqualTo(12));
+        StringAssert.Contains("Jokers: Cash Tag +$2", scoringState.CurrentRound.LastActionText);
+
+        RunState nextState = RunReducer.Reduce(scoringState, new ScorePresentationFinishedAction());
 
         Assert.That(nextState.CurrentRound.HasWonRound, Is.True);
         Assert.That(nextState.Money, Is.EqualTo(22));
-        StringAssert.Contains("Jokers: Cash Tag +$2", nextState.CurrentRound.LastActionText);
     }
 
     [Test]

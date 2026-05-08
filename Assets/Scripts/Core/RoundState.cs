@@ -18,6 +18,7 @@ namespace Core {
         public int DiscardsLeft { get; }
         public RoundPhase Phase { get; }
         public IReadOnlyList<CardData> HandCards { get; }
+        public IReadOnlyList<CardData> PlayedCards { get; }
         public IReadOnlyList<CardData> DeckCards { get; }
         public IReadOnlyList<CardData> DiscardPileCards { get; }
         public IReadOnlyList<int> SelectedCardsIndexes { get; }
@@ -35,9 +36,9 @@ namespace Core {
         public bool HasClearedBlind => CurrentScore >= TargetScore;
         public bool HasWonRound => IsRoundOver && HasClearedBlind;
         public bool HasLostRound => IsRoundOver && !HasClearedBlind && HandsLeft == 0;
-        public bool CanPlaySelectedCards => !IsRoundOver && SelectedCardsCount > 0 && HandsLeft > 0;
-        public bool CanDiscardSelectedCards => !IsRoundOver && SelectedCardsCount > 0 && DiscardsLeft > 0;
-        public bool CanSortHand => !IsRoundOver && HandCards.Count > 1;
+        public bool CanPlaySelectedCards => Phase == RoundPhase.PlayerTurn && SelectedCardsCount > 0 && HandsLeft > 0;
+        public bool CanDiscardSelectedCards => Phase == RoundPhase.PlayerTurn && SelectedCardsCount > 0 && DiscardsLeft > 0;
+        public bool CanSortHand => Phase == RoundPhase.PlayerTurn && HandCards.Count > 1;
 
         public RoundState(
             BlindState blind,
@@ -56,7 +57,8 @@ namespace Core {
             IReadOnlyList<CardData> lastPlayedCards,
             int lastPlayedCardsCount,
             PokerHandType lastPlayedHandResult,
-            ScoreResult lastScoreResult) {
+            ScoreResult lastScoreResult,
+            IReadOnlyList<CardData> playedCards = null) {
             if (blind == null) {
                 throw new ArgumentNullException(nameof(blind));
             }
@@ -90,6 +92,7 @@ namespace Core {
             MaxHandSize = maxHandSize;
             DeckCards = CopyCards(deckCards);
             HandCards = CopyCards(handCards);
+            PlayedCards = CopyCards(playedCards);
             DiscardPileCards = CopyCards(discardPileCards);
             SelectedCardsIndexes = SanitizeSelectedIndexes(selectedCardsIndexes, HandCards.Count);
             LastActionText = string.IsNullOrWhiteSpace(lastActionText) ? "Waiting for input" : lastActionText;
@@ -148,7 +151,8 @@ namespace Core {
                 lastPlayedCards: Array.Empty<CardData>(),
                 lastPlayedCardsCount: 0,
                 lastPlayedHandResult: PokerHandType.None,
-                lastScoreResult: ScoreResult.Zero
+                lastScoreResult: ScoreResult.Zero,
+                playedCards: Array.Empty<CardData>()
             );
         }
 
@@ -157,6 +161,10 @@ namespace Core {
         }
 
         public bool IsSelected(int index) {
+            if (Phase != RoundPhase.PlayerTurn) {
+                return false;
+            }
+
             return SelectedCardsIndexes.Contains(index);
         }
 
