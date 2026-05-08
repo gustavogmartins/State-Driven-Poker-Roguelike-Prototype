@@ -21,7 +21,9 @@ public sealed class RoundBoardRenderer : MonoBehaviour {
     private readonly List<RectTransform> _playedCardSlots = new();
     private readonly List<int> _pendingDiscardCardIds = new();
     private RoundViewModel _previousViewModel;
+    private RoundViewModel _pendingScoringViewModel;
     private bool _scoringPresentationPending;
+    private bool _scoringPresentationRunning;
     private bool _discardPresentationPending;
     private Coroutine _scoringPresentationCoroutine;
 
@@ -64,7 +66,7 @@ public sealed class RoundBoardRenderer : MonoBehaviour {
             viewModel.Phase == RoundPhase.Discarding;
 
         if (enteredScoring) {
-            BeginScoringPresentationTracking();
+            BeginScoringPresentationTracking(viewModel);
         }
 
         if (enteredDiscarding) {
@@ -245,8 +247,10 @@ public sealed class RoundBoardRenderer : MonoBehaviour {
         CardSelected?.Invoke(index);
     }
 
-    private void BeginScoringPresentationTracking() {
+    private void BeginScoringPresentationTracking(RoundViewModel viewModel) {
         _scoringPresentationPending = true;
+        _scoringPresentationRunning = false;
+        _pendingScoringViewModel = viewModel;
 
         if (_scoringPresentationCoroutine != null) {
             StopCoroutine(_scoringPresentationCoroutine);
@@ -264,11 +268,20 @@ public sealed class RoundBoardRenderer : MonoBehaviour {
     }
 
     private void ScheduleScoringPresentationFinished() {
-        if (!_scoringPresentationPending || _scoringPresentationCoroutine != null) {
+        if (!_scoringPresentationPending || _scoringPresentationRunning || _scoringPresentationCoroutine != null) {
             return;
         }
 
-        _scoringPresentationCoroutine = StartCoroutine(NotifyScoringPresentationFinished());
+        if (animationController == null) {
+            _scoringPresentationCoroutine = StartCoroutine(NotifyScoringPresentationFinished());
+            return;
+        }
+
+        _scoringPresentationRunning = true;
+        animationController.AnimateScorePresentation(
+            BuildScoreCardAnimations(_pendingScoringViewModel),
+            _pendingScoringViewModel,
+            CompleteScoringPresentation);
     }
 
     private IEnumerator NotifyScoringPresentationFinished() {
@@ -279,7 +292,17 @@ public sealed class RoundBoardRenderer : MonoBehaviour {
         }
 
         _scoringPresentationCoroutine = null;
+        CompleteScoringPresentation();
+    }
+
+    private void CompleteScoringPresentation() {
+        if (!_scoringPresentationPending) {
+            return;
+        }
+
+        _scoringPresentationRunning = false;
         _scoringPresentationPending = false;
+        _pendingScoringViewModel = null;
         ScoringPresentationFinished?.Invoke();
     }
 
@@ -339,6 +362,28 @@ public sealed class RoundBoardRenderer : MonoBehaviour {
                 Destroy(cardView.gameObject);
             }
         }
+    }
+
+    private IReadOnlyList<ScoreCardAnimation> BuildScoreCardAnimations(RoundViewModel viewModel) {
+        var animations = new List<ScoreCardAnimation>();
+        if (viewModel == null) {
+            return animations;
+        }
+
+        for (int i = 0; i < viewModel.PlayedCards.Count; i++) {
+            CardViewModel card = viewModel.PlayedCards[i];
+            if (!card.IsScoringCard || card.ScoringChipValue <= 0) {
+                continue;
+            }
+
+            if (!_cardViewsById.TryGetValue(card.CardId, out CardView cardView)) {
+                continue;
+            }
+
+            animations.Add(new ScoreCardAnimation(cardView, card.ScoringChipValue, i));
+        }
+
+        return animations;
     }
 
     private static void CompleteZoneChangeAnimationsWithoutController(IReadOnlyList<CardZoneChangeAnimation> zoneChangeAnimations) {

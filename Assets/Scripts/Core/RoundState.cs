@@ -30,6 +30,7 @@ namespace Core {
         public int MaxHandSize { get; }
         public PokerHandType LastPlayedHandResult { get; }
         public ScoreResult LastScoreResult { get; }
+        public ScoreResult LastBaseScoreResult { get; }
         public int BlindReward => Blind.Reward;
         public int RemainingScore => Math.Max(0, TargetScore - CurrentScore);
         public int SelectedCardsCount => SelectedCardsIndexes.Count;
@@ -60,7 +61,8 @@ namespace Core {
             PokerHandType lastPlayedHandResult,
             ScoreResult lastScoreResult,
             IReadOnlyList<CardData> playedCards = null,
-            IReadOnlyList<CardData> discardedCards = null) {
+            IReadOnlyList<CardData> discardedCards = null,
+            ScoreResult? lastBaseScoreResult = null) {
             if (blind == null) {
                 throw new ArgumentNullException(nameof(blind));
             }
@@ -104,6 +106,7 @@ namespace Core {
             LastPlayedCardsCount = Math.Max(0, lastPlayedCardsCount);
             LastPlayedHandResult = lastPlayedHandResult;
             LastScoreResult = lastScoreResult;
+            LastBaseScoreResult = lastBaseScoreResult ?? lastScoreResult;
         }
 
         public static RoundState CreateInitial(
@@ -156,7 +159,8 @@ namespace Core {
                 lastPlayedHandResult: PokerHandType.None,
                 lastScoreResult: ScoreResult.Zero,
                 playedCards: Array.Empty<CardData>(),
-                discardedCards: Array.Empty<CardData>()
+                discardedCards: Array.Empty<CardData>(),
+                lastBaseScoreResult: ScoreResult.Zero
             );
         }
 

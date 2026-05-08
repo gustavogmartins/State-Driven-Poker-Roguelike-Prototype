@@ -67,6 +67,7 @@ namespace Core {
             RoundState nextRound = RoundReducer.PlaySelectedCards(
                 state.CurrentRound,
                 modifierResult.ScoreResult,
+                baseScore,
                 modifierResult.TriggeredText);
 
             if (ReferenceEquals(nextRound, state.CurrentRound)) {

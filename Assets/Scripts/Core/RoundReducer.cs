@@ -30,6 +30,7 @@ namespace Core {
         internal static RoundState PlaySelectedCards(
             RoundState state,
             ScoreResult? overrideScoreResult = null,
+            ScoreResult? overrideBaseScoreResult = null,
             string jokerFeedbackText = null) {
             if (!state.CanPlaySelectedCards) {
                 return state;
@@ -48,7 +49,8 @@ namespace Core {
             }
 
             var handResult = PokerHandEvaluator.Evaluate(playedCards);
-            var scoreResult = overrideScoreResult ?? ScoreCalculator.Calculate(playedCards, handResult, state.Blind);
+            var baseScoreResult = overrideBaseScoreResult ?? ScoreCalculator.Calculate(playedCards, handResult, state.Blind);
+            var scoreResult = overrideScoreResult ?? baseScoreResult;
             int newHandsLeft = Math.Max(0, state.HandsLeft - 1);
             int newCurrentScore = state.CurrentScore + scoreResult.FinalScore;
             bool blindCleared = newCurrentScore >= state.TargetScore;
@@ -72,7 +74,8 @@ namespace Core {
                 lastPlayedCardsCount: playedCards.Count,
                 lastPlayedHandResult: handResult.HandType,
                 lastScoreResult: scoreResult,
-                playedCards: playedCards
+                playedCards: playedCards,
+                lastBaseScoreResult: baseScoreResult
             );
         }
 
@@ -143,6 +146,7 @@ namespace Core {
                 lastPlayedCardsCount: discardedCards.Count,
                 lastPlayedHandResult: PokerHandType.None,
                 lastScoreResult: ScoreResult.Zero,
+                lastBaseScoreResult: ScoreResult.Zero,
                 discardedCards: discardedCards
             );
         }
@@ -179,6 +183,7 @@ namespace Core {
                 lastPlayedCardsCount: state.LastPlayedCardsCount,
                 lastPlayedHandResult: state.LastPlayedHandResult,
                 lastScoreResult: state.LastScoreResult,
+                lastBaseScoreResult: state.LastBaseScoreResult,
                 playedCards: state.PlayedCards,
                 discardedCards: Array.Empty<CardData>()
             );
@@ -219,6 +224,7 @@ namespace Core {
                 lastPlayedCardsCount: state.LastPlayedCardsCount,
                 lastPlayedHandResult: state.LastPlayedHandResult,
                 lastScoreResult: state.LastScoreResult,
+                lastBaseScoreResult: state.LastBaseScoreResult,
                 playedCards: Array.Empty<CardData>(),
                 discardedCards: state.DiscardedCards
             );
@@ -300,6 +306,7 @@ namespace Core {
                 lastPlayedCardsCount: state.LastPlayedCardsCount,
                 lastPlayedHandResult: state.LastPlayedHandResult,
                 lastScoreResult: state.LastScoreResult,
+                lastBaseScoreResult: state.LastBaseScoreResult,
                 playedCards: playedCards ?? state.PlayedCards,
                 discardedCards: discardedCards ?? state.DiscardedCards
             );

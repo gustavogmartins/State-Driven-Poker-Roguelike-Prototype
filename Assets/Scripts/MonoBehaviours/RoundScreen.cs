@@ -483,6 +483,7 @@ public class RoundScreen : MonoBehaviour {
         }
 
         cardViewPool.Configure(cardViewPrefab);
+        animationController.ConfigureScoreTargets(chipsText, multText, roundScoreText);
         boardRenderer.Configure(
             cardViewPrefab,
             handArea,

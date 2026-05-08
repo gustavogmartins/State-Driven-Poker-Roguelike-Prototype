@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using Core;
 using UnityEngine;
 using View;
@@ -11,13 +13,18 @@ namespace Presenters {
             var selectedCards = roundState.GetSelectedCards();
             bool hasPreviewSelection = selectedCards.Count > 0;
             bool hasPlayedCards = roundState.LastPlayedCards.Count > 0;
+            bool isScoring = roundState.Phase == RoundPhase.Scoring;
 
             PokerHandResult activeHandResult = hasPreviewSelection
                 ? PokerHandEvaluator.Evaluate(selectedCards)
                 : new PokerHandResult(roundState.LastPlayedHandResult);
 
-            ScoreResult activeScore = hasPreviewSelection
+            ScoreResult activeBaseScore = hasPreviewSelection
                 ? ScoreCalculator.Calculate(selectedCards, activeHandResult, roundState.Blind)
+                : roundState.LastBaseScoreResult;
+
+            ScoreResult activeScore = hasPreviewSelection
+                ? activeBaseScore
                 : roundState.LastScoreResult;
 
             string handName = hasPreviewSelection
@@ -27,6 +34,7 @@ namespace Presenters {
                     : "Select Cards";
 
             if (!hasPreviewSelection && !hasPlayedCards) {
+                activeBaseScore = ScoreResult.Zero;
                 activeScore = ScoreResult.Zero;
             }
 
@@ -34,16 +42,29 @@ namespace Presenters {
                 activeScore = RunModifierService.ApplyScoreModifiers(activeScore, runState.OwnedJokers, selectedCards, activeHandResult);
             }
 
+            int scoreStartRoundScore = isScoring
+                ? Math.Max(0, roundState.CurrentScore - roundState.LastScoreResult.FinalScore)
+                : roundState.CurrentScore;
+            int scoreTargetRoundScore = roundState.CurrentScore;
+            int scoreBonusChips = activeScore.TotalChips - activeBaseScore.TotalChips;
+            int scoreBonusMult = activeScore.BaseMult - activeBaseScore.BaseMult;
+            string roundScoreDisplayText = isScoring ? scoreStartRoundScore.ToString() : roundState.CurrentScore.ToString();
+            string chipsDisplayText = isScoring ? activeBaseScore.BaseChips.ToString() : activeScore.TotalChips.ToString();
+            string multDisplayText = isScoring ? activeBaseScore.BaseMult.ToString() : BuildMultText(activeScore);
+            Dictionary<int, int> scoringCardChipsById = isScoring
+                ? BuildScoringCardChipsById(roundState)
+                : null;
+
             var viewModel = new RoundViewModel {
                 BlindTitleText = roundState.BlindName,
                 BlindDescriptionText = BuildBlindDescription(roundState.BlindName),
                 BlindRequirementText = roundState.TargetScore.ToString(),
                 BlindRewardText = $"${roundState.BlindReward}",
-                RoundScoreText = roundState.CurrentScore.ToString(),
+                RoundScoreText = roundScoreDisplayText,
                 HandNameText = handName,
                 HandLevelText = handName == "Select Cards" ? string.Empty : "lvl.1",
-                ChipsText = activeScore.TotalChips.ToString(),
-                MultText = BuildMultText(activeScore),
+                ChipsText = chipsDisplayText,
+                MultText = multDisplayText,
                 HandsLeftText = roundState.HandsLeft.ToString(),
                 DiscardsLeftText = roundState.DiscardsLeft.ToString(),
                 MoneyText = $"${runState.Money}",
@@ -51,6 +72,17 @@ namespace Presenters {
                 RoundText = roundState.RoundNumber.ToString(),
                 PhaseText = FormatPhase(roundState.Phase),
                 Phase = roundState.Phase,
+                HasScorePresentation = isScoring && roundState.PlayedCards.Count > 0,
+                ScoreStartRoundScore = scoreStartRoundScore,
+                ScoreTargetRoundScore = scoreTargetRoundScore,
+                ScoreBaseChips = activeBaseScore.BaseChips,
+                ScoreTargetChips = activeScore.TotalChips,
+                ScoreBaseMult = activeBaseScore.BaseMult,
+                ScoreTargetBaseMult = activeScore.BaseMult,
+                ScoreTargetMultMultiplier = activeScore.MultMultiplier,
+                ScoreFinalScore = activeScore.FinalScore,
+                ScoreBonusChips = scoreBonusChips,
+                ScoreBonusMult = scoreBonusMult,
                 StatusText = BuildStatusText(roundState),
                 SelectedCountText = $"{roundState.SelectedCardsCount}/5",
                 DeckCountText = $"{roundState.DeckCards.Count}/{TotalDeckSize}",
@@ -88,13 +120,18 @@ namespace Presenters {
             }
 
             foreach (var card in roundState.PlayedCards) {
+                int scoringChipValue = 0;
+                bool isScoringCard = scoringCardChipsById?.TryGetValue(card.InstanceId, out scoringChipValue) == true;
+
                 viewModel.PlayedCards.Add(CreateCardViewModel(
                     card,
                     index: -1,
                     zone: CardZone.Played,
                     isSelected: false,
                     isInteractable: false,
-                    blind: roundState.Blind
+                    blind: roundState.Blind,
+                    isScoringCard: isScoringCard,
+                    scoringChipValue: scoringChipValue
                 ));
             }
 
@@ -131,6 +168,26 @@ namespace Presenters {
             bool isSelected,
             bool isInteractable,
             BlindState blind) {
+            return CreateCardViewModel(
+                card,
+                index,
+                zone,
+                isSelected,
+                isInteractable,
+                blind,
+                isScoringCard: false,
+                scoringChipValue: 0);
+        }
+
+        private static CardViewModel CreateCardViewModel(
+            CardData card,
+            int index,
+            CardZone zone,
+            bool isSelected,
+            bool isInteractable,
+            BlindState blind,
+            bool isScoringCard,
+            int scoringChipValue) {
             return new CardViewModel {
                 CardId = card.InstanceId,
                 Zone = zone,
@@ -140,7 +197,9 @@ namespace Presenters {
                 AccentColor = GetSuitColor(card.Suit),
                 IsSelected = isSelected,
                 IsInteractable = isInteractable,
-                IsDebuffed = IsDebuffedByBlind(card, blind)
+                IsDebuffed = IsDebuffedByBlind(card, blind),
+                IsScoringCard = isScoringCard,
+                ScoringChipValue = scoringChipValue
             };
         }
 
@@ -448,6 +507,20 @@ namespace Presenters {
 
         private static bool IsDebuffedByBlind(CardData card, BlindState blind) {
             return blind?.Type == BlindType.Boss && card.Suit == Suit.Clubs;
+        }
+
+        private static Dictionary<int, int> BuildScoringCardChipsById(RoundState roundState) {
+            var chipsById = new Dictionary<int, int>();
+            var handResult = new PokerHandResult(roundState.LastPlayedHandResult);
+
+            foreach (ScoringCardContribution contribution in ScoreCalculator.GetScoringCardContributions(
+                roundState.PlayedCards,
+                handResult,
+                roundState.Blind)) {
+                chipsById[contribution.Card.InstanceId] = contribution.ChipValue;
+            }
+
+            return chipsById;
         }
 
         private static Color GetRarityColor(JokerRarity rarity) {
