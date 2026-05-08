@@ -42,7 +42,7 @@ public sealed class RoundAnimationController : MonoBehaviour {
     [SerializeField] private float selectionPunchDuration = 0.18f;
     [SerializeField] private float zoneChangeDuration = 0.34f;
     [SerializeField] private float zoneChangeStagger = 0.07f;
-    [SerializeField] private TextMeshProUGUI scorePopupPrefab;
+    [SerializeField] private ScorePopupView scorePopupPrefab;
     [SerializeField] private RectTransform scorePopupRoot;
     [SerializeField] private float scoreCardHighlightDuration = 0.14f;
     [SerializeField] private float scoreCardInterval = 0.28f;
@@ -52,7 +52,7 @@ public sealed class RoundAnimationController : MonoBehaviour {
     [SerializeField] private float scorePopupFloatDistance = 54f;
     [SerializeField] private float scorePanelStepPause = 0.08f;
 
-    private readonly Stack<TextMeshProUGUI> _scorePopupPool = new();
+    private readonly Stack<ScorePopupView> _scorePopupPool = new();
     private int _activeBlockingAnimations;
     private TextMeshProUGUI _chipsText;
     private TextMeshProUGUI _multText;
@@ -388,35 +388,27 @@ public sealed class RoundAnimationController : MonoBehaviour {
             return;
         }
 
-        TextMeshProUGUI popup = GetScorePopup(parent);
+        ScorePopupView popup = GetScorePopup(parent);
         if (popup == null) {
             return;
         }
 
-        popup.text = $"+{chipValue}";
-        popup.color = new Color32(244, 158, 27, 255);
-        popup.raycastTarget = false;
-        popup.rectTransform.anchoredPosition = new Vector2(0f, 68f);
-        popup.rectTransform.localRotation = Quaternion.identity;
-        popup.rectTransform.localScale = Vector3.one;
-
-        CanvasGroup canvasGroup = popup.GetComponent<CanvasGroup>();
-        if (canvasGroup == null) {
-            canvasGroup = popup.gameObject.AddComponent<CanvasGroup>();
-        }
-
-        canvasGroup.alpha = 1f;
+        popup.Bind(chipValue);
+        popup.RectTransform.anchoredPosition = new Vector2(0f, 68f);
+        popup.RectTransform.localRotation = Quaternion.identity;
+        popup.RectTransform.localScale = Vector3.one;
+        popup.CanvasGroup.alpha = 1f;
         popup.gameObject.SetActive(true);
 
         Sequence sequence = DOTween.Sequence();
         sequence.SetTarget(popup);
-        sequence.Join(popup.rectTransform.DOAnchorPosY(68f + scorePopupFloatDistance, scorePopupDuration).SetEase(Ease.OutCubic));
-        sequence.Join(canvasGroup.DOFade(0f, scorePopupDuration).SetEase(Ease.InQuad));
+        sequence.Join(popup.RectTransform.DOAnchorPosY(68f + scorePopupFloatDistance, scorePopupDuration).SetEase(Ease.OutCubic));
+        sequence.Join(popup.CanvasGroup.DOFade(0f, scorePopupDuration).SetEase(Ease.InQuad));
         sequence.OnComplete(() => ReleaseScorePopup(popup));
     }
 
-    private TextMeshProUGUI GetScorePopup(RectTransform parent) {
-        TextMeshProUGUI popup = _scorePopupPool.Count > 0
+    private ScorePopupView GetScorePopup(RectTransform parent) {
+        ScorePopupView popup = _scorePopupPool.Count > 0
             ? _scorePopupPool.Pop()
             : CreateScorePopup();
 
@@ -425,15 +417,16 @@ public sealed class RoundAnimationController : MonoBehaviour {
         }
 
         popup.transform.SetParent(parent, false);
+        popup.ResetView();
         return popup;
     }
 
-    private TextMeshProUGUI CreateScorePopup() {
+    private ScorePopupView CreateScorePopup() {
         if (scorePopupPrefab != null) {
             return Instantiate(scorePopupPrefab);
         }
 
-        var popupObject = new GameObject("ScorePopup", typeof(RectTransform), typeof(CanvasGroup), typeof(TextMeshProUGUI));
+        var popupObject = new GameObject("ScorePopup", typeof(RectTransform), typeof(CanvasGroup), typeof(TextMeshProUGUI), typeof(ScorePopupView));
         RectTransform rectTransform = (RectTransform)popupObject.transform;
         rectTransform.anchorMin = new Vector2(0.5f, 0.5f);
         rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
@@ -442,23 +435,21 @@ public sealed class RoundAnimationController : MonoBehaviour {
 
         TextMeshProUGUI popupText = popupObject.GetComponent<TextMeshProUGUI>();
         popupText.alignment = TextAlignmentOptions.Center;
-        popupText.fontSize = 28f;
+        popupText.fontSize = 36f;
         popupText.fontStyle = FontStyles.Bold;
         popupText.raycastTarget = false;
-        return popupText;
+        return popupObject.GetComponent<ScorePopupView>();
     }
 
-    private void ReleaseScorePopup(TextMeshProUGUI popup) {
+    private void ReleaseScorePopup(ScorePopupView popup) {
         if (popup == null) {
             return;
         }
 
-        popup.DOKill();
-        CanvasGroup canvasGroup = popup.GetComponent<CanvasGroup>();
-        if (canvasGroup != null) {
-            canvasGroup.DOKill();
-            canvasGroup.alpha = 0f;
-        }
+        DOTween.Kill(popup);
+        popup.RectTransform.DOKill();
+        popup.CanvasGroup.DOKill();
+        popup.ResetView();
 
         popup.gameObject.SetActive(false);
         popup.transform.SetParent(scorePopupRoot != null ? scorePopupRoot : transform, false);

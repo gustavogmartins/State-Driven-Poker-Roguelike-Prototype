@@ -48,9 +48,10 @@ namespace Presenters {
             int scoreTargetRoundScore = roundState.CurrentScore;
             int scoreBonusChips = activeScore.TotalChips - activeBaseScore.TotalChips;
             int scoreBonusMult = activeScore.BaseMult - activeBaseScore.BaseMult;
+            bool showBaseScoreDisplay = hasPreviewSelection || isScoring;
             string roundScoreDisplayText = isScoring ? scoreStartRoundScore.ToString() : roundState.CurrentScore.ToString();
-            string chipsDisplayText = isScoring ? activeBaseScore.BaseChips.ToString() : activeScore.TotalChips.ToString();
-            string multDisplayText = isScoring ? activeBaseScore.BaseMult.ToString() : BuildMultText(activeScore);
+            string chipsDisplayText = showBaseScoreDisplay ? activeBaseScore.BaseChips.ToString() : activeScore.TotalChips.ToString();
+            string multDisplayText = showBaseScoreDisplay ? activeBaseScore.BaseMult.ToString() : BuildMultText(activeScore);
             Dictionary<int, int> scoringCardChipsById = isScoring
                 ? BuildScoringCardChipsById(roundState)
                 : null;

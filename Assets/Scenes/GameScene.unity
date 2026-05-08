@@ -12664,7 +12664,7 @@ MonoBehaviour:
   selectionPunchDuration: 0.18
   zoneChangeDuration: 0.34
   zoneChangeStagger: 0.07
-  scorePopupPrefab: {fileID: 0}
+  scorePopupPrefab: {fileID: 6189264656028299807, guid: 631b5536acdb6fb4782a9f6fb2adb7c7, type: 3}
   scorePopupRoot: {fileID: 0}
   scoreCardHighlightDuration: 0.14
   scoreCardInterval: 0.28

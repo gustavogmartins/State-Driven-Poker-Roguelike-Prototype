@@ -25,6 +25,31 @@ public sealed class RoundPresenterAnimationTests {
     }
 
     [Test]
+    public void Present_WhenPairIsSelected_ShowsBaseChipsInsteadOfCardChipTotal() {
+        CardData[] handCards = {
+            new CardData(111, Rank.Ace, Suit.Spades),
+            new CardData(112, Rank.Ace, Suit.Hearts),
+            new CardData(113, Rank.King, Suit.Spades)
+        };
+
+        RunState state = RunState.CreateInitial(
+            maxHandSize: 3,
+            initialHandCards: handCards
+        );
+
+        state = RunReducer.Reduce(state, new ToggleCardSelectionAction(0));
+        state = RunReducer.Reduce(state, new ToggleCardSelectionAction(1));
+        state = RunReducer.Reduce(state, new ToggleCardSelectionAction(2));
+
+        RoundViewModel viewModel = new RoundPresenter().Present(state);
+
+        Assert.That(viewModel.ChipsText, Is.EqualTo("10"));
+        Assert.That(viewModel.MultText, Is.EqualTo("2"));
+        Assert.That(viewModel.ScoreBaseChips, Is.EqualTo(10));
+        Assert.That(viewModel.ScoreTargetChips, Is.EqualTo(32));
+    }
+
+    [Test]
     public void Present_PlayedCards_ExposeCardIdAndPlayedZone() {
         CardData playedCard = new CardData(201, Rank.Queen, Suit.Clubs);
 
