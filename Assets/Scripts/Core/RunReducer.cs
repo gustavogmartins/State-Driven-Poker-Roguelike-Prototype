@@ -27,6 +27,7 @@ namespace Core {
                     PlaySelectedCardsAction or
                     ScorePresentationFinishedAction or
                     DiscardSelectedCardsAction or
+                    DiscardPresentationFinishedAction or
                     SortHandByRankAction or
                     SortHandBySuitAction => ReduceRoundAction(state, action),
                 ContinueShopAction continueShop => ContinueShop(state, continueShop.InitialHandCards),

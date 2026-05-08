@@ -19,6 +19,7 @@ namespace Core {
         public RoundPhase Phase { get; }
         public IReadOnlyList<CardData> HandCards { get; }
         public IReadOnlyList<CardData> PlayedCards { get; }
+        public IReadOnlyList<CardData> DiscardedCards { get; }
         public IReadOnlyList<CardData> DeckCards { get; }
         public IReadOnlyList<CardData> DiscardPileCards { get; }
         public IReadOnlyList<int> SelectedCardsIndexes { get; }
@@ -58,7 +59,8 @@ namespace Core {
             int lastPlayedCardsCount,
             PokerHandType lastPlayedHandResult,
             ScoreResult lastScoreResult,
-            IReadOnlyList<CardData> playedCards = null) {
+            IReadOnlyList<CardData> playedCards = null,
+            IReadOnlyList<CardData> discardedCards = null) {
             if (blind == null) {
                 throw new ArgumentNullException(nameof(blind));
             }
@@ -93,6 +95,7 @@ namespace Core {
             DeckCards = CopyCards(deckCards);
             HandCards = CopyCards(handCards);
             PlayedCards = CopyCards(playedCards);
+            DiscardedCards = CopyCards(discardedCards);
             DiscardPileCards = CopyCards(discardPileCards);
             SelectedCardsIndexes = SanitizeSelectedIndexes(selectedCardsIndexes, HandCards.Count);
             LastActionText = string.IsNullOrWhiteSpace(lastActionText) ? "Waiting for input" : lastActionText;
@@ -152,7 +155,8 @@ namespace Core {
                 lastPlayedCardsCount: 0,
                 lastPlayedHandResult: PokerHandType.None,
                 lastScoreResult: ScoreResult.Zero,
-                playedCards: Array.Empty<CardData>()
+                playedCards: Array.Empty<CardData>(),
+                discardedCards: Array.Empty<CardData>()
             );
         }
 

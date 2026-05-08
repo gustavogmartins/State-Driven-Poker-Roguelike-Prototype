@@ -151,7 +151,7 @@ public sealed class RoundStateTests {
     }
 
     [Test]
-    public void DiscardCards_ConsumesDiscard_AndRefillsTheHand() {
+    public void DiscardCards_ConsumesDiscardAndWaitsForPresentation() {
         CardData[] handCards = {
             TestCardFactory.Create(Rank.Ace, Suit.Spades),
             TestCardFactory.Create(Rank.King, Suit.Hearts),
@@ -171,14 +171,70 @@ public sealed class RoundStateTests {
             maxHandSize: 3
         );
 
-        RoundState nextState = RoundReducer.Reduce(state, new DiscardSelectedCardsAction());
+        RoundState discardingState = RoundReducer.Reduce(state, new DiscardSelectedCardsAction());
 
+        Assert.That(discardingState.Phase, Is.EqualTo(RoundPhase.Discarding));
+        Assert.That(discardingState.DiscardsLeft, Is.EqualTo(0));
+        Assert.That(discardingState.HandCards, Has.Count.EqualTo(1));
+        Assert.That(discardingState.DiscardedCards, Has.Count.EqualTo(2));
+        Assert.That(discardingState.DeckCards, Has.Count.EqualTo(2));
+        Assert.That(discardingState.DiscardPileCards, Is.Empty);
+        Assert.That(discardingState.SelectedCardsCount, Is.EqualTo(0));
+        StringAssert.Contains("No discards left", discardingState.LastActionText);
+    }
+
+    [Test]
+    public void DiscardPresentationFinished_RefillsHandAndReturnsToPlayerTurn() {
+        CardData[] handCards = {
+            TestCardFactory.Create(Rank.Ace, Suit.Spades),
+            TestCardFactory.Create(Rank.King, Suit.Hearts),
+            TestCardFactory.Create(Rank.Queen, Suit.Clubs)
+        };
+
+        CardData[] deckCards = {
+            TestCardFactory.Create(Rank.Two, Suit.Diamonds),
+            TestCardFactory.Create(Rank.Three, Suit.Spades)
+        };
+
+        var state = CreateState(
+            handCards: handCards,
+            deckCards: deckCards,
+            selectedIndexes: new[] { 0, 1 },
+            discardsLeft: 1,
+            maxHandSize: 3
+        );
+
+        RoundState discardingState = RoundReducer.Reduce(state, new DiscardSelectedCardsAction());
+        RoundState nextState = RoundReducer.Reduce(discardingState, new DiscardPresentationFinishedAction());
+
+        Assert.That(nextState.Phase, Is.EqualTo(RoundPhase.PlayerTurn));
         Assert.That(nextState.DiscardsLeft, Is.EqualTo(0));
         Assert.That(nextState.HandCards, Has.Count.EqualTo(3));
-        Assert.That(nextState.DeckCards, Has.Count.EqualTo(0));
+        Assert.That(nextState.DiscardedCards, Is.Empty);
+        Assert.That(nextState.DeckCards, Is.Empty);
         Assert.That(nextState.DiscardPileCards, Has.Count.EqualTo(2));
-        Assert.That(nextState.SelectedCardsCount, Is.EqualTo(0));
-        StringAssert.Contains("No discards left", nextState.LastActionText);
+    }
+
+    [Test]
+    public void DiscardingPhase_DisablesPlayerActions() {
+        CardData[] handCards = {
+            TestCardFactory.Create(Rank.Ace, Suit.Spades),
+            TestCardFactory.Create(Rank.King, Suit.Hearts)
+        };
+
+        var state = CreateState(
+            handCards: handCards,
+            selectedIndexes: new[] { 0 },
+            discardsLeft: 1,
+            maxHandSize: 2
+        );
+
+        RoundState discardingState = RoundReducer.Reduce(state, new DiscardSelectedCardsAction());
+
+        Assert.That(discardingState.CanPlaySelectedCards, Is.False);
+        Assert.That(discardingState.CanDiscardSelectedCards, Is.False);
+        Assert.That(discardingState.CanSortHand, Is.False);
+        Assert.That(RoundReducer.Reduce(discardingState, new ToggleCardSelectionAction(0)), Is.SameAs(discardingState));
     }
 
     [Test]

@@ -1,5 +1,6 @@
 public enum CardZone {
     None,
     Hand,
-    Played
+    Played,
+    Discard
 }

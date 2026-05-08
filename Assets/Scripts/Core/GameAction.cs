@@ -39,6 +39,9 @@ namespace Core {
     public sealed class DiscardSelectedCardsAction : GameAction {
     }
 
+    public sealed class DiscardPresentationFinishedAction : GameAction {
+    }
+
     public sealed class SortHandByRankAction : GameAction {
     }
 

@@ -49,6 +49,7 @@ public class RoundScreen : MonoBehaviour {
 
     [SerializeField] private RectTransform handArea;
     [SerializeField] private RectTransform playedHandArea;
+    [SerializeField] private RectTransform discardedCardsArea;
     [SerializeField] private RoundBoardRenderer boardRenderer;
     [SerializeField] private RoundAnimationController animationController;
     [SerializeField] private CardViewPool cardViewPool;
@@ -113,6 +114,7 @@ public class RoundScreen : MonoBehaviour {
         if (boardRenderer != null) {
             boardRenderer.CardSelected -= OnCardSelected;
             boardRenderer.ScoringPresentationFinished -= OnScoringPresentationFinished;
+            boardRenderer.DiscardPresentationFinished -= OnDiscardPresentationFinished;
         }
 
         UnregisterButtonListeners();
@@ -219,6 +221,14 @@ public class RoundScreen : MonoBehaviour {
         }
 
         _store.Dispatch(new ScorePresentationFinishedAction());
+    }
+
+    private void OnDiscardPresentationFinished() {
+        if (_store?.State?.CurrentRound.Phase != RoundPhase.Discarding) {
+            return;
+        }
+
+        _store.Dispatch(new DiscardPresentationFinishedAction());
     }
 
     private void HandlePrimaryRoundEndAction() {
@@ -431,13 +441,22 @@ public class RoundScreen : MonoBehaviour {
     }
 
     private void ResolveMainAreaReferences() {
-        if (upperGlassArea != null) {
+        if (upperGlassArea != null && discardedCardsArea != null) {
             return;
         }
 
-        GameObject upperGlassObject = GameObject.Find("Canvas/HudRoot/MainArea/UpperGlass");
-        if (upperGlassObject != null) {
-            upperGlassArea = upperGlassObject.GetComponent<RectTransform>();
+        if (upperGlassArea == null) {
+            GameObject upperGlassObject = GameObject.Find("Canvas/HudRoot/MainArea/UpperGlass");
+            if (upperGlassObject != null) {
+                upperGlassArea = upperGlassObject.GetComponent<RectTransform>();
+            }
+        }
+
+        if (discardedCardsArea == null) {
+            GameObject discardedCardsObject = GameObject.Find("Canvas/HudRoot/MainArea/DiscardedCardsArea");
+            if (discardedCardsObject != null) {
+                discardedCardsArea = discardedCardsObject.GetComponent<RectTransform>();
+            }
         }
     }
 
@@ -468,6 +487,7 @@ public class RoundScreen : MonoBehaviour {
             cardViewPrefab,
             handArea,
             playedHandArea,
+            discardedCardsArea,
             animationController,
             cardViewPool,
             handSlotCount,
@@ -477,6 +497,8 @@ public class RoundScreen : MonoBehaviour {
         boardRenderer.CardSelected += OnCardSelected;
         boardRenderer.ScoringPresentationFinished -= OnScoringPresentationFinished;
         boardRenderer.ScoringPresentationFinished += OnScoringPresentationFinished;
+        boardRenderer.DiscardPresentationFinished -= OnDiscardPresentationFinished;
+        boardRenderer.DiscardPresentationFinished += OnDiscardPresentationFinished;
     }
 
     private bool IsInputBlocked() {

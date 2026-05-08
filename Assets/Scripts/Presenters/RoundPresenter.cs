@@ -98,6 +98,17 @@ namespace Presenters {
                 ));
             }
 
+            foreach (var card in roundState.DiscardedCards) {
+                viewModel.DiscardedCards.Add(CreateCardViewModel(
+                    card,
+                    index: -1,
+                    zone: CardZone.Discard,
+                    isSelected: false,
+                    isInteractable: false,
+                    blind: roundState.Blind
+                ));
+            }
+
             for (int i = 0; i < runState.OwnedJokers.Count; i++) {
                 viewModel.OwnedJokerCards.Add(CreateJokerCardViewModel(
                     runState.OwnedJokers[i],
@@ -355,6 +366,7 @@ namespace Presenters {
             return phase switch {
                 RoundPhase.PlayerTurn => "Player Turn",
                 RoundPhase.Scoring => "Scoring",
+                RoundPhase.Discarding => "Discarding",
                 RoundPhase.RoundEnd => "Round End",
                 _ => "Waiting"
             };

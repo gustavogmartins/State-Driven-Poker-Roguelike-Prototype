@@ -43,6 +43,7 @@ namespace View {
         public readonly List<CardViewModel> OwnedJokerCards = new();
         public readonly List<CardViewModel> HandCards = new();
         public readonly List<CardViewModel> PlayedCards = new();
+        public readonly List<CardViewModel> DiscardedCards = new();
 
         public IEnumerable<CardViewModel> GameplayCards {
             get {
@@ -51,6 +52,10 @@ namespace View {
                 }
 
                 foreach (CardViewModel card in PlayedCards) {
+                    yield return card;
+                }
+
+                foreach (CardViewModel card in DiscardedCards) {
                     yield return card;
                 }
             }

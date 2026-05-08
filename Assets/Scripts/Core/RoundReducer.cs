@@ -20,6 +20,7 @@ namespace Core {
                 PlaySelectedCardsAction => PlaySelectedCards(state),
                 ScorePresentationFinishedAction => FinishScorePresentation(state),
                 DiscardSelectedCardsAction => DiscardCards(state),
+                DiscardPresentationFinishedAction => FinishDiscardPresentation(state),
                 SortHandByRankAction => SortHandByRank(state),
                 SortHandBySuitAction => SortHandBySuit(state),
                 _ => state
@@ -119,15 +120,6 @@ namespace Core {
                 }
             }
 
-            int cardsNeeded = Math.Max(0, state.MaxHandSize - remainingHandCards.Count);
-            var drawResult = DeckUtility.DrawCards(state.DeckCards, cardsNeeded);
-
-            var newHand = new List<CardData>(remainingHandCards);
-            newHand.AddRange(drawResult.DrawnCards);
-
-            var newDiscardPile = new List<CardData>(state.DiscardPileCards);
-            newDiscardPile.AddRange(discardedCards);
-
             int newDiscardsLeft = Math.Max(0, state.DiscardsLeft - 1);
             string lastActionText = newDiscardsLeft == 0
                 ? $"Discarded {discardedCards.Count} card(s). No discards left"
@@ -139,18 +131,56 @@ namespace Core {
                 currentScore: state.CurrentScore,
                 handsLeft: state.HandsLeft,
                 discardsLeft: newDiscardsLeft,
-                phase: RoundPhase.PlayerTurn,
+                phase: RoundPhase.Discarding,
                 maxHandSize: state.MaxHandSize,
-                deckCards: drawResult.RemainingDeck,
-                handCards: newHand,
-                discardPileCards: newDiscardPile,
+                deckCards: state.DeckCards,
+                handCards: remainingHandCards,
+                discardPileCards: state.DiscardPileCards,
                 selectedCardsIndexes: Array.Empty<int>(),
                 lastActionText: lastActionText,
                 lastPlayedCardsText: FormatPlayedCardsText(discardedCards),
                 lastPlayedCards: Array.Empty<CardData>(),
                 lastPlayedCardsCount: discardedCards.Count,
                 lastPlayedHandResult: PokerHandType.None,
-                lastScoreResult: ScoreResult.Zero
+                lastScoreResult: ScoreResult.Zero,
+                discardedCards: discardedCards
+            );
+        }
+
+        private static RoundState FinishDiscardPresentation(RoundState state) {
+            if (state.Phase != RoundPhase.Discarding) {
+                return state;
+            }
+
+            int cardsNeeded = Math.Max(0, state.MaxHandSize - state.HandCards.Count);
+            var drawResult = DeckUtility.DrawCards(state.DeckCards, cardsNeeded);
+
+            var newHand = new List<CardData>(state.HandCards);
+            newHand.AddRange(drawResult.DrawnCards);
+
+            var newDiscardPile = new List<CardData>(state.DiscardPileCards);
+            newDiscardPile.AddRange(state.DiscardedCards);
+
+            return new RoundState(
+                blind: state.Blind,
+                targetScore: state.TargetScore,
+                currentScore: state.CurrentScore,
+                handsLeft: state.HandsLeft,
+                discardsLeft: state.DiscardsLeft,
+                phase: RoundPhase.PlayerTurn,
+                maxHandSize: state.MaxHandSize,
+                deckCards: drawResult.RemainingDeck,
+                handCards: newHand,
+                discardPileCards: newDiscardPile,
+                selectedCardsIndexes: Array.Empty<int>(),
+                lastActionText: state.LastActionText,
+                lastPlayedCardsText: state.LastPlayedCardsText,
+                lastPlayedCards: state.LastPlayedCards,
+                lastPlayedCardsCount: state.LastPlayedCardsCount,
+                lastPlayedHandResult: state.LastPlayedHandResult,
+                lastScoreResult: state.LastScoreResult,
+                playedCards: state.PlayedCards,
+                discardedCards: Array.Empty<CardData>()
             );
         }
 
@@ -189,7 +219,8 @@ namespace Core {
                 lastPlayedCardsCount: state.LastPlayedCardsCount,
                 lastPlayedHandResult: state.LastPlayedHandResult,
                 lastScoreResult: state.LastScoreResult,
-                playedCards: Array.Empty<CardData>()
+                playedCards: Array.Empty<CardData>(),
+                discardedCards: state.DiscardedCards
             );
         }
 
@@ -248,6 +279,7 @@ namespace Core {
             RoundState state,
             IReadOnlyList<CardData> handCards = null,
             IReadOnlyList<CardData> playedCards = null,
+            IReadOnlyList<CardData> discardedCards = null,
             IReadOnlyList<int> selectedCardsIndexes = null,
             string lastActionText = null) {
             return new RoundState(
@@ -268,7 +300,8 @@ namespace Core {
                 lastPlayedCardsCount: state.LastPlayedCardsCount,
                 lastPlayedHandResult: state.LastPlayedHandResult,
                 lastScoreResult: state.LastScoreResult,
-                playedCards: playedCards ?? state.PlayedCards
+                playedCards: playedCards ?? state.PlayedCards,
+                discardedCards: discardedCards ?? state.DiscardedCards
             );
         }
 

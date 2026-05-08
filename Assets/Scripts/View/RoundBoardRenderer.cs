@@ -8,6 +8,7 @@ using View;
 public sealed class RoundBoardRenderer : MonoBehaviour {
     [SerializeField] private RectTransform handArea;
     [SerializeField] private RectTransform playedHandArea;
+    [SerializeField] private RectTransform discardedCardsArea;
     [SerializeField] private CardView cardPrefab;
     [SerializeField] private RoundAnimationController animationController;
     [SerializeField] private CardViewPool cardViewPool;
@@ -18,17 +19,21 @@ public sealed class RoundBoardRenderer : MonoBehaviour {
     private readonly Dictionary<int, CardView> _cardViewsById = new();
     private readonly List<RectTransform> _handSlots = new();
     private readonly List<RectTransform> _playedCardSlots = new();
+    private readonly List<int> _pendingDiscardCardIds = new();
     private RoundViewModel _previousViewModel;
     private bool _scoringPresentationPending;
+    private bool _discardPresentationPending;
     private Coroutine _scoringPresentationCoroutine;
 
     public event Action<int> CardSelected;
     public event Action ScoringPresentationFinished;
+    public event Action DiscardPresentationFinished;
 
     public void Configure(
         CardView prefab,
         RectTransform handCardsArea,
         RectTransform playedCardsArea,
+        RectTransform discardedCardsTargetArea,
         RoundAnimationController controller,
         CardViewPool pool,
         int configuredHandSlotCount,
@@ -36,6 +41,7 @@ public sealed class RoundBoardRenderer : MonoBehaviour {
         cardPrefab = prefab != null ? prefab : cardPrefab;
         handArea = handCardsArea != null ? handCardsArea : handArea;
         playedHandArea = playedCardsArea != null ? playedCardsArea : playedHandArea;
+        discardedCardsArea = discardedCardsTargetArea != null ? discardedCardsTargetArea : discardedCardsArea;
         animationController = controller != null ? controller : animationController;
         cardViewPool = pool != null ? pool : cardViewPool;
         handSlotCount = Math.Max(0, configuredHandSlotCount);
@@ -53,9 +59,16 @@ public sealed class RoundBoardRenderer : MonoBehaviour {
         bool enteredScoring = _previousViewModel != null &&
             _previousViewModel.Phase != RoundPhase.Scoring &&
             viewModel.Phase == RoundPhase.Scoring;
+        bool enteredDiscarding = _previousViewModel != null &&
+            _previousViewModel.Phase != RoundPhase.Discarding &&
+            viewModel.Phase == RoundPhase.Discarding;
 
         if (enteredScoring) {
             BeginScoringPresentationTracking();
+        }
+
+        if (enteredDiscarding) {
+            BeginDiscardPresentationTracking(viewModel);
         }
 
         var zoneChangeAnimations = new List<CardZoneChangeAnimation>();
@@ -65,10 +78,17 @@ public sealed class RoundBoardRenderer : MonoBehaviour {
             DetectSelectionChanges(_previousViewModel, viewModel);
         }
 
-        PlayZoneChangeAnimations(zoneChangeAnimations, enteredScoring);
+        Action onZoneChangeComplete = null;
+        if (enteredScoring) {
+            onZoneChangeComplete = ScheduleScoringPresentationFinished;
+        } else if (enteredDiscarding) {
+            onZoneChangeComplete = FinishDiscardPresentation;
+        }
 
-        if (enteredScoring && zoneChangeAnimations.Count == 0) {
-            ScheduleScoringPresentationFinished();
+        PlayZoneChangeAnimations(zoneChangeAnimations, onZoneChangeComplete);
+
+        if ((enteredScoring || enteredDiscarding) && zoneChangeAnimations.Count == 0) {
+            onZoneChangeComplete?.Invoke();
         }
 
         _previousViewModel = viewModel;
@@ -101,6 +121,16 @@ public sealed class RoundBoardRenderer : MonoBehaviour {
 
             visibleCardIds.Add(cardViewModel.CardId);
             BindCardToSlot(cardViewModel, _playedCardSlots[i], zoneChangeAnimations);
+        }
+
+        for (int i = 0; i < viewModel.DiscardedCards.Count; i++) {
+            CardViewModel cardViewModel = viewModel.DiscardedCards[i];
+            if (discardedCardsArea == null) {
+                continue;
+            }
+
+            visibleCardIds.Add(cardViewModel.CardId);
+            BindCardToSlot(cardViewModel, discardedCardsArea, zoneChangeAnimations);
         }
 
         ReleaseCardsNotIn(visibleCardIds);
@@ -224,6 +254,15 @@ public sealed class RoundBoardRenderer : MonoBehaviour {
         }
     }
 
+    private void BeginDiscardPresentationTracking(RoundViewModel viewModel) {
+        _discardPresentationPending = true;
+        _pendingDiscardCardIds.Clear();
+
+        foreach (CardViewModel card in viewModel.DiscardedCards) {
+            _pendingDiscardCardIds.Add(card.CardId);
+        }
+    }
+
     private void ScheduleScoringPresentationFinished() {
         if (!_scoringPresentationPending || _scoringPresentationCoroutine != null) {
             return;
@@ -244,6 +283,17 @@ public sealed class RoundBoardRenderer : MonoBehaviour {
         ScoringPresentationFinished?.Invoke();
     }
 
+    private void FinishDiscardPresentation() {
+        if (!_discardPresentationPending) {
+            return;
+        }
+
+        ReleaseCardsById(_pendingDiscardCardIds);
+        _pendingDiscardCardIds.Clear();
+        _discardPresentationPending = false;
+        DiscardPresentationFinished?.Invoke();
+    }
+
     private void RebuildCardAreaLayouts() {
         if (handArea != null) {
             LayoutRebuilder.ForceRebuildLayoutImmediate(handArea);
@@ -254,16 +304,12 @@ public sealed class RoundBoardRenderer : MonoBehaviour {
         }
     }
 
-    private void PlayZoneChangeAnimations(List<CardZoneChangeAnimation> zoneChangeAnimations, bool finishScoringWhenDone) {
+    private void PlayZoneChangeAnimations(List<CardZoneChangeAnimation> zoneChangeAnimations, Action onComplete) {
         if (zoneChangeAnimations == null || zoneChangeAnimations.Count == 0) {
             return;
         }
 
         zoneChangeAnimations.Sort((left, right) => left.Order.CompareTo(right.Order));
-
-        Action onComplete = finishScoringWhenDone
-            ? ScheduleScoringPresentationFinished
-            : null;
 
         if (animationController != null) {
             animationController.AnimateCardZoneChangeSequence(zoneChangeAnimations, onComplete);
@@ -272,6 +318,27 @@ public sealed class RoundBoardRenderer : MonoBehaviour {
 
         CompleteZoneChangeAnimationsWithoutController(zoneChangeAnimations);
         onComplete?.Invoke();
+    }
+
+    private void ReleaseCardsById(IReadOnlyList<int> cardIds) {
+        for (int i = 0; i < cardIds.Count; i++) {
+            int cardId = cardIds[i];
+            if (!_cardViewsById.TryGetValue(cardId, out CardView cardView)) {
+                continue;
+            }
+
+            if (cardView != null) {
+                cardView.OnCardSelected -= HandleCardSelected;
+            }
+
+            _cardViewsById.Remove(cardId);
+
+            if (cardViewPool != null) {
+                cardViewPool.Release(cardView);
+            } else if (cardView != null) {
+                Destroy(cardView.gameObject);
+            }
+        }
     }
 
     private static void CompleteZoneChangeAnimationsWithoutController(IReadOnlyList<CardZoneChangeAnimation> zoneChangeAnimations) {

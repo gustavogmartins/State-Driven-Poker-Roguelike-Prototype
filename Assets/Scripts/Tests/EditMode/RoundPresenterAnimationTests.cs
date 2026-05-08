@@ -88,4 +88,30 @@ public sealed class RoundPresenterAnimationTests {
         Assert.That(viewModel.PlayedCards[0].CardId, Is.EqualTo(301));
         Assert.That(viewModel.PlayedCards[0].Zone, Is.EqualTo(CardZone.Played));
     }
+
+    [Test]
+    public void Present_WhenDiscarding_DisablesInputAndExposesDiscardedCards() {
+        CardData[] handCards = {
+            new CardData(401, Rank.Ace, Suit.Spades),
+            new CardData(402, Rank.King, Suit.Hearts)
+        };
+
+        RunState state = RunState.CreateInitial(
+            maxHandSize: 2,
+            initialHandCards: handCards
+        );
+
+        state = RunReducer.Reduce(state, new ToggleCardSelectionAction(0));
+        state = RunReducer.Reduce(state, new DiscardSelectedCardsAction());
+
+        RoundViewModel viewModel = new RoundPresenter().Present(state);
+
+        Assert.That(viewModel.Phase, Is.EqualTo(RoundPhase.Discarding));
+        Assert.That(viewModel.CanPlayHand, Is.False);
+        Assert.That(viewModel.CanDiscard, Is.False);
+        Assert.That(viewModel.CanSort, Is.False);
+        Assert.That(viewModel.HandCards[0].IsInteractable, Is.False);
+        Assert.That(viewModel.DiscardedCards[0].CardId, Is.EqualTo(401));
+        Assert.That(viewModel.DiscardedCards[0].Zone, Is.EqualTo(CardZone.Discard));
+    }
 }
