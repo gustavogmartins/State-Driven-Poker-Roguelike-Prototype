@@ -20,6 +20,7 @@ public sealed class RoundBoardRenderer : MonoBehaviour {
     private readonly List<RectTransform> _handSlots = new();
     private readonly List<RectTransform> _playedCardSlots = new();
     private readonly List<int> _pendingDiscardCardIds = new();
+    private readonly List<int> _pendingScoringCardIds = new();
     private RoundViewModel _previousViewModel;
     private RoundViewModel _pendingScoringViewModel;
     private bool _scoringPresentationPending;
@@ -251,6 +252,11 @@ public sealed class RoundBoardRenderer : MonoBehaviour {
         _scoringPresentationPending = true;
         _scoringPresentationRunning = false;
         _pendingScoringViewModel = viewModel;
+        _pendingScoringCardIds.Clear();
+
+        foreach (CardViewModel card in viewModel.PlayedCards) {
+            _pendingScoringCardIds.Add(card.CardId);
+        }
 
         if (_scoringPresentationCoroutine != null) {
             StopCoroutine(_scoringPresentationCoroutine);
@@ -281,7 +287,7 @@ public sealed class RoundBoardRenderer : MonoBehaviour {
         animationController.AnimateScorePresentation(
             BuildScoreCardAnimations(_pendingScoringViewModel),
             _pendingScoringViewModel,
-            CompleteScoringPresentation);
+            AnimatePlayedCardsToDiscardedCardsArea);
     }
 
     private IEnumerator NotifyScoringPresentationFinished() {
@@ -295,11 +301,27 @@ public sealed class RoundBoardRenderer : MonoBehaviour {
         CompleteScoringPresentation();
     }
 
+    private void AnimatePlayedCardsToDiscardedCardsArea() {
+        if (!_scoringPresentationPending) {
+            return;
+        }
+
+        List<CardZoneChangeAnimation> exitAnimations = BuildPlayedCardsExitAnimations();
+        if (exitAnimations.Count == 0 || animationController == null) {
+            CompleteScoringPresentation();
+            return;
+        }
+
+        animationController.AnimateCardZoneChangeSequence(exitAnimations, CompleteScoringPresentation);
+    }
+
     private void CompleteScoringPresentation() {
         if (!_scoringPresentationPending) {
             return;
         }
 
+        ReleaseCardsById(_pendingScoringCardIds);
+        _pendingScoringCardIds.Clear();
         _scoringPresentationRunning = false;
         _scoringPresentationPending = false;
         _pendingScoringViewModel = null;
@@ -384,6 +406,44 @@ public sealed class RoundBoardRenderer : MonoBehaviour {
         }
 
         return animations;
+    }
+
+    private List<CardZoneChangeAnimation> BuildPlayedCardsExitAnimations() {
+        var animations = new List<CardZoneChangeAnimation>();
+        if (_pendingScoringViewModel == null || discardedCardsArea == null) {
+            return animations;
+        }
+
+        for (int i = 0; i < _pendingScoringViewModel.PlayedCards.Count; i++) {
+            CardViewModel card = _pendingScoringViewModel.PlayedCards[i];
+            if (!_cardViewsById.TryGetValue(card.CardId, out CardView cardView) || cardView == null) {
+                continue;
+            }
+
+            RectTransform cardTransform = cardView.RectTransform;
+            if (cardTransform == null) {
+                continue;
+            }
+
+            ResetCardVisualRoot(cardView);
+            Vector3 previousWorldPosition = cardTransform.position;
+            ParentCardToSlot(cardView, discardedCardsArea);
+            cardTransform.position = previousWorldPosition;
+            animations.Add(new CardZoneChangeAnimation(cardView, CardZone.Played, CardZone.Discard, i));
+        }
+
+        return animations;
+    }
+
+    private static void ResetCardVisualRoot(CardView cardView) {
+        if (cardView == null || cardView.VisualRoot == null) {
+            return;
+        }
+
+        RectTransform visualRoot = cardView.VisualRoot;
+        visualRoot.anchoredPosition = Vector2.zero;
+        visualRoot.localRotation = Quaternion.identity;
+        visualRoot.localScale = Vector3.one;
     }
 
     private static void CompleteZoneChangeAnimationsWithoutController(IReadOnlyList<CardZoneChangeAnimation> zoneChangeAnimations) {
