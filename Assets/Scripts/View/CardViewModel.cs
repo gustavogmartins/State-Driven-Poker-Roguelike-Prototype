@@ -12,6 +12,10 @@ public sealed class CardViewModel {
     public bool IsDebuffed;
     public bool IsScoringCard;
     public int ScoringChipValue;
+    public bool IsScoringJoker;
+    public JokerBonusType ScoringJokerBonusType;
+    public int ScoringJokerBonusValue;
+    public string ScoringJokerPopupText;
     public bool CanSell;
     public bool IsSellSelected;
     public string SellButtonText;

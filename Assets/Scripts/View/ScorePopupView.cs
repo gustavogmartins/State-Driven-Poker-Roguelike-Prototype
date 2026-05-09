@@ -19,10 +19,14 @@ public sealed class ScorePopupView : MonoBehaviour {
     }
 
     public void Bind(int chipValue) {
+        Bind($"+{chipValue}");
+    }
+
+    public void Bind(string text) {
         ResolveText();
 
         if (chipText != null) {
-            chipText.text = $"+{chipValue}";
+            chipText.text = string.IsNullOrWhiteSpace(text) ? string.Empty : text;
             chipText.color = textColor;
         }
     }

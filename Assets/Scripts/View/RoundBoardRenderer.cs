@@ -21,6 +21,7 @@ public sealed class RoundBoardRenderer : MonoBehaviour {
     private readonly List<RectTransform> _playedCardSlots = new();
     private readonly List<int> _pendingDiscardCardIds = new();
     private readonly List<int> _pendingScoringCardIds = new();
+    private readonly List<CardView> _pendingScoringJokerViews = new();
     private RoundViewModel _previousViewModel;
     private RoundViewModel _pendingScoringViewModel;
     private bool _scoringPresentationPending;
@@ -52,7 +53,7 @@ public sealed class RoundBoardRenderer : MonoBehaviour {
         cardViewPool?.Configure(cardPrefab);
     }
 
-    public void Render(RoundViewModel viewModel) {
+    public void Render(RoundViewModel viewModel, IReadOnlyList<CardView> ownedJokerCardViews = null) {
         if (viewModel == null) {
             return;
         }
@@ -67,7 +68,7 @@ public sealed class RoundBoardRenderer : MonoBehaviour {
             viewModel.Phase == RoundPhase.Discarding;
 
         if (enteredScoring) {
-            BeginScoringPresentationTracking(viewModel);
+            BeginScoringPresentationTracking(viewModel, ownedJokerCardViews);
         }
 
         if (enteredDiscarding) {
@@ -248,14 +249,21 @@ public sealed class RoundBoardRenderer : MonoBehaviour {
         CardSelected?.Invoke(index);
     }
 
-    private void BeginScoringPresentationTracking(RoundViewModel viewModel) {
+    private void BeginScoringPresentationTracking(RoundViewModel viewModel, IReadOnlyList<CardView> ownedJokerCardViews) {
         _scoringPresentationPending = true;
         _scoringPresentationRunning = false;
         _pendingScoringViewModel = viewModel;
         _pendingScoringCardIds.Clear();
+        _pendingScoringJokerViews.Clear();
 
         foreach (CardViewModel card in viewModel.PlayedCards) {
             _pendingScoringCardIds.Add(card.CardId);
+        }
+
+        if (ownedJokerCardViews != null) {
+            for (int i = 0; i < ownedJokerCardViews.Count; i++) {
+                _pendingScoringJokerViews.Add(ownedJokerCardViews[i]);
+            }
         }
 
         if (_scoringPresentationCoroutine != null) {
@@ -286,6 +294,7 @@ public sealed class RoundBoardRenderer : MonoBehaviour {
         _scoringPresentationRunning = true;
         animationController.AnimateScorePresentation(
             BuildScoreCardAnimations(_pendingScoringViewModel),
+            BuildScoreJokerAnimations(_pendingScoringViewModel),
             _pendingScoringViewModel,
             AnimatePlayedCardsToDiscardedCardsArea);
     }
@@ -322,6 +331,7 @@ public sealed class RoundBoardRenderer : MonoBehaviour {
 
         ReleaseCardsById(_pendingScoringCardIds);
         _pendingScoringCardIds.Clear();
+        _pendingScoringJokerViews.Clear();
         _scoringPresentationRunning = false;
         _scoringPresentationPending = false;
         _pendingScoringViewModel = null;
@@ -403,6 +413,38 @@ public sealed class RoundBoardRenderer : MonoBehaviour {
             }
 
             animations.Add(new ScoreCardAnimation(cardView, card.ScoringChipValue, i));
+        }
+
+        return animations;
+    }
+
+    private IReadOnlyList<ScoreJokerAnimation> BuildScoreJokerAnimations(RoundViewModel viewModel) {
+        var animations = new List<ScoreJokerAnimation>();
+        if (viewModel == null) {
+            return animations;
+        }
+
+        for (int i = 0; i < viewModel.OwnedJokerCards.Count; i++) {
+            CardViewModel joker = viewModel.OwnedJokerCards[i];
+            if (!joker.IsScoringJoker || joker.ScoringJokerBonusValue <= 0) {
+                continue;
+            }
+
+            if (i >= _pendingScoringJokerViews.Count) {
+                continue;
+            }
+
+            CardView jokerView = _pendingScoringJokerViews[i];
+            if (jokerView == null) {
+                continue;
+            }
+
+            animations.Add(new ScoreJokerAnimation(
+                jokerView,
+                joker.ScoringJokerBonusType,
+                joker.ScoringJokerBonusValue,
+                joker.ScoringJokerPopupText,
+                i));
         }
 
         return animations;

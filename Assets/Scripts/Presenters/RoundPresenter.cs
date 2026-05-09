@@ -55,6 +55,9 @@ namespace Presenters {
             Dictionary<int, int> scoringCardChipsById = isScoring
                 ? BuildScoringCardChipsById(roundState)
                 : null;
+            Dictionary<int, JokerScoreContribution> scoringJokersByIndex = isScoring
+                ? BuildScoringJokersByIndex(runState, roundState, activeHandResult)
+                : null;
 
             var viewModel = new RoundViewModel {
                 BlindTitleText = roundState.BlindName,
@@ -148,12 +151,19 @@ namespace Presenters {
             }
 
             for (int i = 0; i < runState.OwnedJokers.Count; i++) {
+                JokerScoreContribution? jokerContribution = null;
+                if (scoringJokersByIndex != null &&
+                    scoringJokersByIndex.TryGetValue(i, out JokerScoreContribution resolvedContribution)) {
+                    jokerContribution = resolvedContribution;
+                }
+
                 viewModel.OwnedJokerCards.Add(CreateJokerCardViewModel(
                     runState.OwnedJokers[i],
                     index: i,
                     canSell: runState.CanSellOwnedJoker(i),
                     sellValue: runState.GetOwnedJokerSellValue(i),
-                    isSellSelected: runState.CurrentShop?.SelectedOwnedJokerIndex == i
+                    isSellSelected: runState.CurrentShop?.SelectedOwnedJokerIndex == i,
+                    scoreContribution: jokerContribution
                 ));
             }
 
@@ -209,7 +219,8 @@ namespace Presenters {
             int index,
             bool canSell,
             int sellValue,
-            bool isSellSelected) {
+            bool isSellSelected,
+            JokerScoreContribution? scoreContribution) {
             return new CardViewModel {
                 Index = index,
                 RankText = joker.ShortCode,
@@ -222,7 +233,11 @@ namespace Presenters {
                 SellButtonText = sellValue > 0 ? $"Sell ${sellValue}" : "Sell",
                 HasTooltip = true,
                 TooltipTitleText = joker.Name,
-                TooltipBodyText = joker.Description
+                TooltipBodyText = joker.Description,
+                IsScoringJoker = scoreContribution.HasValue,
+                ScoringJokerBonusType = scoreContribution?.BonusType ?? default,
+                ScoringJokerBonusValue = scoreContribution?.BonusValue ?? 0,
+                ScoringJokerPopupText = scoreContribution?.PopupText
             };
         }
 
@@ -525,6 +540,21 @@ namespace Presenters {
             }
 
             return chipsById;
+        }
+
+        private static Dictionary<int, JokerScoreContribution> BuildScoringJokersByIndex(
+            RunState runState,
+            RoundState roundState,
+            PokerHandResult handResult) {
+            var jokersByIndex = new Dictionary<int, JokerScoreContribution>();
+            foreach (JokerScoreContribution contribution in RunModifierService.GetTriggeredScoreContributions(
+                runState.OwnedJokers,
+                roundState.PlayedCards,
+                handResult)) {
+                jokersByIndex[contribution.JokerIndex] = contribution;
+            }
+
+            return jokersByIndex;
         }
 
         private static Color GetRarityColor(JokerRarity rarity) {

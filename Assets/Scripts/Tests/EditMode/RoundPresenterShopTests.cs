@@ -103,6 +103,33 @@ public sealed class RoundPresenterShopTests {
     }
 
     [Test]
+    public void Present_WhenRoundIsScoring_MarksTriggeredOwnedJokersForScoreAnimation() {
+        var playedCards = new[] {
+            new CardData(201, Rank.Two, Suit.Hearts),
+            new CardData(202, Rank.Two, Suit.Spades)
+        };
+        RoundState round = RoundState.CreateInitial(initialHandCards: playedCards);
+        round = RoundReducer.Reduce(round, new ToggleCardSelectionAction(0));
+        round = RoundReducer.Reduce(round, new ToggleCardSelectionAction(1));
+        var state = new RunState(
+            currentRound: round,
+            currentShop: null,
+            ownedJokers: CreateOwnedJokers("glass-joker", "ace-tag"),
+            money: 10,
+            phase: RunPhase.Blind
+        );
+        RunState scoringState = RunReducer.Reduce(state, new PlaySelectedCardsAction());
+
+        RoundViewModel viewModel = new RoundPresenter().Present(scoringState);
+
+        Assert.That(viewModel.OwnedJokerCards[0].IsScoringJoker, Is.True);
+        Assert.That(viewModel.OwnedJokerCards[0].ScoringJokerBonusType, Is.EqualTo(JokerBonusType.Chips));
+        Assert.That(viewModel.OwnedJokerCards[0].ScoringJokerBonusValue, Is.EqualTo(10));
+        Assert.That(viewModel.OwnedJokerCards[0].ScoringJokerPopupText, Is.EqualTo("+10"));
+        Assert.That(viewModel.OwnedJokerCards[1].IsScoringJoker, Is.False);
+    }
+
+    [Test]
     public void Present_WhenInventoryIsFull_DisablesUnownedOffers() {
         RunState state = CreateShopRunState(
             money: 25,

@@ -86,6 +86,7 @@ public class RoundScreen : MonoBehaviour {
 
     [SerializeField] private DebugHandScenario debugHandScenario = DebugHandScenario.None;
 
+    private readonly List<CardView> _ownedJokerCardViews = new();
     private RoundPresenter _roundPresenter;
     private GameStore _store;
 
@@ -184,16 +185,18 @@ public class RoundScreen : MonoBehaviour {
         sortBySuitButton.interactable = viewModel.CanSort;
 
         RenderOwnedJokers(viewModel.OwnedJokerCards);
-        boardRenderer?.Render(viewModel);
+        boardRenderer?.Render(viewModel, _ownedJokerCardViews);
         RenderRoundEndOverlay(viewModel);
         RenderShopOverlay(viewModel);
     }
 
     private void RenderOwnedJokers(IReadOnlyList<CardViewModel> ownedJokers) {
         if (upperGlassArea == null) {
+            _ownedJokerCardViews.Clear();
             return;
         }
 
+        _ownedJokerCardViews.Clear();
         ClearCardArea(upperGlassArea);
 
         for (int i = 0; i < ownedJokers.Count; i++) {
@@ -202,6 +205,7 @@ public class RoundScreen : MonoBehaviour {
             cardView.Bind(ownedJoker);
             cardView.OnCardSelected += HandleOwnedJokerSelected;
             cardView.OnSellRequested += HandleOwnedJokerSell;
+            _ownedJokerCardViews.Add(cardView);
         }
 
         LayoutRebuilder.ForceRebuildLayoutImmediate(upperGlassArea);

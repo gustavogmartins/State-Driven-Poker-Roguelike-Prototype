@@ -1,4 +1,5 @@
 using DG.Tweening;
+using Core;
 using System;
 using System.Collections.Generic;
 using TMPro;
@@ -31,12 +32,35 @@ public readonly struct ScoreCardAnimation {
     public int Order { get; }
 }
 
+public readonly struct ScoreJokerAnimation {
+    public ScoreJokerAnimation(
+        CardView cardView,
+        JokerBonusType bonusType,
+        int bonusValue,
+        string popupText,
+        int order) {
+        CardView = cardView;
+        BonusType = bonusType;
+        BonusValue = bonusValue;
+        PopupText = popupText;
+        Order = order;
+    }
+
+    public CardView CardView { get; }
+    public JokerBonusType BonusType { get; }
+    public int BonusValue { get; }
+    public string PopupText { get; }
+    public int Order { get; }
+}
+
 public sealed class RoundAnimationController : MonoBehaviour {
     private static readonly Vector2 SelectedOffset = new(0f, 24f);
     private static readonly Vector3 SelectedScale = new(1.05f, 1.05f, 1f);
     private static readonly Vector3 SelectionPunchRotation = new(0f, 0f, 3f);
     private static readonly Vector3 ScorePunchScale = new(0.12f, 0.12f, 0f);
     private static readonly Vector3 ScorePunchRotation = new(0f, 0f, 2f);
+    private const float PopupUpDirection = 1f;
+    private const float PopupDownDirection = -1f;
 
     [SerializeField] private float selectionDuration = 0.16f;
     [SerializeField] private float selectionPunchDuration = 0.18f;
@@ -151,6 +175,7 @@ public sealed class RoundAnimationController : MonoBehaviour {
 
     public void AnimateScorePresentation(
         IReadOnlyList<ScoreCardAnimation> cardAnimations,
+        IReadOnlyList<ScoreJokerAnimation> jokerAnimations,
         RoundViewModel viewModel,
         Action onComplete = null) {
         if (viewModel == null) {
@@ -167,11 +192,21 @@ public sealed class RoundAnimationController : MonoBehaviour {
         bool completed = false;
         Sequence sequence = DOTween.Sequence();
         var orderedCards = SortScoreCardAnimations(cardAnimations);
+        var orderedJokers = SortScoreJokerAnimations(jokerAnimations);
         float time = 0f;
 
-        if (orderedCards.Count > 0) {
+        if (orderedCards.Count > 0 || orderedJokers.Count > 0) {
             for (int i = 0; i < orderedCards.Count; i++) {
                 if (!TryPrepareScoreCard(orderedCards[i].CardView, out RectTransform visualRoot)) {
+                    continue;
+                }
+
+                sequence.Insert(0f, visualRoot.DOAnchorPos(SelectedOffset, scoreCardHighlightDuration).SetEase(Ease.OutQuad));
+                sequence.Insert(0f, visualRoot.DOScale(SelectedScale, scoreCardHighlightDuration).SetEase(Ease.OutQuad));
+            }
+
+            for (int i = 0; i < orderedJokers.Count; i++) {
+                if (!TryPrepareScoreCard(orderedJokers[i].CardView, out RectTransform visualRoot)) {
                     continue;
                 }
 
@@ -183,6 +218,8 @@ public sealed class RoundAnimationController : MonoBehaviour {
         }
 
         int currentChips = viewModel.ScoreBaseChips;
+        int currentMult = viewModel.ScoreBaseMult;
+        int currentMultMultiplier = 1;
         float nextPostCardStepTime = time;
         for (int i = 0; i < orderedCards.Count; i++) {
             ScoreCardAnimation scoreCard = orderedCards[i];
@@ -205,6 +242,49 @@ public sealed class RoundAnimationController : MonoBehaviour {
 
         time = Mathf.Max(time, nextPostCardStepTime + scorePanelStepPause);
 
+        float nextPostJokerStepTime = time;
+        for (int i = 0; i < orderedJokers.Count; i++) {
+            ScoreJokerAnimation scoreJoker = orderedJokers[i];
+            float stepTime = time;
+
+            if (TryGetScoreCardVisualRoot(scoreJoker.CardView, out RectTransform visualRoot)) {
+                sequence.Insert(stepTime, visualRoot.DOPunchScale(ScorePunchScale, scoreCardPunchDuration, vibrato: 6, elasticity: 0.7f));
+                sequence.Insert(stepTime, visualRoot.DOPunchRotation(ScorePunchRotation, scoreCardPunchDuration, vibrato: 6, elasticity: 0.55f));
+                sequence.InsertCallback(stepTime, () => PlayScorePopup(visualRoot, scoreJoker.PopupText, PopupDownDirection));
+            }
+
+            switch (scoreJoker.BonusType) {
+                case JokerBonusType.Chips: {
+                    int fromChips = currentChips;
+                    int toChips = currentChips + scoreJoker.BonusValue;
+                    InsertIntTextTween(sequence, _chipsText, fromChips, toChips, stepTime + 0.04f, scoreCountDuration);
+                    InsertTextPunch(sequence, _chipsText, stepTime + 0.04f);
+                    currentChips = toChips;
+                    break;
+                }
+                case JokerBonusType.Mult: {
+                    int fromMult = currentMult;
+                    int toMult = currentMult + scoreJoker.BonusValue;
+                    InsertIntTextTween(sequence, _multText, fromMult, toMult, stepTime + 0.04f, scoreCountDuration);
+                    InsertTextPunch(sequence, _multText, stepTime + 0.04f);
+                    currentMult = toMult;
+                    break;
+                }
+                case JokerBonusType.XMult:
+                    currentMultMultiplier *= scoreJoker.BonusValue;
+                    int jokerDisplayMult = currentMult;
+                    int jokerDisplayMultiplier = currentMultMultiplier;
+                    sequence.InsertCallback(stepTime + 0.04f, () => SetText(_multText, FormatMultText(jokerDisplayMult, jokerDisplayMultiplier)));
+                    InsertTextPunch(sequence, _multText, stepTime + 0.04f);
+                    break;
+            }
+
+            nextPostJokerStepTime = Mathf.Max(nextPostJokerStepTime, stepTime + scorePopupDuration);
+            time += scoreCardInterval;
+        }
+
+        time = Mathf.Max(time, nextPostJokerStepTime + scorePanelStepPause);
+
         if (currentChips != viewModel.ScoreTargetChips) {
             int fromChips = currentChips;
             int toChips = viewModel.ScoreTargetChips;
@@ -214,14 +294,17 @@ public sealed class RoundAnimationController : MonoBehaviour {
             time += scoreCardInterval;
         }
 
-        if (viewModel.ScoreBaseMult != viewModel.ScoreTargetBaseMult) {
-            InsertIntTextTween(sequence, _multText, viewModel.ScoreBaseMult, viewModel.ScoreTargetBaseMult, time, scoreCountDuration);
+        if (currentMult != viewModel.ScoreTargetBaseMult) {
+            InsertIntTextTween(sequence, _multText, currentMult, viewModel.ScoreTargetBaseMult, time, scoreCountDuration);
             InsertTextPunch(sequence, _multText, time);
+            currentMult = viewModel.ScoreTargetBaseMult;
             time += scoreCardInterval;
         }
 
-        if (viewModel.ScoreTargetMultMultiplier > 1) {
-            sequence.InsertCallback(time, () => SetText(_multText, FormatMultText(viewModel.ScoreTargetBaseMult, viewModel.ScoreTargetMultMultiplier)));
+        if (currentMultMultiplier != viewModel.ScoreTargetMultMultiplier) {
+            int targetBaseMult = currentMult;
+            int targetMultMultiplier = viewModel.ScoreTargetMultMultiplier;
+            sequence.InsertCallback(time, () => SetText(_multText, FormatMultText(targetBaseMult, targetMultMultiplier)));
             InsertTextPunch(sequence, _multText, time);
             time += scoreCardInterval;
         }
@@ -230,6 +313,7 @@ public sealed class RoundAnimationController : MonoBehaviour {
         InsertTextPunch(sequence, _roundScoreText, time + scorePanelStepPause);
 
         if (!sequence.active || sequence.Duration(includeLoops: false) <= 0f) {
+            ResetScoreJokerVisuals(orderedJokers);
             SetScorePresentationTexts(viewModel, finalValues: true);
             EndBlockingAnimation();
             onComplete?.Invoke();
@@ -238,6 +322,7 @@ public sealed class RoundAnimationController : MonoBehaviour {
 
         sequence.OnComplete(() => {
             completed = true;
+            ResetScoreJokerVisuals(orderedJokers);
             SetScorePresentationTexts(viewModel, finalValues: true);
             EndBlockingAnimation();
             onComplete?.Invoke();
@@ -247,6 +332,7 @@ public sealed class RoundAnimationController : MonoBehaviour {
                 return;
             }
 
+            ResetScoreJokerVisuals(orderedJokers);
             SetScorePresentationTexts(viewModel, finalValues: true);
             EndBlockingAnimation();
         });
@@ -297,6 +383,12 @@ public sealed class RoundAnimationController : MonoBehaviour {
         return orderedCards;
     }
 
+    private static List<ScoreJokerAnimation> SortScoreJokerAnimations(IReadOnlyList<ScoreJokerAnimation> jokerAnimations) {
+        var orderedJokers = new List<ScoreJokerAnimation>(jokerAnimations ?? Array.Empty<ScoreJokerAnimation>());
+        orderedJokers.Sort((left, right) => left.Order.CompareTo(right.Order));
+        return orderedJokers;
+    }
+
     private static bool TryPrepareScoreCard(CardView cardView, out RectTransform visualRoot) {
         visualRoot = null;
         if (!TryGetScoreCardVisualRoot(cardView, out visualRoot)) {
@@ -318,6 +410,23 @@ public sealed class RoundAnimationController : MonoBehaviour {
 
         visualRoot = cardView.VisualRoot;
         return visualRoot != null;
+    }
+
+    private static void ResetScoreJokerVisuals(IReadOnlyList<ScoreJokerAnimation> jokerAnimations) {
+        if (jokerAnimations == null) {
+            return;
+        }
+
+        for (int i = 0; i < jokerAnimations.Count; i++) {
+            if (!TryGetScoreCardVisualRoot(jokerAnimations[i].CardView, out RectTransform visualRoot)) {
+                continue;
+            }
+
+            visualRoot.DOKill();
+            visualRoot.anchoredPosition = Vector2.zero;
+            visualRoot.localRotation = Quaternion.identity;
+            visualRoot.localScale = Vector3.one;
+        }
     }
 
     private void SetScorePresentationTexts(RoundViewModel viewModel, bool finalValues) {
@@ -385,6 +494,10 @@ public sealed class RoundAnimationController : MonoBehaviour {
     }
 
     private void PlayScorePopup(RectTransform parent, int chipValue) {
+        PlayScorePopup(parent, $"+{chipValue}", PopupUpDirection);
+    }
+
+    private void PlayScorePopup(RectTransform parent, string text, float verticalDirection) {
         if (parent == null) {
             return;
         }
@@ -394,8 +507,12 @@ public sealed class RoundAnimationController : MonoBehaviour {
             return;
         }
 
-        popup.Bind(chipValue);
-        popup.RectTransform.anchoredPosition = new Vector2(0f, scorePopupStartOffsetY);
+        popup.Bind(text);
+        float direction = verticalDirection < 0f ? PopupDownDirection : PopupUpDirection;
+        float startOffsetY = scorePopupStartOffsetY * direction;
+        float targetOffsetY = startOffsetY + scorePopupFloatDistance * direction;
+
+        popup.RectTransform.anchoredPosition = new Vector2(0f, startOffsetY);
         popup.RectTransform.localRotation = Quaternion.identity;
         popup.RectTransform.localScale = Vector3.one;
         popup.CanvasGroup.alpha = 1f;
@@ -403,7 +520,7 @@ public sealed class RoundAnimationController : MonoBehaviour {
 
         Sequence sequence = DOTween.Sequence();
         sequence.SetTarget(popup);
-        sequence.Join(popup.RectTransform.DOAnchorPosY(scorePopupStartOffsetY + scorePopupFloatDistance, scorePopupDuration).SetEase(Ease.OutCubic));
+        sequence.Join(popup.RectTransform.DOAnchorPosY(targetOffsetY, scorePopupDuration).SetEase(Ease.OutCubic));
         sequence.Join(popup.CanvasGroup.DOFade(0f, scorePopupDuration).SetEase(Ease.InQuad));
         sequence.OnComplete(() => ReleaseScorePopup(popup));
     }

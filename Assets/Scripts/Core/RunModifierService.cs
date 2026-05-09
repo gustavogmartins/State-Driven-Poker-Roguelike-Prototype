@@ -1,6 +1,20 @@
 using System.Collections.Generic;
 
 namespace Core {
+    public readonly struct JokerScoreContribution {
+        public JokerScoreContribution(int jokerIndex, JokerBonusType bonusType, int bonusValue, string popupText) {
+            JokerIndex = jokerIndex;
+            BonusType = bonusType;
+            BonusValue = bonusValue;
+            PopupText = popupText;
+        }
+
+        public int JokerIndex { get; }
+        public JokerBonusType BonusType { get; }
+        public int BonusValue { get; }
+        public string PopupText { get; }
+    }
+
     public readonly struct JokerModifierResult {
         public ScoreResult ScoreResult { get; }
         public int MoneyBonus { get; }
@@ -36,29 +50,30 @@ namespace Core {
             int multMultiplier = baseScore.MultMultiplier;
             int moneyBonus = 0;
             var triggeredEffects = new List<string>();
+            IReadOnlyList<JokerScoreContribution> contributions = GetTriggeredScoreContributions(
+                ownedJokers,
+                playedCards,
+                handResult);
 
-            for (int i = 0; i < ownedJokers.Count; i++) {
-                JokerState joker = ownedJokers[i];
-                if (!MatchesCondition(joker.ConditionType, playedCards, handResult)) {
-                    continue;
-                }
-
-                switch (joker.BonusType) {
+            for (int i = 0; i < contributions.Count; i++) {
+                JokerScoreContribution contribution = contributions[i];
+                JokerState joker = ownedJokers[contribution.JokerIndex];
+                switch (contribution.BonusType) {
                     case JokerBonusType.Chips:
-                        totalChips += joker.BonusValue;
-                        triggeredEffects.Add($"{joker.Name} +{joker.BonusValue} Chips");
+                        totalChips += contribution.BonusValue;
+                        triggeredEffects.Add($"{joker.Name} +{contribution.BonusValue} Chips");
                         break;
                     case JokerBonusType.Mult:
-                        totalMult += joker.BonusValue;
-                        triggeredEffects.Add($"{joker.Name} +{joker.BonusValue} Mult");
+                        totalMult += contribution.BonusValue;
+                        triggeredEffects.Add($"{joker.Name} +{contribution.BonusValue} Mult");
                         break;
                     case JokerBonusType.XMult:
-                        multMultiplier *= joker.BonusValue;
-                        triggeredEffects.Add($"{joker.Name} x{joker.BonusValue}");
+                        multMultiplier *= contribution.BonusValue;
+                        triggeredEffects.Add($"{joker.Name} x{contribution.BonusValue}");
                         break;
                     case JokerBonusType.Money:
-                        moneyBonus += joker.BonusValue;
-                        triggeredEffects.Add($"{joker.Name} +${joker.BonusValue}");
+                        moneyBonus += contribution.BonusValue;
+                        triggeredEffects.Add($"{joker.Name} +${contribution.BonusValue}");
                         break;
                 }
             }
@@ -77,6 +92,42 @@ namespace Core {
                 : string.Empty;
 
             return new JokerModifierResult(modifiedScore, moneyBonus, triggeredText);
+        }
+
+        public static IReadOnlyList<JokerScoreContribution> GetTriggeredScoreContributions(
+            IReadOnlyList<JokerState> ownedJokers,
+            IReadOnlyList<CardData> playedCards,
+            PokerHandResult handResult) {
+            var contributions = new List<JokerScoreContribution>();
+            if (ownedJokers == null || ownedJokers.Count == 0) {
+                return contributions;
+            }
+
+            for (int i = 0; i < ownedJokers.Count; i++) {
+                JokerState joker = ownedJokers[i];
+                if (!MatchesCondition(joker.ConditionType, playedCards, handResult)) {
+                    continue;
+                }
+
+                string popupText = BuildPopupText(joker.BonusType, joker.BonusValue);
+                if (string.IsNullOrWhiteSpace(popupText)) {
+                    continue;
+                }
+
+                contributions.Add(new JokerScoreContribution(i, joker.BonusType, joker.BonusValue, popupText));
+            }
+
+            return contributions;
+        }
+
+        private static string BuildPopupText(JokerBonusType bonusType, int bonusValue) {
+            return bonusType switch {
+                JokerBonusType.Chips => $"+{bonusValue}",
+                JokerBonusType.Mult => $"+{bonusValue}",
+                JokerBonusType.XMult => $"x{bonusValue}",
+                JokerBonusType.Money => $"+${bonusValue}",
+                _ => string.Empty
+            };
         }
 
         private static bool MatchesCondition(
