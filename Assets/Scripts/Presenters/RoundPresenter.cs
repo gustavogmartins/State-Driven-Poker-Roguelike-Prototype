@@ -219,7 +219,10 @@ namespace Presenters {
                 IsInteractable = canSell,
                 CanSell = canSell,
                 IsSellSelected = isSellSelected,
-                SellButtonText = sellValue > 0 ? $"Sell ${sellValue}" : "Sell"
+                SellButtonText = sellValue > 0 ? $"Sell ${sellValue}" : "Sell",
+                HasTooltip = true,
+                TooltipTitleText = joker.Name,
+                TooltipBodyText = joker.Description
             };
         }
 
@@ -294,11 +297,11 @@ namespace Presenters {
 
         private static string BuildRoundEndBannerText(RoundState roundState) {
             if (roundState.HasWonRound) {
-                return $"Cash Out: ${roundState.BlindReward}";
+                return "Go To Shop";
             }
 
             if (roundState.HasLostRound) {
-                return "Game Over";
+                return "New Run";
             }
 
             return string.Empty;

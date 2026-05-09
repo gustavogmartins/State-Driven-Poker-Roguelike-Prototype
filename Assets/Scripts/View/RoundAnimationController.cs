@@ -49,6 +49,7 @@ public sealed class RoundAnimationController : MonoBehaviour {
     [SerializeField] private float scoreCardPunchDuration = 0.2f;
     [SerializeField] private float scoreCountDuration = 0.18f;
     [SerializeField] private float scorePopupDuration = 0.52f;
+    [SerializeField] private float scorePopupStartOffsetY = 100f;
     [SerializeField] private float scorePopupFloatDistance = 54f;
     [SerializeField] private float scorePanelStepPause = 0.08f;
 
@@ -394,7 +395,7 @@ public sealed class RoundAnimationController : MonoBehaviour {
         }
 
         popup.Bind(chipValue);
-        popup.RectTransform.anchoredPosition = new Vector2(0f, 68f);
+        popup.RectTransform.anchoredPosition = new Vector2(0f, scorePopupStartOffsetY);
         popup.RectTransform.localRotation = Quaternion.identity;
         popup.RectTransform.localScale = Vector3.one;
         popup.CanvasGroup.alpha = 1f;
@@ -402,7 +403,7 @@ public sealed class RoundAnimationController : MonoBehaviour {
 
         Sequence sequence = DOTween.Sequence();
         sequence.SetTarget(popup);
-        sequence.Join(popup.RectTransform.DOAnchorPosY(68f + scorePopupFloatDistance, scorePopupDuration).SetEase(Ease.OutCubic));
+        sequence.Join(popup.RectTransform.DOAnchorPosY(scorePopupStartOffsetY + scorePopupFloatDistance, scorePopupDuration).SetEase(Ease.OutCubic));
         sequence.Join(popup.CanvasGroup.DOFade(0f, scorePopupDuration).SetEase(Ease.InQuad));
         sequence.OnComplete(() => ReleaseScorePopup(popup));
     }

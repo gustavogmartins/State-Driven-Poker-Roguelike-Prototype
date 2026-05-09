@@ -4,7 +4,7 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
-public class CardView : MonoBehaviour, IPointerUpHandler {
+public class CardView : MonoBehaviour, IPointerUpHandler, IPointerEnterHandler, IPointerExitHandler {
     [SerializeField] private RectTransform visualRoot;
     [SerializeField] private Image cardImage;
     [SerializeField] private Image selectionGlow;
@@ -15,9 +15,12 @@ public class CardView : MonoBehaviour, IPointerUpHandler {
     [SerializeField] private TextMeshProUGUI centerSuitText;
     [SerializeField] private Button sellJokerButton;
     [SerializeField] private TextMeshProUGUI sellJokerButtonLabel;
+    [SerializeField] private JokerTooltipView jokerTooltipPrefab;
+    [SerializeField] private Vector2 jokerTooltipOffset;
 
     private CardViewModel _viewModel;
     private RectTransform _rectTransform;
+    private JokerTooltipView _jokerTooltip;
     private bool _isSellButtonListenerRegistered;
 
     public event Action<int> OnCardSelected;
@@ -68,7 +71,7 @@ public class CardView : MonoBehaviour, IPointerUpHandler {
                 : Color.white;
 
         selectionGlow.enabled = isVisuallySelected;
-        cardImage.raycastTarget = viewModel.IsInteractable;
+        cardImage.raycastTarget = viewModel.IsInteractable || viewModel.HasTooltip;
 
         if (sellJokerButtonLabel != null) {
             sellJokerButtonLabel.text = string.IsNullOrWhiteSpace(viewModel.SellButtonText)
@@ -79,12 +82,15 @@ public class CardView : MonoBehaviour, IPointerUpHandler {
         if (sellJokerButton != null) {
             sellJokerButton.gameObject.SetActive(viewModel.CanSell && viewModel.IsSellSelected);
         }
+
+        BindJokerTooltip(viewModel);
     }
 
     public void ResetView() {
         _viewModel = null;
         OnCardSelected = null;
         OnSellRequested = null;
+        HideJokerTooltip();
 
         RectTransform rectTransform = RectTransform;
         rectTransform.anchoredPosition = Vector2.zero;
@@ -122,6 +128,89 @@ public class CardView : MonoBehaviour, IPointerUpHandler {
         }
 
         OnCardSelected?.Invoke(_viewModel.Index);
+    }
+
+    public void OnPointerEnter(PointerEventData eventData) {
+        if (_viewModel?.HasTooltip != true) {
+            return;
+        }
+
+        ShowJokerTooltip();
+    }
+
+    public void OnPointerExit(PointerEventData eventData) {
+        if (_viewModel?.HasTooltip != true) {
+            return;
+        }
+
+        HideJokerTooltip();
+    }
+
+    private void BindJokerTooltip(CardViewModel viewModel) {
+        if (viewModel?.HasTooltip != true) {
+            HideJokerTooltip();
+            return;
+        }
+
+        JokerTooltipView tooltip = EnsureJokerTooltip();
+        if (tooltip == null) {
+            return;
+        }
+
+        tooltip.Bind(viewModel.TooltipTitleText, viewModel.TooltipBodyText, viewModel.AccentColor);
+        PositionJokerTooltip(tooltip);
+        tooltip.Hide();
+    }
+
+    private void ShowJokerTooltip() {
+        JokerTooltipView tooltip = EnsureJokerTooltip();
+        if (tooltip == null || _viewModel?.HasTooltip != true) {
+            return;
+        }
+
+        tooltip.Bind(_viewModel.TooltipTitleText, _viewModel.TooltipBodyText, _viewModel.AccentColor);
+        PositionJokerTooltip(tooltip);
+        tooltip.Show();
+        tooltip.transform.SetAsLastSibling();
+    }
+
+    private void HideJokerTooltip() {
+        if (_jokerTooltip != null) {
+            _jokerTooltip.Hide();
+        }
+    }
+
+    private JokerTooltipView EnsureJokerTooltip() {
+        if (_jokerTooltip != null) {
+            return _jokerTooltip;
+        }
+
+        if (jokerTooltipPrefab == null) {
+#if UNITY_EDITOR
+            jokerTooltipPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<JokerTooltipView>("Assets/Prefabs/JokerTooltipPrefab.prefab");
+#endif
+        }
+
+        if (jokerTooltipPrefab == null) {
+            return null;
+        }
+
+        _jokerTooltip = Instantiate(jokerTooltipPrefab, transform);
+        PositionJokerTooltip(_jokerTooltip);
+        _jokerTooltip.Hide();
+        return _jokerTooltip;
+    }
+
+    private void PositionJokerTooltip(JokerTooltipView tooltip) {
+        if (tooltip == null) {
+            return;
+        }
+
+        RectTransform tooltipTransform = tooltip.RectTransform;
+        tooltipTransform.anchorMin = new Vector2(1f, 0.5f);
+        tooltipTransform.anchorMax = new Vector2(1f, 0.5f);
+        tooltipTransform.pivot = new Vector2(1f, 0.5f);
+        tooltipTransform.anchoredPosition = jokerTooltipOffset;
     }
 
     private void ResolveSellButtonReferences() {

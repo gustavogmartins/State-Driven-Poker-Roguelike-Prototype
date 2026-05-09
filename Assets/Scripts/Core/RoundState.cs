@@ -28,6 +28,7 @@ namespace Core {
         public IReadOnlyList<CardData> LastPlayedCards { get; }
         public int LastPlayedCardsCount { get; }
         public int MaxHandSize { get; }
+        public HandSortMode HandSortMode { get; }
         public PokerHandType LastPlayedHandResult { get; }
         public ScoreResult LastScoreResult { get; }
         public ScoreResult LastBaseScoreResult { get; }
@@ -62,7 +63,8 @@ namespace Core {
             ScoreResult lastScoreResult,
             IReadOnlyList<CardData> playedCards = null,
             IReadOnlyList<CardData> discardedCards = null,
-            ScoreResult? lastBaseScoreResult = null) {
+            ScoreResult? lastBaseScoreResult = null,
+            HandSortMode handSortMode = HandSortMode.None) {
             if (blind == null) {
                 throw new ArgumentNullException(nameof(blind));
             }
@@ -104,6 +106,7 @@ namespace Core {
             LastPlayedCardsText = string.IsNullOrWhiteSpace(lastPlayedCardsText) ? "None" : lastPlayedCardsText;
             LastPlayedCards = CopyCards(lastPlayedCards);
             LastPlayedCardsCount = Math.Max(0, lastPlayedCardsCount);
+            HandSortMode = handSortMode;
             LastPlayedHandResult = lastPlayedHandResult;
             LastScoreResult = lastScoreResult;
             LastBaseScoreResult = lastBaseScoreResult ?? lastScoreResult;

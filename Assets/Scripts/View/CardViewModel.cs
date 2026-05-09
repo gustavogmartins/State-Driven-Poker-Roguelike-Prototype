@@ -15,4 +15,7 @@ public sealed class CardViewModel {
     public bool CanSell;
     public bool IsSellSelected;
     public string SellButtonText;
+    public bool HasTooltip;
+    public string TooltipTitleText;
+    public string TooltipBodyText;
 }

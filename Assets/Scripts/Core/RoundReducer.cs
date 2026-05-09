@@ -75,7 +75,8 @@ namespace Core {
                 lastPlayedHandResult: handResult.HandType,
                 lastScoreResult: scoreResult,
                 playedCards: playedCards,
-                lastBaseScoreResult: baseScoreResult
+                lastBaseScoreResult: baseScoreResult,
+                handSortMode: state.HandSortMode
             );
         }
 
@@ -147,7 +148,8 @@ namespace Core {
                 lastPlayedHandResult: PokerHandType.None,
                 lastScoreResult: ScoreResult.Zero,
                 lastBaseScoreResult: ScoreResult.Zero,
-                discardedCards: discardedCards
+                discardedCards: discardedCards,
+                handSortMode: state.HandSortMode
             );
         }
 
@@ -159,8 +161,7 @@ namespace Core {
             int cardsNeeded = Math.Max(0, state.MaxHandSize - state.HandCards.Count);
             var drawResult = DeckUtility.DrawCards(state.DeckCards, cardsNeeded);
 
-            var newHand = new List<CardData>(state.HandCards);
-            newHand.AddRange(drawResult.DrawnCards);
+            List<CardData> newHand = BuildRefilledHand(state.HandCards, drawResult.DrawnCards, state.HandSortMode);
 
             var newDiscardPile = new List<CardData>(state.DiscardPileCards);
             newDiscardPile.AddRange(state.DiscardedCards);
@@ -185,7 +186,8 @@ namespace Core {
                 lastScoreResult: state.LastScoreResult,
                 lastBaseScoreResult: state.LastBaseScoreResult,
                 playedCards: state.PlayedCards,
-                discardedCards: Array.Empty<CardData>()
+                discardedCards: Array.Empty<CardData>(),
+                handSortMode: state.HandSortMode
             );
         }
 
@@ -197,8 +199,7 @@ namespace Core {
             int cardsNeeded = Math.Max(0, state.MaxHandSize - state.HandCards.Count);
             var drawResult = DeckUtility.DrawCards(state.DeckCards, cardsNeeded);
 
-            var newHand = new List<CardData>(state.HandCards);
-            newHand.AddRange(drawResult.DrawnCards);
+            List<CardData> newHand = BuildRefilledHand(state.HandCards, drawResult.DrawnCards, state.HandSortMode);
 
             var newDiscardPile = new List<CardData>(state.DiscardPileCards);
             newDiscardPile.AddRange(state.PlayedCards);
@@ -226,7 +227,8 @@ namespace Core {
                 lastScoreResult: state.LastScoreResult,
                 lastBaseScoreResult: state.LastBaseScoreResult,
                 playedCards: Array.Empty<CardData>(),
-                discardedCards: state.DiscardedCards
+                discardedCards: state.DiscardedCards,
+                handSortMode: state.HandSortMode
             );
         }
 
@@ -241,7 +243,8 @@ namespace Core {
                     .OrderByDescending(card => GetRankSortValue(card.Rank))
                     .ThenBy(card => GetSuitSortValue(card.Suit))
                     .ToList(),
-                "Sorted by rank"
+                "Sorted by rank",
+                HandSortMode.Rank
             );
         }
 
@@ -256,11 +259,16 @@ namespace Core {
                     .OrderBy(card => GetSuitSortValue(card.Suit))
                     .ThenByDescending(card => GetRankSortValue(card.Rank))
                     .ToList(),
-                "Sorted by suit"
+                "Sorted by suit",
+                HandSortMode.Suit
             );
         }
 
-        private static RoundState CreateSortedState(RoundState state, List<CardData> sortedCards, string actionText) {
+        private static RoundState CreateSortedState(
+            RoundState state,
+            List<CardData> sortedCards,
+            string actionText,
+            HandSortMode handSortMode) {
             var selectedCards = state.GetSelectedCards();
             var selectedIndexes = new List<int>();
 
@@ -277,7 +285,8 @@ namespace Core {
                 state,
                 handCards: sortedCards,
                 selectedCardsIndexes: selectedIndexes,
-                lastActionText: actionText
+                lastActionText: actionText,
+                handSortMode: handSortMode
             );
         }
 
@@ -287,7 +296,8 @@ namespace Core {
             IReadOnlyList<CardData> playedCards = null,
             IReadOnlyList<CardData> discardedCards = null,
             IReadOnlyList<int> selectedCardsIndexes = null,
-            string lastActionText = null) {
+            string lastActionText = null,
+            HandSortMode? handSortMode = null) {
             return new RoundState(
                 blind: state.Blind,
                 targetScore: state.TargetScore,
@@ -308,8 +318,32 @@ namespace Core {
                 lastScoreResult: state.LastScoreResult,
                 lastBaseScoreResult: state.LastBaseScoreResult,
                 playedCards: playedCards ?? state.PlayedCards,
-                discardedCards: discardedCards ?? state.DiscardedCards
+                discardedCards: discardedCards ?? state.DiscardedCards,
+                handSortMode: handSortMode ?? state.HandSortMode
             );
+        }
+
+        private static List<CardData> BuildRefilledHand(
+            IReadOnlyList<CardData> existingCards,
+            IReadOnlyList<CardData> drawnCards,
+            HandSortMode handSortMode) {
+            var newHand = new List<CardData>(existingCards ?? Array.Empty<CardData>());
+            newHand.AddRange(drawnCards ?? Array.Empty<CardData>());
+            return SortCards(newHand, handSortMode);
+        }
+
+        private static List<CardData> SortCards(List<CardData> cards, HandSortMode handSortMode) {
+            return handSortMode switch {
+                HandSortMode.Rank => cards
+                    .OrderByDescending(card => GetRankSortValue(card.Rank))
+                    .ThenBy(card => GetSuitSortValue(card.Suit))
+                    .ToList(),
+                HandSortMode.Suit => cards
+                    .OrderBy(card => GetSuitSortValue(card.Suit))
+                    .ThenByDescending(card => GetRankSortValue(card.Rank))
+                    .ToList(),
+                _ => cards
+            };
         }
 
         private static string BuildPlayActionText(PokerHandType handType, int finalScore, bool blindCleared, bool roundLost, string jokerFeedbackText) {

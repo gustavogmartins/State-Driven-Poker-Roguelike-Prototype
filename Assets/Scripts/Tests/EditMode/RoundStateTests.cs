@@ -252,6 +252,62 @@ public sealed class RoundStateTests {
         Assert.That(state.TargetScore, Is.EqualTo(750));
     }
 
+    [Test]
+    public void CreateInitial_StartsWithoutPersistentHandSort() {
+        RoundState state = RoundState.CreateInitial();
+
+        Assert.That(state.HandSortMode, Is.EqualTo(HandSortMode.None));
+    }
+
+    [Test]
+    public void ScorePresentationFinished_WhenHandWasSortedByRank_RefillsAndKeepsRankSort() {
+        CardData twoClubs = TestCardFactory.Create(Rank.Two, Suit.Clubs);
+        CardData kingHearts = TestCardFactory.Create(Rank.King, Suit.Hearts);
+        CardData aceSpades = TestCardFactory.Create(Rank.Ace, Suit.Spades);
+        CardData queenDiamonds = TestCardFactory.Create(Rank.Queen, Suit.Diamonds);
+
+        var state = CreateState(
+            handCards: new[] { twoClubs, kingHearts, aceSpades },
+            deckCards: new[] { queenDiamonds },
+            targetScore: 1000,
+            handsLeft: 2,
+            maxHandSize: 3
+        );
+
+        RoundState sortedState = RoundReducer.Reduce(state, new SortHandByRankAction());
+        RoundState selectedState = RoundReducer.Reduce(sortedState, new ToggleCardSelectionAction(0));
+        RoundState scoringState = RoundReducer.Reduce(selectedState, new PlaySelectedCardsAction());
+        RoundState nextState = RoundReducer.Reduce(scoringState, new ScorePresentationFinishedAction());
+
+        Assert.That(nextState.HandSortMode, Is.EqualTo(HandSortMode.Rank));
+        Assert.That(nextState.HandCards, Is.EqualTo(new[] { kingHearts, queenDiamonds, twoClubs }));
+        Assert.That(nextState.SelectedCardsCount, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void DiscardPresentationFinished_WhenHandWasSortedBySuit_RefillsAndKeepsSuitSort() {
+        CardData aceHearts = TestCardFactory.Create(Rank.Ace, Suit.Hearts);
+        CardData kingClubs = TestCardFactory.Create(Rank.King, Suit.Clubs);
+        CardData queenSpades = TestCardFactory.Create(Rank.Queen, Suit.Spades);
+        CardData aceClubs = TestCardFactory.Create(Rank.Ace, Suit.Clubs);
+
+        var state = CreateState(
+            handCards: new[] { aceHearts, kingClubs, queenSpades },
+            deckCards: new[] { aceClubs },
+            discardsLeft: 1,
+            maxHandSize: 3
+        );
+
+        RoundState sortedState = RoundReducer.Reduce(state, new SortHandBySuitAction());
+        RoundState selectedState = RoundReducer.Reduce(sortedState, new ToggleCardSelectionAction(1));
+        RoundState discardingState = RoundReducer.Reduce(selectedState, new DiscardSelectedCardsAction());
+        RoundState nextState = RoundReducer.Reduce(discardingState, new DiscardPresentationFinishedAction());
+
+        Assert.That(nextState.HandSortMode, Is.EqualTo(HandSortMode.Suit));
+        Assert.That(nextState.HandCards, Is.EqualTo(new[] { aceClubs, kingClubs, queenSpades }));
+        Assert.That(nextState.SelectedCardsCount, Is.EqualTo(0));
+    }
+
     private static RoundState CreateState(
         IReadOnlyList<CardData> handCards,
         BlindState blind = null,

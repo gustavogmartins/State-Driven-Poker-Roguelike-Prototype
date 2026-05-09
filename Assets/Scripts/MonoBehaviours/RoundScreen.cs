@@ -61,11 +61,10 @@ public class RoundScreen : MonoBehaviour {
     [SerializeField] private GameObject roundEndOverlay;
 
     [SerializeField] private Image roundEndBannerImage;
+    [SerializeField] private Button roundEndBannerButton;
     [SerializeField] private TextMeshProUGUI roundEndBannerText;
     [SerializeField] private TextMeshProUGUI roundEndSummaryText;
     [SerializeField] private TextMeshProUGUI roundEndDetailsText;
-    [SerializeField] private Button newRunButton;
-    [SerializeField] private TextMeshProUGUI newRunButtonLabel;
     [SerializeField] private Button exitButton;
 
     [Header("Shop Overlay")]
@@ -198,8 +197,9 @@ public class RoundScreen : MonoBehaviour {
         ClearCardArea(upperGlassArea);
 
         for (int i = 0; i < ownedJokers.Count; i++) {
+            CardViewModel ownedJoker = ownedJokers[i];
             var cardView = Instantiate(cardViewPrefab, upperGlassArea);
-            cardView.Bind(ownedJokers[i]);
+            cardView.Bind(ownedJoker);
             cardView.OnCardSelected += HandleOwnedJokerSelected;
             cardView.OnSellRequested += HandleOwnedJokerSell;
         }
@@ -318,8 +318,8 @@ public class RoundScreen : MonoBehaviour {
             roundEndDetailsText.text = viewModel.RoundEndDetailsText;
         }
 
-        if (newRunButtonLabel != null) {
-            newRunButtonLabel.text = viewModel.RoundEndPrimaryActionText;
+        if (roundEndBannerButton != null) {
+            roundEndBannerButton.interactable = viewModel.ShowRoundEndOverlay;
         }
     }
 
@@ -413,17 +413,30 @@ public class RoundScreen : MonoBehaviour {
         }
 
         roundEndBannerImage ??= FindOverlayComponent<Image>("Panel/Banner");
+        roundEndBannerButton ??= FindOverlayComponent<Button>("Panel/Banner");
+        if (roundEndBannerButton == null && roundEndBannerImage != null) {
+            roundEndBannerButton = roundEndBannerImage.GetComponent<Button>();
+            if (roundEndBannerButton == null) {
+                roundEndBannerButton = roundEndBannerImage.gameObject.AddComponent<Button>();
+            }
+
+            roundEndBannerButton.targetGraphic = roundEndBannerImage;
+        }
+
         roundEndBannerText ??= FindOverlayComponent<TextMeshProUGUI>("Panel/Banner/BannerText");
         roundEndSummaryText ??= FindOverlayComponent<TextMeshProUGUI>("Panel/SummaryText");
         roundEndDetailsText ??= FindOverlayComponent<TextMeshProUGUI>("Panel/DetailsText");
-        newRunButton ??= FindOverlayComponent<Button>("Panel/NewRunButton");
-        newRunButtonLabel ??= FindOverlayComponent<TextMeshProUGUI>("Panel/NewRunButton/Label");
         exitButton ??= FindOverlayComponent<Button>("Panel/ExitButton");
     }
 
     private void ResolveShopOverlayReferences() {
         if (shopOverlay == null) {
             return;
+        }
+
+        Image shopPanelImage = FindOverlayComponent<Image>(shopOverlay, "Panel");
+        if (shopPanelImage != null) {
+            shopPanelImage.raycastTarget = false;
         }
 
         shopBannerText ??= FindOverlayComponent<TextMeshProUGUI>(shopOverlay, "Panel/Banner/BannerText");
@@ -507,8 +520,8 @@ public class RoundScreen : MonoBehaviour {
     }
 
     private void RegisterButtonListeners() {
-        if (newRunButton != null) {
-            newRunButton.onClick.AddListener(HandlePrimaryRoundEndAction);
+        if (roundEndBannerButton != null) {
+            roundEndBannerButton.onClick.AddListener(HandlePrimaryRoundEndAction);
         }
 
         if (exitButton != null) {
@@ -533,8 +546,8 @@ public class RoundScreen : MonoBehaviour {
     }
 
     private void UnregisterButtonListeners() {
-        if (newRunButton != null) {
-            newRunButton.onClick.RemoveListener(HandlePrimaryRoundEndAction);
+        if (roundEndBannerButton != null) {
+            roundEndBannerButton.onClick.RemoveListener(HandlePrimaryRoundEndAction);
         }
 
         if (exitButton != null) {
