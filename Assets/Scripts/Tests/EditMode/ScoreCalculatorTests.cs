@@ -1,3 +1,4 @@
+using Core;
 using NUnit.Framework;
 
 public sealed class ScoreCalculatorTests {
@@ -189,5 +190,52 @@ public sealed class ScoreCalculatorTests {
         Assert.That(result.CardChips, Is.EqualTo(35));
         Assert.That(result.TotalChips, Is.EqualTo(135));
         Assert.That(result.FinalScore, Is.EqualTo(1080));
+    }
+
+    [Test]
+    public void GetScoringCardContributions_WhenHighCard_ReturnsHighestCardOnly() {
+        CardData ace = TestCardFactory.Create(Rank.Ace, Suit.Spades);
+        CardData seven = TestCardFactory.Create(Rank.Seven, Suit.Hearts);
+        CardData three = TestCardFactory.Create(Rank.Three, Suit.Clubs);
+        CardData[] cards = { ace, seven, three };
+
+        PokerHandResult handResult = PokerHandEvaluator.Evaluate(cards);
+        var contributions = ScoreCalculator.GetScoringCardContributions(cards, handResult);
+
+        Assert.That(contributions, Has.Count.EqualTo(1));
+        Assert.That(contributions[0].Card, Is.EqualTo(ace));
+        Assert.That(contributions[0].ChipValue, Is.EqualTo(11));
+    }
+
+    [Test]
+    public void GetScoringCardContributions_WhenPair_ReturnsOnlyPairCards() {
+        CardData aceSpades = TestCardFactory.Create(Rank.Ace, Suit.Spades);
+        CardData aceHearts = TestCardFactory.Create(Rank.Ace, Suit.Hearts);
+        CardData king = TestCardFactory.Create(Rank.King, Suit.Clubs);
+        CardData[] cards = { aceSpades, aceHearts, king };
+
+        PokerHandResult handResult = PokerHandEvaluator.Evaluate(cards);
+        var contributions = ScoreCalculator.GetScoringCardContributions(cards, handResult);
+
+        Assert.That(contributions, Has.Count.EqualTo(2));
+        Assert.That(contributions[0].Card, Is.EqualTo(aceSpades));
+        Assert.That(contributions[0].ChipValue, Is.EqualTo(11));
+        Assert.That(contributions[1].Card, Is.EqualTo(aceHearts));
+        Assert.That(contributions[1].ChipValue, Is.EqualTo(11));
+    }
+
+    [Test]
+    public void GetScoringCardContributions_WhenBossBlindDebuffsCard_SkipsDebuffedCard() {
+        CardData aceClubs = TestCardFactory.Create(Rank.Ace, Suit.Clubs);
+        CardData aceHearts = TestCardFactory.Create(Rank.Ace, Suit.Hearts);
+        CardData king = TestCardFactory.Create(Rank.King, Suit.Spades);
+        CardData[] cards = { aceClubs, aceHearts, king };
+
+        PokerHandResult handResult = PokerHandEvaluator.Evaluate(cards);
+        var contributions = ScoreCalculator.GetScoringCardContributions(cards, handResult, new BlindState(BlindType.Boss, 1));
+
+        Assert.That(contributions, Has.Count.EqualTo(1));
+        Assert.That(contributions[0].Card, Is.EqualTo(aceHearts));
+        Assert.That(contributions[0].ChipValue, Is.EqualTo(11));
     }
 }

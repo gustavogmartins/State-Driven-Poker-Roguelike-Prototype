@@ -17,6 +17,18 @@ namespace View {
         public string AnteText;
         public string RoundText;
         public string PhaseText;
+        public RoundPhase Phase;
+        public bool HasScorePresentation;
+        public int ScoreStartRoundScore;
+        public int ScoreTargetRoundScore;
+        public int ScoreBaseChips;
+        public int ScoreTargetChips;
+        public int ScoreBaseMult;
+        public int ScoreTargetBaseMult;
+        public int ScoreTargetMultMultiplier;
+        public int ScoreFinalScore;
+        public int ScoreBonusChips;
+        public int ScoreBonusMult;
         public string StatusText;
         public string SelectedCountText;
         public string DeckCountText;
@@ -42,5 +54,22 @@ namespace View {
         public readonly List<CardViewModel> OwnedJokerCards = new();
         public readonly List<CardViewModel> HandCards = new();
         public readonly List<CardViewModel> PlayedCards = new();
+        public readonly List<CardViewModel> DiscardedCards = new();
+
+        public IEnumerable<CardViewModel> GameplayCards {
+            get {
+                foreach (CardViewModel card in HandCards) {
+                    yield return card;
+                }
+
+                foreach (CardViewModel card in PlayedCards) {
+                    yield return card;
+                }
+
+                foreach (CardViewModel card in DiscardedCards) {
+                    yield return card;
+                }
+            }
+        }
     }
 }

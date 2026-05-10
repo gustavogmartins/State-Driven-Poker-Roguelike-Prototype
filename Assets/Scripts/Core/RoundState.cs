@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using UnityEngine;
 
 namespace Core {
     public sealed class RoundState {
@@ -19,6 +18,8 @@ namespace Core {
         public int DiscardsLeft { get; }
         public RoundPhase Phase { get; }
         public IReadOnlyList<CardData> HandCards { get; }
+        public IReadOnlyList<CardData> PlayedCards { get; }
+        public IReadOnlyList<CardData> DiscardedCards { get; }
         public IReadOnlyList<CardData> DeckCards { get; }
         public IReadOnlyList<CardData> DiscardPileCards { get; }
         public IReadOnlyList<int> SelectedCardsIndexes { get; }
@@ -27,18 +28,20 @@ namespace Core {
         public IReadOnlyList<CardData> LastPlayedCards { get; }
         public int LastPlayedCardsCount { get; }
         public int MaxHandSize { get; }
+        public HandSortMode HandSortMode { get; }
         public PokerHandType LastPlayedHandResult { get; }
         public ScoreResult LastScoreResult { get; }
+        public ScoreResult LastBaseScoreResult { get; }
         public int BlindReward => Blind.Reward;
-        public int RemainingScore => Mathf.Max(0, TargetScore - CurrentScore);
+        public int RemainingScore => Math.Max(0, TargetScore - CurrentScore);
         public int SelectedCardsCount => SelectedCardsIndexes.Count;
         public bool IsRoundOver => Phase == RoundPhase.RoundEnd;
         public bool HasClearedBlind => CurrentScore >= TargetScore;
         public bool HasWonRound => IsRoundOver && HasClearedBlind;
         public bool HasLostRound => IsRoundOver && !HasClearedBlind && HandsLeft == 0;
-        public bool CanPlaySelectedCards => !IsRoundOver && SelectedCardsCount > 0 && HandsLeft > 0;
-        public bool CanDiscardSelectedCards => !IsRoundOver && SelectedCardsCount > 0 && DiscardsLeft > 0;
-        public bool CanSortHand => !IsRoundOver && HandCards.Count > 1;
+        public bool CanPlaySelectedCards => Phase == RoundPhase.PlayerTurn && SelectedCardsCount > 0 && HandsLeft > 0;
+        public bool CanDiscardSelectedCards => Phase == RoundPhase.PlayerTurn && SelectedCardsCount > 0 && DiscardsLeft > 0;
+        public bool CanSortHand => Phase == RoundPhase.PlayerTurn && HandCards.Count > 1;
 
         public RoundState(
             BlindState blind,
@@ -57,7 +60,11 @@ namespace Core {
             IReadOnlyList<CardData> lastPlayedCards,
             int lastPlayedCardsCount,
             PokerHandType lastPlayedHandResult,
-            ScoreResult lastScoreResult) {
+            ScoreResult lastScoreResult,
+            IReadOnlyList<CardData> playedCards = null,
+            IReadOnlyList<CardData> discardedCards = null,
+            ScoreResult? lastBaseScoreResult = null,
+            HandSortMode handSortMode = HandSortMode.None) {
             if (blind == null) {
                 throw new ArgumentNullException(nameof(blind));
             }
@@ -91,14 +98,18 @@ namespace Core {
             MaxHandSize = maxHandSize;
             DeckCards = CopyCards(deckCards);
             HandCards = CopyCards(handCards);
+            PlayedCards = CopyCards(playedCards);
+            DiscardedCards = CopyCards(discardedCards);
             DiscardPileCards = CopyCards(discardPileCards);
             SelectedCardsIndexes = SanitizeSelectedIndexes(selectedCardsIndexes, HandCards.Count);
             LastActionText = string.IsNullOrWhiteSpace(lastActionText) ? "Waiting for input" : lastActionText;
             LastPlayedCardsText = string.IsNullOrWhiteSpace(lastPlayedCardsText) ? "None" : lastPlayedCardsText;
             LastPlayedCards = CopyCards(lastPlayedCards);
-            LastPlayedCardsCount = Mathf.Max(0, lastPlayedCardsCount);
+            LastPlayedCardsCount = Math.Max(0, lastPlayedCardsCount);
+            HandSortMode = handSortMode;
             LastPlayedHandResult = lastPlayedHandResult;
             LastScoreResult = lastScoreResult;
+            LastBaseScoreResult = lastBaseScoreResult ?? lastScoreResult;
         }
 
         public static RoundState CreateInitial(
@@ -120,7 +131,7 @@ namespace Core {
                 handCards = new List<CardData>(initialHandCards.Take(maxHandSize));
                 deckCards = RemoveCardsFromDeck(shuffledDeck, handCards);
 
-                int cardsNeeded = Mathf.Max(0, maxHandSize - handCards.Count);
+                int cardsNeeded = Math.Max(0, maxHandSize - handCards.Count);
                 if (cardsNeeded > 0) {
                     var drawResult = DeckUtility.DrawCards(deckCards, cardsNeeded);
                     handCards.AddRange(drawResult.DrawnCards);
@@ -149,7 +160,10 @@ namespace Core {
                 lastPlayedCards: Array.Empty<CardData>(),
                 lastPlayedCardsCount: 0,
                 lastPlayedHandResult: PokerHandType.None,
-                lastScoreResult: ScoreResult.Zero
+                lastScoreResult: ScoreResult.Zero,
+                playedCards: Array.Empty<CardData>(),
+                discardedCards: Array.Empty<CardData>(),
+                lastBaseScoreResult: ScoreResult.Zero
             );
         }
 
@@ -158,6 +172,10 @@ namespace Core {
         }
 
         public bool IsSelected(int index) {
+            if (Phase != RoundPhase.PlayerTurn) {
+                return false;
+            }
+
             return SelectedCardsIndexes.Contains(index);
         }
 
@@ -171,211 +189,6 @@ namespace Core {
             }
 
             return selectedCards;
-        }
-
-        public RoundState ToggleCardSelection(int index) {
-            if (IsRoundOver || index < 0 || index >= HandCards.Count) {
-                return this;
-            }
-
-            var newSelectedCardsIndexes = new List<int>(SelectedCardsIndexes);
-            bool wasSelected = newSelectedCardsIndexes.Contains(index);
-
-            if (wasSelected) {
-                newSelectedCardsIndexes.Remove(index);
-            } else {
-                if (newSelectedCardsIndexes.Count >= MaxSelectableCards) {
-                    return this;
-                }
-
-                newSelectedCardsIndexes.Add(index);
-            }
-
-            newSelectedCardsIndexes.Sort();
-
-            return CopyWith(
-                selectedCardsIndexes: newSelectedCardsIndexes,
-                lastActionText: wasSelected ? "Card deselected" : "Card selected"
-            );
-        }
-
-        public RoundState PlaySelectedCards(ScoreResult? overrideScoreResult = null, string jokerFeedbackText = null) {
-            if (!CanPlaySelectedCards) {
-                return this;
-            }
-
-            var selectedIndexSet = new HashSet<int>(SelectedCardsIndexes);
-            var playedCards = new List<CardData>();
-            var remainingHandCards = new List<CardData>();
-
-            for (int i = 0; i < HandCards.Count; i++) {
-                if (selectedIndexSet.Contains(i)) {
-                    playedCards.Add(HandCards[i]);
-                } else {
-                    remainingHandCards.Add(HandCards[i]);
-                }
-            }
-
-            var handResult = PokerHandEvaluator.Evaluate(playedCards);
-            var scoreResult = overrideScoreResult ?? ScoreCalculator.Calculate(playedCards, handResult, Blind);
-            int cardsNeeded = Mathf.Max(0, MaxHandSize - remainingHandCards.Count);
-            var drawResult = DeckUtility.DrawCards(DeckCards, cardsNeeded);
-
-            var newHand = new List<CardData>(remainingHandCards);
-            newHand.AddRange(drawResult.DrawnCards);
-
-            var newDiscardPile = new List<CardData>(DiscardPileCards);
-            newDiscardPile.AddRange(playedCards);
-
-            int newHandsLeft = Mathf.Max(0, HandsLeft - 1);
-            int newCurrentScore = CurrentScore + scoreResult.FinalScore;
-            bool blindCleared = newCurrentScore >= TargetScore;
-            bool roundLost = !blindCleared && newHandsLeft == 0;
-
-            return new RoundState(
-                blind: Blind,
-                targetScore: TargetScore,
-                currentScore: newCurrentScore,
-                handsLeft: newHandsLeft,
-                discardsLeft: DiscardsLeft,
-                phase: blindCleared || roundLost ? RoundPhase.RoundEnd : RoundPhase.PlayerTurn,
-                maxHandSize: MaxHandSize,
-                deckCards: drawResult.RemainingDeck,
-                handCards: newHand,
-                discardPileCards: newDiscardPile,
-                selectedCardsIndexes: Array.Empty<int>(),
-                lastActionText: BuildPlayActionText(handResult.HandType, scoreResult.FinalScore, blindCleared, roundLost, jokerFeedbackText),
-                lastPlayedCardsText: FormatPlayedCardsText(playedCards),
-                lastPlayedCards: playedCards,
-                lastPlayedCardsCount: playedCards.Count,
-                lastPlayedHandResult: handResult.HandType,
-                lastScoreResult: scoreResult
-            );
-        }
-
-        public RoundState DiscardCards() {
-            if (!CanDiscardSelectedCards) {
-                return this;
-            }
-
-            var selectedIndexSet = new HashSet<int>(SelectedCardsIndexes);
-            var discardedCards = new List<CardData>();
-            var remainingHandCards = new List<CardData>();
-
-            for (int i = 0; i < HandCards.Count; i++) {
-                if (selectedIndexSet.Contains(i)) {
-                    discardedCards.Add(HandCards[i]);
-                } else {
-                    remainingHandCards.Add(HandCards[i]);
-                }
-            }
-
-            int cardsNeeded = Mathf.Max(0, MaxHandSize - remainingHandCards.Count);
-            var drawResult = DeckUtility.DrawCards(DeckCards, cardsNeeded);
-
-            var newHand = new List<CardData>(remainingHandCards);
-            newHand.AddRange(drawResult.DrawnCards);
-
-            var newDiscardPile = new List<CardData>(DiscardPileCards);
-            newDiscardPile.AddRange(discardedCards);
-
-            int newDiscardsLeft = Mathf.Max(0, DiscardsLeft - 1);
-            string lastActionText = newDiscardsLeft == 0
-                ? $"Discarded {discardedCards.Count} card(s). No discards left"
-                : $"Discarded {discardedCards.Count} card(s)";
-
-            return new RoundState(
-                blind: Blind,
-                targetScore: TargetScore,
-                currentScore: CurrentScore,
-                handsLeft: HandsLeft,
-                discardsLeft: newDiscardsLeft,
-                phase: RoundPhase.PlayerTurn,
-                maxHandSize: MaxHandSize,
-                deckCards: drawResult.RemainingDeck,
-                handCards: newHand,
-                discardPileCards: newDiscardPile,
-                selectedCardsIndexes: Array.Empty<int>(),
-                lastActionText: lastActionText,
-                lastPlayedCardsText: FormatPlayedCardsText(discardedCards),
-                lastPlayedCards: Array.Empty<CardData>(),
-                lastPlayedCardsCount: discardedCards.Count,
-                lastPlayedHandResult: PokerHandType.None,
-                lastScoreResult: ScoreResult.Zero
-            );
-        }
-
-        public RoundState SortHandByRank() {
-            if (!CanSortHand) {
-                return this;
-            }
-
-            return CreateSortedState(
-                HandCards
-                    .OrderByDescending(card => GetRankSortValue(card.Rank))
-                    .ThenBy(card => GetSuitSortValue(card.Suit))
-                    .ToList(),
-                "Sorted by rank"
-            );
-        }
-
-        public RoundState SortHandBySuit() {
-            if (!CanSortHand) {
-                return this;
-            }
-
-            return CreateSortedState(
-                HandCards
-                    .OrderBy(card => GetSuitSortValue(card.Suit))
-                    .ThenByDescending(card => GetRankSortValue(card.Rank))
-                    .ToList(),
-                "Sorted by suit"
-            );
-        }
-
-        private RoundState CreateSortedState(List<CardData> sortedCards, string actionText) {
-            var selectedCards = GetSelectedCards();
-            var selectedIndexes = new List<int>();
-
-            foreach (var selectedCard in selectedCards) {
-                int selectedIndex = sortedCards.IndexOf(selectedCard);
-                if (selectedIndex >= 0) {
-                    selectedIndexes.Add(selectedIndex);
-                }
-            }
-
-            selectedIndexes.Sort();
-
-            return CopyWith(
-                handCards: sortedCards,
-                selectedCardsIndexes: selectedIndexes,
-                lastActionText: actionText
-            );
-        }
-
-        private RoundState CopyWith(
-            IReadOnlyList<CardData> handCards = null,
-            IReadOnlyList<int> selectedCardsIndexes = null,
-            string lastActionText = null) {
-            return new RoundState(
-                blind: Blind,
-                targetScore: TargetScore,
-                currentScore: CurrentScore,
-                handsLeft: HandsLeft,
-                discardsLeft: DiscardsLeft,
-                phase: Phase,
-                maxHandSize: MaxHandSize,
-                deckCards: DeckCards,
-                handCards: handCards ?? HandCards,
-                discardPileCards: DiscardPileCards,
-                selectedCardsIndexes: selectedCardsIndexes ?? SelectedCardsIndexes,
-                lastActionText: lastActionText ?? LastActionText,
-                lastPlayedCardsText: LastPlayedCardsText,
-                lastPlayedCards: LastPlayedCards,
-                lastPlayedCardsCount: LastPlayedCardsCount,
-                lastPlayedHandResult: LastPlayedHandResult,
-                lastScoreResult: LastScoreResult
-            );
         }
 
         private static IReadOnlyList<CardData> CopyCards(IReadOnlyList<CardData> cards) {
@@ -411,101 +224,6 @@ namespace Core {
             }
 
             return remainingDeck;
-        }
-
-        private static string BuildPlayActionText(PokerHandType handType, int finalScore, bool blindCleared, bool roundLost, string jokerFeedbackText) {
-            string handName = FormatHandType(handType);
-            string baseText;
-
-            if (blindCleared) {
-                baseText = $"Blind cleared with {handName} for {finalScore}";
-                return AppendJokerFeedback(baseText, jokerFeedbackText);
-            }
-
-            if (roundLost) {
-                baseText = $"Round lost with {handName} for {finalScore}";
-                return AppendJokerFeedback(baseText, jokerFeedbackText);
-            }
-
-            baseText = $"Played {handName} for {finalScore}";
-            return AppendJokerFeedback(baseText, jokerFeedbackText);
-        }
-
-        private static string AppendJokerFeedback(string baseText, string jokerFeedbackText) {
-            return string.IsNullOrWhiteSpace(jokerFeedbackText)
-                ? baseText
-                : $"{baseText} | Jokers: {jokerFeedbackText}";
-        }
-
-        private static int GetRankSortValue(Rank rank) {
-            return rank switch {
-                Rank.Ace => 14,
-                Rank.King => 13,
-                Rank.Queen => 12,
-                Rank.Jack => 11,
-                _ => (int)rank
-            };
-        }
-
-        private static int GetSuitSortValue(Suit suit) {
-            return suit switch {
-                Suit.Clubs => 0,
-                Suit.Diamonds => 1,
-                Suit.Hearts => 2,
-                Suit.Spades => 3,
-                _ => 99
-            };
-        }
-
-        private static string FormatPlayedCardsText(IReadOnlyList<CardData> cards) {
-            if (cards == null || cards.Count == 0) {
-                return "None";
-            }
-
-            var parts = new List<string>();
-
-            foreach (var card in cards) {
-                parts.Add($"{FormatRank(card.Rank)}{FormatSuit(card.Suit)}");
-            }
-
-            return string.Join(", ", parts);
-        }
-
-        private static string FormatRank(Rank rank) {
-            return rank switch {
-                Rank.Jack => "J",
-                Rank.Queen => "Q",
-                Rank.King => "K",
-                Rank.Ace => "A",
-                Rank.Ten => "10",
-                _ => ((int)rank).ToString()
-            };
-        }
-
-        private static string FormatSuit(Suit suit) {
-            return suit switch {
-                Suit.Clubs => "\u2663",
-                Suit.Diamonds => "\u2666",
-                Suit.Hearts => "\u2665",
-                Suit.Spades => "\u2660",
-                _ => "?"
-            };
-        }
-
-        private static string FormatHandType(PokerHandType handType) {
-            return handType switch {
-                PokerHandType.None => "No hand",
-                PokerHandType.HighCard => "High Card",
-                PokerHandType.Pair => "Pair",
-                PokerHandType.TwoPair => "Two Pair",
-                PokerHandType.ThreeOfAKind => "Three of a Kind",
-                PokerHandType.Straight => "Straight",
-                PokerHandType.Flush => "Flush",
-                PokerHandType.FullHouse => "Full House",
-                PokerHandType.FourOfAKind => "Four of a Kind",
-                PokerHandType.StraightFlush => "Straight Flush",
-                _ => handType.ToString()
-            };
         }
     }
 }

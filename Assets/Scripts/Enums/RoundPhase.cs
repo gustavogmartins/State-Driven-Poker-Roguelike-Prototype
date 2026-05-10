@@ -2,5 +2,6 @@
     Waiting,
     PlayerTurn,
     Scoring,
+    Discarding,
     RoundEnd
 }

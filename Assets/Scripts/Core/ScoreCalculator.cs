@@ -1,6 +1,16 @@
 using System.Collections.Generic;
 using Core;
 
+public readonly struct ScoringCardContribution {
+    public ScoringCardContribution(CardData card, int chipValue) {
+        Card = card;
+        ChipValue = chipValue;
+    }
+
+    public CardData Card { get; }
+    public int ChipValue { get; }
+}
+
 public static class ScoreCalculator {
     public static ScoreResult Calculate(
         IReadOnlyList<CardData> playedCards,
@@ -16,15 +26,9 @@ public static class ScoreCalculator {
             return ScoreResult.Zero;
 
         HandBaseScore baseScore = HandBaseScoreTable.Get(handResult.HandType);
-        IReadOnlyList<CardData> scoringCards = ScoringCardSelector.SelectScoringCards(playedCards, handResult);
-
         int cardChips = 0;
-        foreach (CardData card in scoringCards) {
-            if (IsDebuffedByBlind(card, blind)) {
-                continue;
-            }
-
-            cardChips += CardChipValueUtility.GetChipValue(card);
+        foreach (ScoringCardContribution contribution in GetScoringCardContributions(playedCards, handResult, blind)) {
+            cardChips += contribution.ChipValue;
         }
 
         int totalChips = baseScore.Chips + cardChips;
@@ -37,6 +41,30 @@ public static class ScoreCalculator {
             totalChips: totalChips,
             finalScore: finalScore
         );
+    }
+
+    public static IReadOnlyList<ScoringCardContribution> GetScoringCardContributions(
+        IReadOnlyList<CardData> playedCards,
+        PokerHandResult handResult) {
+        return GetScoringCardContributions(playedCards, handResult, blind: null);
+    }
+
+    public static IReadOnlyList<ScoringCardContribution> GetScoringCardContributions(
+        IReadOnlyList<CardData> playedCards,
+        PokerHandResult handResult,
+        BlindState blind) {
+        var contributions = new List<ScoringCardContribution>();
+        IReadOnlyList<CardData> scoringCards = ScoringCardSelector.SelectScoringCards(playedCards, handResult);
+
+        foreach (CardData card in scoringCards) {
+            if (IsDebuffedByBlind(card, blind)) {
+                continue;
+            }
+
+            contributions.Add(new ScoringCardContribution(card, CardChipValueUtility.GetChipValue(card)));
+        }
+
+        return contributions;
     }
 
     private static bool IsDebuffedByBlind(CardData card, BlindState blind) {

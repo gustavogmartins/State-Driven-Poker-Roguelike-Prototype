@@ -1,6 +1,6 @@
 # Project Continuity Spec
 
-Last updated: 2026-05-04
+Last updated: 2026-05-07
 
 ## Purpose
 
@@ -34,7 +34,7 @@ Important framing:
 
 ## Docs vs Reality
 
-Older docs described a broader aspirational action/store/reducer architecture. The real codebase is currently a simpler state-driven architecture centered on `RunState`, `RoundState`, and `ShopState`.
+Older docs described a broader aspirational action/store/reducer architecture. The real codebase now implements that flow around `GameStore`, `GameAction`, reducers, and immutable state snapshots.
 
 Actually implemented today:
 
@@ -42,6 +42,9 @@ Actually implemented today:
 - one run-level gameplay state: `RunState`
 - one blind-level gameplay state: `RoundState`
 - one shop-level gameplay state: `ShopState`
+- one dispatch store: `GameStore`
+- formal action types for player/gameplay commands
+- `RunReducer`, `RoundReducer`, and `ShopReducer` as the only gameplay transition layer
 - presenter-driven UI refresh through `RoundPresenter` and `RoundViewModel`
 - card selection, play, discard, draw, sort, and score preview
 - Small Blind / Big Blind / The Club boss progression
@@ -62,7 +65,6 @@ Actually implemented today:
 
 Not implemented yet:
 
-- full action/store/reducer layer
 - boss debuff animation/audio polish
 - final slot-based hand/play-area layout
 - final portfolio media and release polish
@@ -72,7 +74,7 @@ Conclusion:
 - Milestone 1 and Milestone 2 are complete in code.
 - Milestone 3 is complete for the current v1 target and now includes structured offers, buy, sell, progressive reroll, random generation, and rarity labels.
 - Milestone 4 is complete for the current code target with additive, xMult, economy, and extra-resource jokers.
-- The next best feature slice is balance/playtest polish or portfolio polish, not a store/reducer refactor.
+- The action/store/reducer architecture is implemented; the next best feature slice is balance/playtest polish or portfolio polish.
 
 ## Current Codebase Stage
 
@@ -84,7 +86,7 @@ The project has reached:
 - a structured shop overlay with clickable offers, buy/reroll/sell/continue actions
 - deterministic random shop generation with rarity weights
 - persistent owned jokers that affect scoring, money, hands, and discards
-- 75 Edit Mode test methods covering the main domain behavior
+- Edit Mode tests covering store, reducers, core gameplay, run flow, shop flow, presenter behavior, and modifier behavior
 
 The project has not yet reached:
 
@@ -100,8 +102,10 @@ Current real flow:
 ```text
 CardView / Button click
 -> RoundScreen
--> RunState
--> RoundState / ShopState
+-> GameStore.Dispatch(GameAction)
+-> RunReducer
+-> RoundReducer / ShopReducer
+-> RunState snapshot
 -> RoundPresenter
 -> RoundViewModel
 -> RoundScreen render
@@ -111,20 +115,29 @@ Important architecture notes:
 
 - `RoundState.CreateInitial(...)` owns round bootstrap.
 - `BlindState` owns blind type, ante, reward, and target score progression.
-- `RunState` owns money, current phase, blind advancement, shop entry/exit, purchases, sells, rerolls, shop refresh count, run seed, and owned jokers.
-- `ShopState` owns next blind, offers, selected offer, offer page index, reroll state, and the run seed used for offer generation.
+- `GameStore` owns current `RunState`, dispatches actions, and emits `StateChanged` only when the state reference changes.
+- `RunReducer` owns run-level transitions, money, blind advancement, shop entry/exit, purchases, sells, rerolls, shop refresh count, run seed, and owned jokers.
+- `RoundReducer` owns blind-level card selection, play, discard, draw, sort, score application, and round end transitions.
+- `ShopReducer` owns shop-local offer selection, offer purchase flags, reroll state, and selected owned joker index for sell UI.
+- `RunState`, `RoundState`, and `ShopState` are immutable snapshots with constructors, factories, derived properties, and queries.
+- `ShopState` owns next blind, offers, selected offer, selected owned joker, offer page index, reroll state, and the run seed used for offer generation.
 - `JokerCatalog` owns joker data lookup and deterministic weighted shop offer generation.
 - `RunModifierService` applies owned joker effects to `ScoreResult`.
 - `RoundPresenter` derives UI copy, button states, card view models, shop text, and owned joker cards.
 - gameplay scripts compile through `Assets/Scripts/StateDrivenPokerRoguelike.asmdef`.
 - gameplay tests live in `Assets/Scripts/Tests/EditMode`.
 
-This is state-driven enough to be workable, but it is not yet the full action/store/reducer architecture from the original target docs.
+See `Docs/STATE_DRIVEN_ARCHITECTURE.md` for the current pipeline diagram.
 
 ### Main files that currently define the project
 
 - `Assets/Scripts/Core/RunState.cs`
 - `Assets/Scripts/Core/RoundState.cs`
+- `Assets/Scripts/Core/GameAction.cs`
+- `Assets/Scripts/Core/GameStore.cs`
+- `Assets/Scripts/Core/RunReducer.cs`
+- `Assets/Scripts/Core/RoundReducer.cs`
+- `Assets/Scripts/Core/ShopReducer.cs`
 - `Assets/Scripts/Core/BlindState.cs`
 - `Assets/Scripts/Core/ShopState.cs`
 - `Assets/Scripts/Core/ShopOfferState.cs`
@@ -380,8 +393,8 @@ Completed:
 - rarity labels in `Offer.prefab`
 - shop refresh count at run level
 - run seed at run/shop level
-- `RunState.EnterShop()`
-- `RunState.LeaveShop()`
+- `ContinueRoundEndAction` enters shop after a won blind
+- `ContinueShopAction` starts the pending blind
 - each shop phase loads a fresh deterministic random offer set
 - structured `ShopOfferViewModel`
 - `Offer.prefab`
@@ -452,11 +465,11 @@ Already present:
 - generated placeholder art
 - card prefab for presentation
 - screenshot references
+- architecture document in `Docs/STATE_DRIVEN_ARCHITECTURE.md`
 - README and continuity spec aligned to current state
 
 Still missing:
 
-- architecture diagram
 - changelog/release structure
 - gameplay capture/GIF
 - final screenshots
@@ -470,8 +483,10 @@ Still missing:
 When cards are selected:
 
 - `CardView` emits the selected index
-- `RoundScreen` calls `RunState.ToggleCardSelection`
+- `RoundScreen` dispatches `ToggleCardSelectionAction` through `GameStore`
 - `RoundScreen` re-renders
+- `GameStore` emits `StateChanged`
+- `RoundScreen` re-renders from the new `RunState`
 - `RoundPresenter` evaluates selected cards
 - `ScoreCalculator` calculates base score
 - `RunModifierService` applies owned joker modifiers
@@ -482,15 +497,15 @@ When cards are selected:
 Current shop flow:
 
 - won round shows round-end overlay
-- primary action calls `RunState.EnterShop()`
+- primary action dispatches `ContinueRoundEndAction`
 - shop overlay instantiates `Offer.prefab` slots in `ShopOverlay/Panel/OfferSlots`
-- clicking an offer slot changes `ShopState.SelectedOfferIndex`
+- clicking an offer slot dispatches `SelectShopOfferAction`
 - the selected offer slot shows its child `BuyJokerButton` when it can be bought
-- buy calls `RunState.BuyShopOffer(index)`
-- reroll calls `RunState.RerollShop()`
-- clicking a joker in `UpperGlass` during shop selects it and shows `Sell`
-- sell calls `RunState.SellOwnedJoker(index)`
-- continue calls `RunState.LeaveShop()`
+- buy dispatches `BuyShopOfferAction(index)`
+- reroll dispatches `RerollShopAction`
+- clicking a joker in `UpperGlass` during shop dispatches `SelectOwnedJokerAction`
+- sell dispatches `SellOwnedJokerAction(index)`
+- continue dispatches `ContinueShopAction`
 
 Current shop constraints:
 
@@ -526,10 +541,9 @@ This is intentionally a temporary base before a future slot-based layout system.
 
 ## Known Issues and Technical Debt
 
-- `dotnet build StateDrivenPokerRoguelike.EditModeTests.csproj --no-restore` passes locally.
+- `dotnet build StateDrivenPokerRoguelike.EditModeTests.csproj --no-restore` passed locally before the reducer/store refactor; after adding new Unity scripts, regenerate project files or verify through Unity batchmode/Test Runner.
 - Unity batchmode test run on 2026-05-04 failed because another Unity instance had this project open.
 - Manual Unity Test Runner verification is still needed.
-- Current architecture is state-driven but not full reducer/store based.
 - Card layout is still an intermediate UI solution.
 - The Club debuffs Clubs in scoring and shows card-level feedback; animation/audio polish is still open.
 - Random shop generation, rarity, and the 18-joker pool exist; balance still needs manual playtesting.
@@ -542,8 +556,7 @@ Recommended order from here:
 1. Run the Edit Mode suite manually in Unity Test Runner and do a short playthrough through multiple shops.
 2. Tune rarity weights, costs, and power after playtesting the 18-joker pool.
 3. Polish Boss Blind animation/audio feedback for `The Club`.
-4. Add portfolio polish: screenshots, gameplay GIF, architecture diagram, changelog, release tags.
-5. Consider full action/store/reducer refactor only after the playable loop is stronger.
+4. Add portfolio polish: screenshots, gameplay GIF, changelog, release tags, and final repository hygiene.
 
 ## Manual Test Checklist
 
@@ -573,15 +586,21 @@ When reopening this repository on another computer, read in this order:
 
 1. `Docs/PROJECT_CONTINUITY_SPEC.md`
 2. `README.md`
-3. `Assets/Scripts/Core/RunState.cs`
-4. `Assets/Scripts/Core/ShopState.cs`
-5. `Assets/Scripts/Core/JokerCatalog.cs`
-6. `Assets/Scripts/Core/RunModifierService.cs`
-7. `Assets/Scripts/Core/RoundState.cs`
-8. `Assets/Scripts/Presenters/RoundPresenter.cs`
-9. `Assets/Scripts/MonoBehaviours/RoundScreen.cs`
-10. `Assets/Scripts/Tests/EditMode`
-11. `Assets/Scenes/GameScene.unity`
+3. `Docs/STATE_DRIVEN_ARCHITECTURE.md`
+4. `Assets/Scripts/Core/GameAction.cs`
+5. `Assets/Scripts/Core/GameStore.cs`
+6. `Assets/Scripts/Core/RunReducer.cs`
+7. `Assets/Scripts/Core/RoundReducer.cs`
+8. `Assets/Scripts/Core/ShopReducer.cs`
+9. `Assets/Scripts/Core/RunState.cs`
+10. `Assets/Scripts/Core/ShopState.cs`
+11. `Assets/Scripts/Core/JokerCatalog.cs`
+12. `Assets/Scripts/Core/RunModifierService.cs`
+13. `Assets/Scripts/Core/RoundState.cs`
+14. `Assets/Scripts/Presenters/RoundPresenter.cs`
+15. `Assets/Scripts/MonoBehaviours/RoundScreen.cs`
+16. `Assets/Scripts/Tests/EditMode`
+17. `Assets/Scenes/GameScene.unity`
 
 After that, inspect only if needed:
 
@@ -593,11 +612,12 @@ After that, inspect only if needed:
 
 Future work should assume:
 
-- the active gameplay loop is centered on `RunState -> RoundState`
-- the active shop loop is centered on `RunState -> ShopState`
-- the active UI loop is `RoundScreen -> RoundPresenter -> RoundViewModel`
+- the active gameplay loop is centered on `RoundScreen -> GameStore.Dispatch(GameAction) -> RunReducer -> RunState`
+- blind-level transitions are owned by `RoundReducer`
+- shop-local transitions are owned by `ShopReducer`
+- the active UI projection loop is `RunState -> RoundPresenter -> RoundViewModel -> RoundScreen`
 - Milestone 1 and Milestone 2 are complete in code
 - Milestone 3 has v1 shop transaction, structured offer UI, sell flow, progressive reroll, random shop generation, and rarity labels
 - Milestone 4 is complete in code for additive, xMult, economy, extra-resource, feedback, inventory cap, and 18-joker pool behavior
 - docs in `Docs/` are current only after checking this continuity spec
-- the next implementation slice should be balance/playtest polish or portfolio polish, not store/reducer refactor
+- the next implementation slice should be balance/playtest polish or portfolio polish

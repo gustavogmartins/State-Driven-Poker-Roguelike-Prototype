@@ -24,7 +24,7 @@ public sealed class RoundPresenterBossTests {
     }
 
     [Test]
-    public void Present_WhenSelectedHandHasXMultJoker_ShowsMultiplierSuffix() {
+    public void Present_WhenSelectedHandHasXMultJoker_ShowsBaseMultAndExposesTargetMultiplier() {
         CardData[] handCards = {
             TestCardFactory.Create(Rank.Five, Suit.Spades),
             TestCardFactory.Create(Rank.Six, Suit.Hearts),
@@ -46,11 +46,13 @@ public sealed class RoundPresenterBossTests {
         );
 
         for (int i = 0; i < 5; i++) {
-            state = state.ToggleCardSelection(i);
+            state = RunReducer.Reduce(state, new ToggleCardSelectionAction(i));
         }
 
         RoundViewModel viewModel = new RoundPresenter().Present(state);
 
-        StringAssert.Contains(" x2", viewModel.MultText);
+        Assert.That(viewModel.MultText, Is.EqualTo("4"));
+        Assert.That(viewModel.ScoreTargetBaseMult, Is.EqualTo(4));
+        Assert.That(viewModel.ScoreTargetMultMultiplier, Is.EqualTo(2));
     }
 }
