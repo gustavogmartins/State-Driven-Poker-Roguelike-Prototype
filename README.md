@@ -52,8 +52,16 @@ Still missing:
 - more boss blind variety beyond The Club
 - final audio pass for score, boss, shop, and joker feedback
 - final responsive layout polish for all UI containers
-- clean portfolio screenshots, gameplay GIF, changelog, and release/tag polish
 - manual Unity Test Runner verification as part of a release checklist
+
+## Gameplay Gifs
+
+### Playing hand system
+![Gameplay Gif](Docs/Media/gameplay-score.gif)
+### Shop system
+![Gameplay Gif](Docs/Media/gameplay-shop.gif)
+### Bossing room
+![Gameplay Gif](Docs/Media/gameplay-bossDebuff.gif)
 
 ## Core Gameplay Concept
 
