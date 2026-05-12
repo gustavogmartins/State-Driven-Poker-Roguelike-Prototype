@@ -280,10 +280,8 @@ The architecture document in `Docs/STATE_DRIVEN_ARCHITECTURE.md` summarizes the 
 - [x] round-end banner as primary CTA
 - [x] persistent in-round hand sorting
 - [x] current README pass for recruiter-facing project state
-- [ ] clean final screenshots
-- [ ] gameplay GIF
-- [ ] changelog and release tags
-- [ ] documented manual release test pass
+- [x] gameplay GIF
+- [x] documented manual release test pass
 
 ## Current Gameplay Systems
 
@@ -437,15 +435,6 @@ Priority order:
 4. Polish boss blind animation/audio feedback for `The Club`.
 5. Add more joker and boss blind variety after the current portfolio slice is stable.
 6. Create a portfolio release tag with changelog and playable build notes.
-
-## Worktree Note
-
-Current local workspace notes:
-
-- `Assets/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF - Fallback.asset` is modified locally.
-- `Docs/spec_animacoes_state_driven_atualizado.md` is currently untracked.
-
-These files were not changed as part of this README update and should not be reverted without checking their intent.
 
 ## Technical Stack
 
